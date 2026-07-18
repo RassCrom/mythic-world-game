@@ -1,0 +1,478 @@
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { DEFS } from '../../shared/cards.js';
+
+const STORAGE_KEY = 'ud_locale';
+const SUPPORTED_LOCALES = ['en', 'ru'];
+
+// English copy is used as the key and therefore remains the automatic fallback.
+const RU = {
+  'Language': 'Язык',
+  'English': 'English',
+  'Russian': 'Русский',
+  'Unstable': 'Нестабильные',
+  'Dragons': 'Драконы',
+  'Build a stable of 7 dragons before your friends burn it down.': 'Соберите логово из 7 драконов, прежде чем друзья сожгут его дотла.',
+  'Your name': 'Ваше имя',
+  'e.g. Smoulder': 'например, Искра',
+  'Summoning…': 'Призываем…',
+  'Create room': 'Создать комнату',
+  'Join with a code': 'Войти по коду',
+  'Room code': 'Код комнаты',
+  'e.g. QK7XN': 'например, QK7XN',
+  'Joining…': 'Подключаемся…',
+  'Join room': 'Войти в комнату',
+  'Back': 'Назад',
+  '2–8 players · share the room code with the table': '2–8 игроков · поделитесь кодом комнаты с участниками',
+  'The Roost': 'Насест',
+  'Gather your players, then light the fire.': 'Соберите игроков — и разжигайте пламя.',
+  'Copy room code': 'Скопировать код комнаты',
+  'Copied!': 'Скопировано!',
+  'Tap to copy': 'Нажмите, чтобы скопировать',
+  'Players in the room': 'Игроки в комнате',
+  ' (you)': ' (вы)',
+  'Host': 'Ведущий',
+  'Bot': 'Бот',
+  'Remove {name}': 'Удалить {name}',
+  'Waiting for a challenger…': 'Ждём соперника…',
+  'Bot difficulty': 'Сложность бота',
+  'Easy': 'Легко',
+  'Medium': 'Средне',
+  'Hard': 'Сложно',
+  'Room full': 'Комната заполнена',
+  'Add a bot': 'Добавить бота',
+  'Start the game': 'Начать игру',
+  'Need at least 2 players': 'Нужно минимум 2 игрока',
+  'Waiting for the host to start… ({count}/8 seats filled)': 'Ждём, когда ведущий начнёт игру… (занято мест: {count}/8)',
+  'Leave room': 'Выйти из комнаты',
+  'Card Codex': 'Каталог карт',
+  'Connection lost — reconnecting…': 'Соединение потеряно — переподключаемся…',
+  'Beginning': 'Начало',
+  'Draw': 'Добор',
+  'Action': 'Действие',
+  'End': 'Конец',
+  'Start': 'Начало',
+  'Sigil': 'Печать',
+  'Their plays cannot be stopped by Instants': 'Их карты нельзя остановить Мгновенными картами',
+  'Warded': 'Под защитой',
+  'Their Dragons cannot be destroyed': 'Их драконов нельзя уничтожить',
+  'No Upgrades': 'Без улучшений',
+  'Cannot play Upgrade cards': 'Нельзя играть карты Улучшений',
+  'Scryed': 'Под наблюдением',
+  'Hand visible to everyone': 'Рука видна всем игрокам',
+  'Toads!': 'Жабы!',
+  'Their Dragons are Toads and do not count': 'Их драконы считаются жабами и не идут в зачёт',
+  'Silenced': 'Безмолвие',
+  'Cannot play Instant cards': 'Нельзя играть Мгновенные карты',
+  'Caged': 'В клетке',
+  'Discards when Dragons enter or leave': 'Сбрасывает карты при входе и уходе драконов',
+  'Cramped': 'Теснота',
+  'Max 5 Dragons': 'Не более 5 драконов',
+  'Fogged': 'В тумане',
+  'Magical Dragons lose abilities': 'Магические драконы теряют способности',
+  'Decree': 'Указ',
+  'Basic Dragons may only enter this stable': 'Обычные драконы могут входить только в это логово',
+  '{name} wins!': '{name} побеждает!',
+  '{player} is playing {card} — ROAR or pass!': '{player} играет карту «{card}» — РЫКНИТЕ или спасуйте!',
+  'Waiting for responses to {card}… ({players})': 'Ждём ответов на карту «{card}»… ({players})',
+  'Your turn — play a card or draw ({count} action left)': 'Ваш ход — сыграйте карту или доберите карту (осталось действий: {count})',
+  'Your turn — play a card or draw ({count} actions left)': 'Ваш ход — сыграйте карту или доберите карту (осталось действий: {count})',
+  'Your turn — {phase} phase': 'Ваш ход — фаза «{phase}»',
+  "{name}'s turn — {phase} phase": 'Ход игрока {name} — фаза «{phase}»',
+  'Leave the game': 'Выйти из игры',
+  'Leave game': 'Выйти из игры',
+  'Realm {code}': 'Царство {code}',
+  'Open game chronicle': 'Открыть летопись игры',
+  'Chronicle': 'Летопись',
+  'Unmute sounds': 'Включить звук',
+  'Mute sounds': 'Выключить звук',
+  'Sound off': 'Звук выключен',
+  'Sound on': 'Звук включён',
+  'Opponents': 'Соперники',
+  'Table': 'Стол',
+  'Draw pile — {count} cards': 'Колода — карт: {count}',
+  'Draw pile': 'Колода',
+  ' · {count}/2 reshuffles': ' · перемешиваний: {count}/2',
+  'Discard pile': 'Сброс',
+  'Open discard pile': 'Открыть сброс',
+  'Discard': 'Сброс',
+  'The Nest — {count} Baby Dragons': 'Гнездо — дракончиков: {count}',
+  'The Nest': 'Гнездо',
+  'Cards being played': 'Разыгрываемые карты',
+  ' · unstoppable': ' · не остановить',
+  ' · response': ' · ответ',
+  'Skip this effect': 'Пропустить эффект',
+  'Confirm ({selected}/{total})': 'Подтвердить ({selected}/{total})',
+  'Your stable': 'Ваше логово',
+  'Your hand': 'Ваша рука',
+  'Your hand, {count} cards': 'Ваша рука, карт: {count}',
+  'Choose': 'Выбрать',
+  'Play': 'Сыграть',
+  'Read': 'Прочитать',
+  'Your claws are empty.': 'В ваших когтях ни одной карты.',
+  'Play {card} on which stable?': 'В какое логово сыграть карту «{card}»?',
+  ' — not allowed': ' — недоступно',
+  'Yes': 'Да',
+  'No': 'Нет',
+  'Skip': 'Пропустить',
+  'Take nothing': 'Ничего не брать',
+  'Discard pile ({count})': 'Сброс ({count})',
+  'Nothing here yet.': 'Здесь пока пусто.',
+  'Victory!': 'Победа!',
+  'Rematch': 'Реванш',
+  'Game chronicle': 'Летопись игры',
+  'Realm history': 'История царства',
+  'Close chronicle': 'Закрыть летопись',
+  'Close': 'Закрыть',
+  'Card played': 'Карта сыграна',
+  'Score and turn actions': 'Счёт и действия хода',
+  'Top rival · {name}': 'Главный соперник · {name}',
+  'of {goal}': 'из {goal}',
+  'Pass — let {card} resolve': 'Пас — позволить карте «{card}» сработать',
+  'Let it resolve': 'Пусть сработает',
+  'PASS': 'ПАС',
+  'Draw a card and end your turn': 'Добрать карту и завершить ход',
+  'End turn &': 'Завершить ход и',
+  'DRAW': 'ДОБРАТЬ',
+  'to win': 'для победы',
+  'Your move': 'Ваш ход',
+  "{name}'s move": 'Ход игрока {name}',
+  'You': 'Вы',
+  "{seconds} seconds remaining in {name}'s turn": 'До конца хода игрока {name}: {seconds} сек.',
+  'Hurry': 'Скорее',
+  'seconds': 'секунд',
+  '{name} played': '{name} сыграл(а)',
+  "on {name}'s stable": 'в логово игрока {name}',
+  'Turn phase: {phase}': 'Фаза хода: {phase}',
+  'Host tools': 'Инструменты ведущего',
+  'Auto-resolve stuck choice': 'Автоматически завершить зависший выбор',
+  'Pass for disconnected': 'Спасовать за отключившихся',
+  'Skip disconnected turn': 'Пропустить ход отключившегося',
+  'Dragons / goal': 'Драконы / цель',
+  'Cards in hand': 'Карт в руке',
+  '{count} cards': 'Карт: {count}',
+  "Choose {name}'s stable": 'Выбрать логово игрока {name}',
+  'Empty stable': 'Пустое логово',
+  'Hand revealed by Scrying Orb': 'Рука раскрыта Всевидящей сферой',
+  'Face-down card': 'Карта рубашкой вверх',
+  'Select card': 'Выбрать карту',
+  'Counts as {count} Dragon': 'Считается за {count} дракона',
+  'Counts as {count} Dragons': 'Считается за {count} драконов',
+  'Illustration for {card}': 'Иллюстрация карты «{card}»',
+  'TOAD': 'ЖАБА',
+  'FOGGED': 'ТУМАН',
+  'STOPPED': 'ОСТАНОВЛЕНО',
+  'Wyvern': 'Виверна',
+  'Select {card}': 'Выбрать карту «{card}»',
+  'Inspect {card}': 'Рассмотреть карту «{card}»',
+  'Read {card}': 'Прочитать карту «{card}»',
+  'Baby Dragon': 'Дракончик',
+  'Basic Dragon': 'Обычный дракон',
+  'Magical Dragon': 'Магический дракон',
+  'Upgrade': 'Улучшение',
+  'Downgrade': 'Ухудшение',
+  'Magic': 'Магия',
+  'Instant': 'Мгновенная',
+  'Copies': 'Копий',
+  'Zone': 'Зона',
+  'Discard after use': 'Сброс после применения',
+  'Nest / Stable': 'Гнездо / логово',
+  'Deck': 'Колода',
+  'The Archivist’s library': 'Библиотека архивариуса',
+  '{unique} unique cards · {deck}-card draw deck · Baby Dragons live in the Nest': 'Уникальных карт: {unique} · карт в колоде: {deck} · дракончики живут в Гнезде',
+  'Close card codex': 'Закрыть каталог карт',
+  'Search cards': 'Искать карты',
+  'Search by name or effect…': 'Поиск по названию или эффекту…',
+  'Filter cards by type': 'Фильтровать карты по типу',
+  'All': 'Все',
+  '{count} matching cards': 'Подходящих карт: {count}',
+  'No cards found': 'Карты не найдены',
+  'Try a different name, effect, or card type.': 'Попробуйте другое название, эффект или тип карты.',
+  'Copy failed — the code is {code}': 'Не удалось скопировать. Код комнаты: {code}',
+  'Room {code} was not found.': 'Комната {code} не найдена.',
+  'Connection failed.': 'Не удалось подключиться.',
+  'Could not create a room.': 'Не удалось создать комнату.',
+  'Could not create a room. Is the server up?': 'Не удалось создать комнату. Сервер доступен?',
+  'Could not reach the server.': 'Не удалось связаться с сервером.',
+  'This room was opened in another tab.': 'Эта комната открыта в другой вкладке.',
+  'Bad message.': 'Некорректное сообщение.',
+  'Room no longer exists.': 'Комната больше не существует.',
+  'Join the room first.': 'Сначала войдите в комнату.',
+  'Unknown action.': 'Неизвестное действие.',
+  'Game already started. Only seated players can rejoin.': 'Игра уже началась. Вернуться могут только её участники.',
+  'Room is full (8 players max).': 'Комната заполнена (не более 8 игроков).',
+  'Only the host can add bots.': 'Только ведущий может добавлять ботов.',
+  'Bots can only be added in the lobby.': 'Ботов можно добавлять только в комнате ожидания.',
+  'Unknown difficulty.': 'Неизвестный уровень сложности.',
+  'Only the host can remove bots.': 'Только ведущий может удалять ботов.',
+  'Bots can only be removed in the lobby.': 'Ботов можно удалять только в комнате ожидания.',
+  'That is not a bot.': 'Это не бот.',
+  'Nothing to choose right now.': 'Сейчас выбирать нечего.',
+  'This choice cannot be skipped.': 'Этот выбор нельзя пропустить.',
+  'Invalid choice.': 'Недопустимый выбор.',
+  'Duplicate picks.': 'Нельзя выбрать одну карту дважды.',
+  'Unknown prompt.': 'Неизвестный запрос.',
+  'Game already started.': 'Игра уже началась.',
+  'Only the host can start the game.': 'Только ведущий может начать игру.',
+  'Need at least 2 players.': 'Нужно минимум 2 игрока.',
+  'The game is still running.': 'Игра ещё идёт.',
+  'Only the host can restart.': 'Только ведущий может начать реванш.',
+  'Unknown player.': 'Неизвестный игрок.',
+  'The game is not running.': 'Игра сейчас не идёт.',
+  'That card is not in your hand.': 'Этой карты нет в вашей руке.',
+  'There is nothing to respond to.': 'Сейчас не на что отвечать.',
+  'You cannot play Instant cards.': 'Вы не можете играть Мгновенные карты.',
+  'Instants can only be played in response to another card.': 'Мгновенные карты можно играть только в ответ на другую карту.',
+  'Queen Dragon forbids Basic Dragons from entering your stable.': 'Королева драконов не позволяет Обычным драконам входить в ваше логово.',
+  'Ruined Lair: you cannot play Upgrade cards.': 'Разрушенное логово: вы не можете играть карты Улучшений.',
+  'Invalid target stable.': 'Недопустимое целевое логово.',
+  'Choose a stable for the Downgrade.': 'Выберите логово для Ухудшения.',
+  'This card cannot be played.': 'Эту карту нельзя сыграть.',
+  'You cannot play a card right now.': 'Сейчас нельзя сыграть карту.',
+  'You cannot draw right now.': 'Сейчас нельзя добрать карту.',
+  'Nothing to pass on.': 'Сейчас нельзя спасовать.',
+  'Only the host can do that.': 'Это может сделать только ведущий.',
+  'No pending choice.': 'Нет ожидающего выбора.',
+  'No response window open.': 'Окно ответа не открыто.',
+  'Everyone awaited is still connected.': 'Все ожидаемые игроки остаются в сети.',
+  'Game is not running.': 'Игра сейчас не идёт.',
+  'Resolve the pending choice first (use auto-resolve).': 'Сначала завершите ожидающий выбор (используйте авторазрешение).',
+  'Engine safety brake engaged — please report this game state.': 'Сработала защита игрового движка — пожалуйста, сообщите об этом состоянии игры.',
+  'The discard pile was shuffled into the deck.': 'Сброс замешан в колоду.',
+  'The host reset the room — starting a rematch!': 'Ведущий сбрасывает комнату — начинается реванш!',
+  'Host passed for disconnected players.': 'Ведущий пасует за отключившихся игроков.',
+  'Dragon Snare: steal a Dragon until end of turn': 'Драконья ловушка: украдите дракона до конца хода',
+  'Return a card to its owner’s hand': 'Верните карту в руку владельца',
+  'Search the deck — pick a card for your hand': 'Найдите в колоде карту и возьмите её в руку',
+  'Pick a Dragon from the discard pile for your stable': 'Выберите дракона из сброса для своего логова',
+  'Pick a card from the discard pile for your hand': 'Выберите карту из сброса в свою руку',
+  'Pull a random card from whose hand?': 'Из чьей руки вытянуть случайную карту?',
+  'Look at whose hand?': 'Чью руку посмотреть?',
+  'Trade hands with whom?': 'С кем обменяться руками?',
+  'Choose a player to discard a card': 'Выберите игрока, который сбросит карту',
+  'Move which Upgrade or Downgrade?': 'Какое Улучшение или Ухудшение переместить?',
+  'Destroy an Upgrade, or sacrifice a Downgrade in your stable': 'Уничтожьте Улучшение или пожертвуйте Ухудшением в своём логове',
+  'You may discard a Dragon card to trigger the effect': 'Можно сбросить карту дракона, чтобы активировать эффект',
+  'You may discard a card to trigger the effect': 'Можно сбросить карту, чтобы активировать эффект',
+  'Bring a Baby Dragon from the Nest into your stable?': 'Привести дракончика из Гнезда в своё логово?',
+  'Draw an extra card with Spiked Tail?': 'Добрать дополнительную карту с помощью Шипастого хвоста?',
+  'is making a choice…': 'делает выбор…',
+};
+
+const RU_CARDS = {
+  baby_dragon: { name: 'Дракончик', text: 'Только что из яйца. Если эта карта должна покинуть ваше логово, вместо этого верните её в Гнездо.' },
+  basic_crimson: { name: 'Багровый дракон', text: 'Обычный дракон. Никаких способностей — только амбиции.', flavor: 'Сплошной огонь, никакого изящества.' },
+  basic_azure: { name: 'Лазурный дракон', text: 'Обычный дракон. Никаких способностей — только амбиции.', flavor: 'Копит дождевую воду и собственные мнения.' },
+  basic_verdant: { name: 'Изумрудный дракон', text: 'Обычный дракон. Никаких способностей — только амбиции.', flavor: 'Спит на верхушках деревьев. Храпит пыльцой.' },
+  basic_gilded: { name: 'Позолоченный дракон', text: 'Обычный дракон. Никаких способностей — только амбиции.', flavor: 'Блестит так, будто считается за двоих. Но нет.' },
+  basic_obsidian: { name: 'Обсидиановый дракон', text: 'Обычный дракон. Никаких способностей — только амбиции.', flavor: 'Драматично хмурится круглые сутки.' },
+  basic_ivory: { name: 'Дракон цвета слоновой кости', text: 'Обычный дракон. Никаких способностей — только амбиции.', flavor: 'Подозрительно вежлив для пожароопасного существа.' },
+  m_battering: { name: 'Таранный змей', text: 'В начале своего хода можете УНИЧТОЖИТЬ дракона. Если сделали это, сразу перейдите к фазе Конца.' },
+  m_cataclysm: { name: 'Дракон Катаклизма', text: 'Когда эта карта входит в ваше логово, каждый игрок должен ПОЖЕРТВОВАТЬ драконом.' },
+  m_spellscale: { name: 'Чарочешуйчатый дракончик', text: 'Эту карту нельзя уничтожить картами Магии.' },
+  m_ironclaw: { name: 'Железнокоготь', text: 'Когда эта карта входит в ваше логово, можете УНИЧТОЖИТЬ Улучшение в любом логове или ПОЖЕРТВОВАТЬ Ухудшением в своём логове.' },
+  m_harvest: { name: 'Урожайный дракон', text: 'Когда эта карта входит в ваше логово, ДОБЕРИТЕ 2 карты, затем СБРОСЬТЕ карту.' },
+  m_phoenix: { name: 'Дракон-феникс', text: 'Если эту карту должны принести в жертву или уничтожить, вместо этого можете СБРОСИТЬ карту.' },
+  m_colossal: { name: 'Колоссальный дракон', text: 'Эта карта считается за 2 драконов. Вы не можете играть Мгновенные карты.' },
+  m_stormwing: { name: 'Бурекрыл', text: 'Когда эта карта входит в ваше логово, можете взять карту Магии из сброса в руку.' },
+  m_galewing: { name: 'Шквалокрыл', text: 'Когда эта карта входит в ваше логово, можете взять Мгновенную карту из сброса в руку.' },
+  m_hoardwing: { name: 'Кладокрыл', text: 'Когда эта карта входит в ваше логово, ДОБЕРИТЕ карту.' },
+  m_baron: { name: 'Дракон-барон', text: 'Когда эта карта входит в ваше логово, вытяните случайную карту из руки другого игрока в свою.' },
+  m_bonescale: { name: 'Костечешуй', text: 'Когда эта карта входит в ваше логово, можете СБРОСИТЬ карту дракона. Если сделали это, верните дракона из сброса в своё логово.' },
+  m_alluring: { name: 'Манящая виверна', text: 'Когда эта карта входит в ваше логово, можете УКРАСТЬ Улучшение.' },
+  m_enchanting: { name: 'Чарующий дракон', text: 'Когда эта карта входит в ваше логово, можете СБРОСИТЬ карту. Если сделали это, УКРАДИТЕ дракона.' },
+  m_queen: { name: 'Королева драконов', text: 'Пока эта карта находится в вашем логове, Обычные драконы могут входить только в ваше логово.' },
+  m_guardian: { name: 'Дракон-хранитель', text: 'Если другого дракона в вашем логове должны уничтожить, вместо него можете ПОЖЕРТВОВАТЬ этой картой.' },
+  m_elder: { name: 'Старшая виверна', text: 'Когда эта карта входит в ваше логово, можете найти в колоде карту виверны и взять её в руку, затем перемешайте колоду.' },
+  m_gilded_wyv: { name: 'Позолоченная виверна', text: 'Когда эта карта входит в ваше логово, можете найти в колоде карту Улучшения и взять её в руку, затем перемешайте колоду.' },
+  m_scrappy: { name: 'Драчливая виверна', text: 'Когда эта карта входит в ваше логово, можете найти в колоде карту Ухудшения и взять её в руку, затем перемешайте колоду.' },
+  m_razorfin: { name: 'Бритвопёрая виверна', text: 'В начале своего хода можете ПОЖЕРТВОВАТЬ этой картой. Если сделали это, УНИЧТОЖЬТЕ дракона.' },
+  m_torpedo: { name: 'Виверна-торпеда', text: 'Когда эта карта входит в ваше логово, ПОЖЕРТВУЙТЕ всеми Ухудшениями в своём логове.' },
+  m_spiteclaw: { name: 'Злобнокоготь', text: 'Если эту карту приносят в жертву или уничтожают, можете УНИЧТОЖИТЬ дракона.' },
+  m_stray: { name: 'Бродячий дракончик', text: 'В начале хода каждого игрока эта карта перемещается в его логово. Эту карту нельзя принести в жертву или уничтожить.' },
+  m_seraph: { name: 'Дракон-серафим', text: 'Если эту карту приносят в жертву или уничтожают, можете привести дракончика из Гнезда в своё логово.' },
+  m_tidal: { name: 'Приливный дракон', text: 'Когда эта карта входит в ваше логово, можете вернуть карту из логова другого игрока в его руку.' },
+  m_nagging: { name: 'Назойливый дракон', text: 'Когда эта карта входит в ваше логово, каждый игрок должен СБРОСИТЬ карту.' },
+  m_pest: { name: 'Дракон-вредитель', text: 'Когда эта карта входит в ваше логово, можете выбрать другого игрока. Он должен СБРОСИТЬ карту.' },
+  u_sigil: { name: 'Древняя печать', text: 'Сыгранные вами карты нельзя остановить Мгновенными картами.' },
+  u_armor: { name: 'Защита драконьей чешуи', text: 'Драконов в этом логове нельзя уничтожить.' },
+  u_tail: { name: 'Шипастый хвост', text: 'Эта карта может войти только в логово с Обычным драконом. В начале своего хода можете ДОБРАТЬ дополнительную карту.' },
+  u_keg: { name: 'Пороховая бочка', text: 'В начале своего хода можете ПОЖЕРТВОВАТЬ картой. Если сделали это, УНИЧТОЖЬТЕ карту.' },
+  u_twinheads: { name: 'Две головы', text: 'В начале своего хода получите дополнительное действие на этот ход (сыграть карту или добрать карту).' },
+  u_snare: { name: 'Драконья ловушка', text: 'В начале своего хода можете УКРАСТЬ дракона. В конце хода верните его в прежнее логово.' },
+  d_cage: { name: 'Терновая клетка', text: 'Каждый раз, когда дракон входит в это логово или покидает его, владелец логова должен СБРОСИТЬ карту.' },
+  d_fog: { name: 'Подавляющий туман', text: 'Все драконы в этом логове считаются Обычными драконами без способностей.' },
+  d_lair: { name: 'Разрушенное логово', text: 'Владелец этого логова не может играть карты Улучшений.' },
+  d_orb: { name: 'Всевидящая сфера', text: 'Владелец этого логова должен держать руку открытой для всех игроков.' },
+  d_toadcurse: { name: 'Жабье проклятие', text: 'Все драконы в этом логове считаются жабами. Карты, влияющие на драконов, не влияют на жаб, а жабы не учитываются для победы.' },
+  d_tithe: { name: 'Кровавая десятина', text: 'В начале своего хода ПОЖЕРТВУЙТЕ драконом. Если сделали это, ДОБЕРИТЕ карту.' },
+  d_chains: { name: 'Тяжёлые цепи', text: 'Владелец этого логова не может играть Мгновенные карты.' },
+  d_cave: { name: 'Тесная пещера', text: 'Если в этом логове окажется больше 5 драконов, его владелец должен ПОЖЕРТВОВАТЬ драконом.' },
+  s_venom: { name: 'Яд драконоборца', text: 'УНИЧТОЖЬТЕ дракона.' },
+  s_tailswipe: { name: 'Удар хвостом', text: 'Верните карту из логова другого игрока в его руку.' },
+  s_claws: { name: 'Липкие когти', text: 'Посмотрите руку другого игрока и возьмите из неё карту.' },
+  s_fate: { name: 'Поворот судьбы', text: 'ДОБЕРИТЕ 2 карты, затем СБРОСЬТЕ 3 карты.' },
+  s_gust: { name: 'Взмах крыла', text: 'Верните по одной карте из логова каждого игрока (включая своё) в руку её владельца.' },
+  s_lucky: { name: 'Счастливая находка', text: 'ДОБЕРИТЕ 3 карты, затем СБРОСЬТЕ карту.' },
+  s_maelstrom: { name: 'Магический водоворот', text: 'Каждый игрок должен СБРОСИТЬ карту. Затем замешайте сброс в колоду.' },
+  s_shift: { name: 'Перенос проклятия', text: 'Переместите Улучшение или Ухудшение из любого логова в любое другое логово.' },
+  s_slate: { name: 'С чистого листа', text: 'Каждый игрок должен ПОЖЕРТВОВАТЬ всеми Улучшениями и Ухудшениями в своём логове. Затем замешайте сброс в колоду.' },
+  s_molt: { name: 'Сезон линьки', text: 'Замешайте свою руку и сброс в колоду, затем ДОБЕРИТЕ 5 карт.' },
+  s_bargain: { name: 'Жертвенная сделка', text: 'ПОЖЕРТВУЙТЕ картой. Если сделали это, УНИЧТОЖЬТЕ 2 карты.' },
+  s_trade: { name: 'Нечестный обмен', text: 'Обменяйтесь руками с другим игроком.' },
+  i_roar: { name: 'Рык!', text: 'Играйте только в ответ на другую разыгрываемую карту. ОСТАНОВИТЕ её и отправьте в сброс.' },
+  i_primordial: { name: 'Первобытный рык', text: 'ОСТАНОВИТЕ разыгрываемую карту и отправьте её в сброс. Эту карту нельзя остановить.' },
+};
+
+const CARD_NAME_RU = Object.fromEntries(
+  Object.entries(RU_CARDS).map(([id, value]) => [DEFS[id]?.name, value.name]).filter(([name]) => name),
+);
+
+function interpolate(template, vars = {}) {
+  return String(template).replace(/\{(\w+)\}/g, (match, key) => (
+    vars[key] === undefined || vars[key] === null ? match : String(vars[key])
+  ));
+}
+
+function russianCardName(name) {
+  return CARD_NAME_RU[name] || name;
+}
+
+function russianReason(reason) {
+  return reason === 'hand limit' ? 'лимит руки' : russianCardName(reason);
+}
+
+function russianGameTerm(term) {
+  return {
+    Dragon: 'дракона',
+    'Basic Dragon': 'Обычного дракона',
+    Upgrade: 'Улучшение',
+    Downgrade: 'Ухудшение',
+    'Upgrade or Downgrade': 'Улучшение или Ухудшение',
+    card: 'карту',
+  }[term] || term;
+}
+
+function translateDynamicRussian(input) {
+  const rules = [
+    [/^Pick exactly (\d+) cards?\.$/, (n) => `Выберите ровно ${n} карт(ы).`],
+    [/^Room (.+) was not found\.$/, (code) => `Комната ${code} не найдена.`],
+    [/^(.+) already has (.+)\.$/, (name, card) => `У игрока ${name} уже есть карта «${russianCardName(card)}».`],
+    [/^(.+) needs a Basic Dragon in the target stable\.$/, (card) => `Для карты «${russianCardName(card)}» в целевом логове нужен Обычный дракон.`],
+    [/^Discard (\d+) cards?(?: \((.+)\))?$/, (n, reason) => `Сбросьте карт: ${n}${reason ? ` (${russianReason(reason)})` : ''}`],
+    [/^Destroy a (.+)$/, (what) => `Уничтожьте: ${russianGameTerm(what)}`],
+    [/^Sacrifice a (.+?)(?: \((.+)\))?$/, (what, reason) => `Пожертвуйте: ${russianGameTerm(what)}${reason ? ` (${russianReason(reason)})` : ''}`],
+    [/^Steal a (.+)$/, (what) => `Украдите: ${russianGameTerm(what)}`],
+    [/^Take a card from (.+)'s hand$/, (name) => `Возьмите карту из руки игрока ${name}`],
+    [/^Move (.+) to whose stable\?$/, (card) => `В чьё логово переместить карту «${russianCardName(card)}»?`],
+    [/^Sacrifice (.+) to destroy a Dragon\?$/, (card) => `Пожертвовать картой «${russianCardName(card)}», чтобы уничтожить дракона?`],
+    [/^Sacrifice Guardian Dragon to save (.+)\?$/, (card) => `Пожертвовать Драконом-хранителем, чтобы спасти карту «${russianCardName(card)}»?`],
+    [/^Discard a card to save (.+)\?$/, (card) => `Сбросить карту, чтобы спасти карту «${russianCardName(card)}»?`],
+    [/^(.+) gathered (\d+) Dragons and wins!$/, (name, count) => `${name} собрал(а) ${count} драконов и побеждает!`],
+    [/^The deck ran out twice — (.+) wins with the most Dragons \((\d+)\)\.$/, (name, count) => `Колода закончилась дважды — ${name} побеждает с наибольшим числом драконов (${count}).`],
+    [/^The game begins! Each player starts with a Baby Dragon and (\d+) cards\. First to (\d+) Dragons wins\.$/, (hand, goal) => `Игра начинается! Каждый игрок получает дракончика и ${hand} карт. Побеждает тот, кто первым соберёт ${goal} драконов.`],
+    [/^(.+) joined the room\.$/, (name) => `${name} входит в комнату.`],
+    [/^(.+) the automaton \((.+)\) joined the room\.$/, (name, difficulty) => `${name}, автоматон (${difficulty}), входит в комнату.`],
+    [/^(.+) the automaton was dismissed\.$/, (name) => `${name}, автоматон, удалён(а) из комнаты.`],
+    [/^(.+) left the lobby\.$/, (name) => `${name} покидает комнату ожидания.`],
+    [/^(.+) disconnected\. Their seat is saved\.$/, (name) => `${name} отключился(-ась). Место сохранено.`],
+    [/^The deck ran out — discard pile shuffled in \((\d+)\/2\)\.$/, (count) => `Колода закончилась — сброс замешан обратно (${count}/2).`],
+    [/^(.+) drew (\d+) cards?\.$/, (name, count) => `${name} добирает карт: ${count}.`],
+    [/^(.+) entered (.+)'s stable\.$/, (card, name) => `Карта «${russianCardName(card)}» входит в логово игрока ${name}.`],
+    [/^(.+) was (destroyed|sacrificed) \((.+)\)\.$/, (card, action, name) => `Карта «${russianCardName(card)}» ${action === 'destroyed' ? 'уничтожена' : 'принесена в жертву'} (${name}).`],
+    [/^(.+) was returned to the Nest\.$/, (card) => `Карта «${russianCardName(card)}» возвращена в Гнездо.`],
+    [/^(.+) was returned to (.+)'s hand\.$/, (card, name) => `Карта «${russianCardName(card)}» возвращена в руку игрока ${name}.`],
+    [/^(.+) discarded (.+)\.$/, (name, cards) => `${name} сбрасывает: ${cards.split(', ').map(russianCardName).join(', ')}.`],
+    [/^(.+) stole (.+) from (.+)!$/, (name, card, from) => `${name} крадёт карту «${russianCardName(card)}» у игрока ${from}!`],
+    [/^(.+) snared (.+) from (.+) until end of turn\.$/, (name, card, from) => `${name} ловит карту «${russianCardName(card)}» игрока ${from} до конца хода.`],
+    [/^(.+) searched the deck and took (.+)\.$/, (name, card) => `${name} находит в колоде карту «${russianCardName(card)}».`],
+    [/^(.+) raised (.+) from the discard pile!$/, (name, card) => `${name} возвращает карту «${russianCardName(card)}» из сброса!`],
+    [/^(.+) took (.+) from the discard pile\.$/, (name, card) => `${name} берёт карту «${russianCardName(card)}» из сброса.`],
+    [/^(.+) pulled a random card from (.+)'s hand\.$/, (name, from) => `${name} вытягивает случайную карту из руки игрока ${from}.`],
+    [/^(.+) took a card from (.+)'s hand\.$/, (name, from) => `${name} берёт карту из руки игрока ${from}.`],
+    [/^(.+) traded hands with (.+)!$/, (a, b) => `${a} обменивается руками с игроком ${b}!`],
+    [/^(.+) shuffled their hand and the discard pile into the deck\.$/, (name) => `${name} замешивает свою руку и сброс в колоду.`],
+    [/^(.+) was moved to (.+)'s stable\.$/, (card, name) => `Карта «${russianCardName(card)}» перемещена в логово игрока ${name}.`],
+    [/^(.+) charges ahead — skipping to their End phase\.$/, (name) => `${name} устремляется вперёд — сразу к фазе Конца.`],
+    [/^(.+) gains an extra action \(Twin Heads\)\.$/, (name) => `${name} получает дополнительное действие («Две головы»).`],
+    [/^Guardian Dragon took the blow — (.+) survives!$/, (card) => `Дракон-хранитель принимает удар — карта «${russianCardName(card)}» спасена!`],
+    [/^(.+) discarded (.+) — (.+) bursts back into flame!$/, (name, discarded, saved) => `${name} сбрасывает карту «${russianCardName(discarded)}» — карта «${russianCardName(saved)}» вновь вспыхивает!`],
+    [/^(.+) was STOPPED by a Roar and discarded!$/, (card) => `Карта «${russianCardName(card)}» ОСТАНОВЛЕНА Рыком и отправлена в сброс!`],
+    [/^(.+) fizzled — (.+) already has one\.$/, (card, name) => `Карта «${russianCardName(card)}» не срабатывает — у игрока ${name} уже есть такая.`],
+    [/^(.+) cast (.+)\.$/, (name, card) => `${name} применяет карту «${russianCardName(card)}».`],
+    [/^— (.+)'s turn —$/, (name) => `— Ход игрока ${name} —`],
+    [/^(.+) wandered into (.+)'s stable\.$/, (card, name) => `Карта «${russianCardName(card)}» забредает в логово игрока ${name}.`],
+    [/^(.+) played (.+) in response!$/, (name, card) => `${name} играет карту «${russianCardName(card)}» в ответ!`],
+    [/^(.+) is playing (.+?)(?: on (.+)'s stable)?…$/, (name, card, target) => `${name} разыгрывает карту «${russianCardName(card)}»${target ? ` в логово игрока ${target}` : ''}…`],
+    [/^(.+) is connected — let them choose\.$/, (name) => `${name} в сети — дайте игроку сделать выбор.`],
+    [/^Host auto-resolved a choice for (.+)\.$/, (name) => `Ведущий автоматически завершает выбор за ${name}.`],
+    [/^(.+) is connected — it's their turn\.$/, (name) => `${name} в сети — сейчас его/её ход.`],
+    [/^Host skipped (.+)'s turn \(disconnected\)\.$/, (name) => `Ведущий пропускает ход игрока ${name} (нет соединения).`],
+    [/^(.+)'s 60-second turn expired\. Remaining choices were resolved automatically\.$/, (name) => `60 секунд хода игрока ${name} истекли. Оставшиеся выборы завершены автоматически.`],
+  ];
+  for (const [pattern, replacement] of rules) {
+    const match = input.match(pattern);
+    if (match) return replacement(...match.slice(1));
+  }
+  return input;
+}
+
+const I18nContext = createContext(null);
+
+export function LanguageProvider({ children }) {
+  const [locale, setLocaleState] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return SUPPORTED_LOCALES.includes(saved) ? saved : 'en';
+  });
+
+  const setLocale = useCallback((nextLocale) => {
+    const safeLocale = SUPPORTED_LOCALES.includes(nextLocale) ? nextLocale : 'en';
+    localStorage.setItem(STORAGE_KEY, safeLocale);
+    setLocaleState(safeLocale);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    document.title = locale === 'ru' ? 'Нестабильные драконы' : 'Unstable Dragons';
+    const description = document.querySelector('meta[name="description"]');
+    if (description) {
+      description.content = locale === 'ru'
+        ? 'Unstable Dragons — хаотичная многопользовательская карточная игра. Соберите логово драконов раньше соперников.'
+        : 'Unstable Dragons — a chaotic multiplayer card game. Build your stable of dragons before your friends stop you.';
+    }
+  }, [locale]);
+
+  const value = useMemo(() => {
+    const t = (key, vars) => interpolate(locale === 'ru' ? (RU[key] || key) : key, vars);
+    const card = (defId) => {
+      const original = DEFS[defId];
+      if (!original || locale !== 'ru' || !RU_CARDS[defId]) return original;
+      return { ...original, ...RU_CARDS[defId] };
+    };
+    const text = (input) => {
+      if (!input || locale !== 'ru') return input;
+      return RU[input] || CARD_NAME_RU[input] || translateDynamicRussian(input);
+    };
+    return { locale, setLocale, t, card, text };
+  }, [locale, setLocale]);
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n() {
+  const context = useContext(I18nContext);
+  if (!context) throw new Error('useI18n must be used inside LanguageProvider');
+  return context;
+}
+
+export function LanguageSwitcher({ className = '' }) {
+  const { locale, setLocale, t } = useI18n();
+  return (
+    <label className={`language-switcher ${className}`.trim()}>
+      <span>{t('Language')}</span>
+      <select value={locale} onChange={(event) => setLocale(event.target.value)} aria-label={t('Language')}>
+        <option value="en">{t('English')}</option>
+        <option value="ru">{t('Russian')}</option>
+      </select>
+    </label>
+  );
+}

@@ -1,0 +1,16 @@
+name = "unstable-dragons"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# One Durable Object instance per game room (idFromName(roomCode)).
+[[durable_objects.bindings]]
+name = "GAME_ROOM"
+class_name = "GameRoom"
+
+# SQLite-backed Durable Objects (required on the free plan, recommended everywhere).
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameRoom"]
+
+[dev]
+port = 8787

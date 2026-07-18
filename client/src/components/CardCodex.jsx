@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFS, buildDeckList } from '../../../shared/cards.js';
 import CardView, { TYPE_LABEL, TypeGlyph } from './CardView.jsx';
-import { useI18n } from '../i18n.jsx';
+import { useI18n } from '../i18n/index.jsx';
 
 const TYPE_ORDER = ['all', 'baby', 'basic', 'magical', 'upgrade', 'downgrade', 'magic', 'instant'];
 const ALL_CARDS = Object.values(DEFS).sort((a, b) => {

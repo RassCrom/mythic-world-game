@@ -5,7 +5,9 @@ import Game from './components/Game.jsx';
 import CardCodex, { CodexIcon } from './components/CardCodex.jsx';
 import { Connection, createRoom, roomInfo, getToken } from './net.js';
 import { sfx } from './sound.js';
-import { useI18n } from './i18n.jsx';
+import { useI18n } from './i18n/index.jsx';
+
+const EMBER_INDICES = Array.from({ length: 14 }, (_, index) => index);
 
 export default function App() {
   const { t, text } = useI18n();
@@ -32,51 +34,52 @@ export default function App() {
     setStatus('idle');
   }, []);
 
-  const joinRoom = useCallback(async (code, name) => {
+  const connectToRoom = useCallback(async (code, name) => {
     code = code.trim().toUpperCase();
+    const info = await roomInfo(code);
+    if (!info.exists) throw new Error(`Room ${code} was not found.`);
+
+    localStorage.setItem('ud_name', name);
+    localStorage.setItem('ud_room', code);
+    connRef.current?.close();
+    connRef.current = new Connection({
+      code,
+      name,
+      token: getToken(),
+      handlers: {
+        onState: setView,
+        onStatus: setStatus,
+        onError: (msg, fatal) => {
+          showToast(msg);
+          if (fatal) leave();
+        },
+      },
+    });
+    return true;
+  }, [leave, showToast]);
+
+  const runBusy = useCallback(async (operation, fallbackMessage) => {
     setBusy(true);
     try {
-      const info = await roomInfo(code);
-      if (!info.exists) {
-        showToast(`Room ${code} was not found.`);
-        return false;
-      }
-      localStorage.setItem('ud_name', name);
-      localStorage.setItem('ud_room', code);
-      connRef.current?.close();
-      connRef.current = new Connection({
-        code,
-        name,
-        token: getToken(),
-        handlers: {
-          onState: setView,
-          onStatus: setStatus,
-          onError: (msg, fatal) => {
-            showToast(msg);
-            if (fatal) leave();
-          },
-        },
-      });
-      return true;
+      return await operation();
     } catch (e) {
-      showToast(e.message || 'Connection failed.');
+      showToast(e.message || fallbackMessage);
       return false;
     } finally {
       setBusy(false);
     }
-  }, [leave, showToast]);
+  }, [showToast]);
 
-  const create = useCallback(async (name) => {
-    setBusy(true);
-    try {
+  const joinRoom = useCallback((code, name) => (
+    runBusy(() => connectToRoom(code, name), 'Connection failed.')
+  ), [connectToRoom, runBusy]);
+
+  const create = useCallback((name) => (
+    runBusy(async () => {
       const { code } = await createRoom();
-      await joinRoom(code, name);
-    } catch (e) {
-      showToast(e.message || 'Could not create a room.');
-    } finally {
-      setBusy(false);
-    }
-  }, [joinRoom, showToast]);
+      return connectToRoom(code, name);
+    }, 'Could not create a room.')
+  ), [connectToRoom, runBusy]);
 
   // Auto-rejoin after a refresh: same room code + player token = same seat.
   useEffect(() => {
@@ -84,6 +87,11 @@ export default function App() {
     const name = localStorage.getItem('ud_name');
     if (code && name) joinRoom(code, name);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => () => {
+    clearTimeout(toastTimer.current);
+    connRef.current?.close();
   }, []);
 
   const send = useCallback((msg) => connRef.current?.send(msg), []);
@@ -94,13 +102,13 @@ export default function App() {
   } else if (view.status === 'lobby') {
     screen = <Lobby view={view} send={send} onLeave={leave} showToast={showToast} />;
   } else {
-    screen = <Game view={view} send={send} onLeave={leave} connStatus={status} />;
+    screen = <Game view={view} send={send} onLeave={leave} />;
   }
 
   return (
     <div className="app">
       <div className="embers" aria-hidden="true">
-        {Array.from({ length: 14 }, (_, i) => <span key={i} className="ember" style={{ '--i': i }} />)}
+        {EMBER_INDICES.map((index) => <span key={index} className="ember" style={{ '--i': index }} />)}
       </div>
       {screen}
       <button className="codex-fab" type="button" onClick={() => setCodexOpen(true)}>

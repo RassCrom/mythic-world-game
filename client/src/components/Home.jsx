@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { sfx } from '../sound.js';
-import { LanguageSwitcher, useI18n } from '../i18n.jsx';
+import { LanguageSwitcher, useI18n } from '../i18n/index.jsx';
+import { findAnimal, loadAnimal } from './home/animals.js';
 
 export default function Home({ onCreate, onJoin, busy }) {
   const { t } = useI18n();
   const [name, setName] = useState(localStorage.getItem('ud_name') || '');
   const [code, setCode] = useState('');
   const [mode, setMode] = useState(null); // null | 'join'
+  const [animalId] = useState(loadAnimal);
+
+  const selectedAnimal = findAnimal(animalId);
 
   const validName = name.trim().length >= 1;
 
@@ -23,7 +27,7 @@ export default function Home({ onCreate, onJoin, busy }) {
   };
 
   return (
-    <main className="home">
+    <main className="home" style={{ '--home-hero': `url("${selectedAnimal.hero}")` }}>
       <div className="home-card">
         <LanguageSwitcher />
         <h1 className="title">

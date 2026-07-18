@@ -1,0 +1,54 @@
+/* Restrained custom cursors for fine pointers; touch keeps native behavior. */
+@media (hover: hover) and (pointer: fine) {
+  html,
+  body {
+    cursor: url('/cursors/dragon-default.svg') 3 2, default;
+  }
+
+  html body :is(
+    a[href],
+    button:not(:disabled),
+    summary,
+    select:not(:disabled),
+    [role='button']:not([aria-disabled='true']),
+    [role='link']:not([aria-disabled='true']),
+    [role='option']:not([aria-disabled='true']),
+    [role='tab']:not([aria-disabled='true']),
+    [role='menuitem']:not([aria-disabled='true']),
+    [tabindex]:not([tabindex='-1']):not([aria-disabled='true']),
+    .card-clickable,
+    .is-pickable,
+    .pile-empty,
+    .room-code,
+    .animal-option
+  ) {
+    cursor: url('/cursors/dragon-pointer.svg') 3 2, pointer;
+  }
+
+  html body :is(input:not(:disabled), textarea:not(:disabled), [contenteditable='true']) {
+    cursor: url('/cursors/dragon-text.svg') 16 16, text;
+  }
+
+  html body :is(
+    a[href],
+    button:not(:disabled),
+    summary,
+    [role='button']:not([aria-disabled='true']),
+    [role='link']:not([aria-disabled='true']),
+    [role='option']:not([aria-disabled='true']),
+    [role='tab']:not([aria-disabled='true']),
+    [role='menuitem']:not([aria-disabled='true']),
+    [tabindex]:not([tabindex='-1']):not([aria-disabled='true']),
+    .card-clickable,
+    .is-pickable,
+    .pile-empty,
+    .room-code,
+    .animal-option
+  ):active {
+    cursor: url('/cursors/dragon-active.svg') 3 2, pointer;
+  }
+
+  html body :is(:disabled, [aria-disabled='true']) {
+    cursor: url('/cursors/dragon-blocked.svg') 16 16, not-allowed;
+  }
+}

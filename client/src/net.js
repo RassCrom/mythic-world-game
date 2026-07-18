@@ -2,7 +2,7 @@
 // The server is authoritative; this module only ships intent messages up
 // and full state views down.
 
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
 
 export function apiUrl(path) {
   return API_BASE + path;
@@ -10,7 +10,7 @@ export function apiUrl(path) {
 
 function wsUrl(code) {
   const base = API_BASE || window.location.origin;
-  return base.replace(/^http/, 'ws') + `/api/rooms/${code}/ws`;
+  return base.replace(/^http/, 'ws') + `/api/rooms/${encodeURIComponent(code)}/ws`;
 }
 
 export async function createRoom() {
@@ -20,7 +20,7 @@ export async function createRoom() {
 }
 
 export async function roomInfo(code) {
-  const res = await fetch(apiUrl(`/api/rooms/${code}`));
+  const res = await fetch(apiUrl(`/api/rooms/${encodeURIComponent(code)}`));
   if (!res.ok) throw new Error('Could not reach the server.');
   return res.json(); // { exists, status, playerCount }
 }
@@ -90,10 +90,10 @@ export class Connection {
 }
 
 export function getToken() {
-  let t = localStorage.getItem('ud_token');
-  if (!t) {
-    t = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now();
-    localStorage.setItem('ud_token', t);
+  let token = localStorage.getItem('ud_token');
+  if (!token) {
+    token = crypto.randomUUID();
+    localStorage.setItem('ud_token', token);
   }
-  return t;
+  return token;
 }

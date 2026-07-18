@@ -52,20 +52,21 @@ function shuffle(a) {
   return a;
 }
 
-let logSound = null;
 export function addLog(g, msg, sound, meta) {
   g.seq++;
   g.log.push({
     ...(meta && typeof meta === 'object' ? meta : {}),
     n: g.seq,
     msg,
-    sound: sound || logSound || undefined,
+    sound: sound || undefined,
   });
   if (g.log.length > 200) g.log.splice(0, g.log.length - 200);
 }
 
 export function addPlayer(g, { token, name }) {
-  const existing = g.players.find((p) => p.token === token);
+  const playerToken = String(token || '').trim();
+  if (!playerToken || playerToken.length > 128) return { error: 'Invalid player token.' };
+  const existing = g.players.find((p) => p.token === playerToken);
   if (existing) {
     existing.connected = true;
     if (name) existing.name = sanitizeName(name) || existing.name;
@@ -75,7 +76,7 @@ export function addPlayer(g, { token, name }) {
   if (g.players.length >= MAX_PLAYERS) return { error: 'Room is full (8 players max).' };
   const id = 'p' + (g.players.length + 1) + '_' + Math.random().toString(36).slice(2, 7);
   const p = {
-    id, token,
+    id, token: playerToken,
     name: sanitizeName(name) || 'Dragon ' + (g.players.length + 1),
     seat: g.players.length,
     connected: true,
@@ -139,7 +140,7 @@ export function botWaitingId(g) {
 }
 
 function sanitizeName(name) {
-  return String(name || '').replace(/[^\w \-'.!?]/g, '').trim().slice(0, 20);
+  return String(name || '').replace(/[^\p{L}\p{N} _\-'.!?]/gu, '').trim().slice(0, 20);
 }
 
 export function markDisconnected(g, playerId) {
@@ -168,7 +169,6 @@ export function markConnected(g, playerId) {
 
 function byId(g, pid) { return g.players.find((p) => p.id === pid); }
 function defOf(g, iid) { return DEFS[g.inst[iid]]; }
-function ownerOf(g, iid) { return g.players.find((p) => p.stable.includes(iid) || p.hand.includes(iid)); }
 function stableOwner(g, iid) { return g.players.find((p) => p.stable.includes(iid)); }
 function current(g) { return g.players[g.turn.idx]; }
 function cardName(g, iid) { return defOf(g, iid).name; }

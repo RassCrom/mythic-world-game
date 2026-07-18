@@ -17,7 +17,7 @@ function ensureCtx() {
     master.gain.value = muted ? 0 : 0.5;
     master.connect(ctx.destination);
   }
-  if (ctx.state === 'suspended') ctx.resume();
+  if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
   return ctx;
 }
 
@@ -164,13 +164,18 @@ export const sfx = {
   error() { tone(180, { type: 'square', d: 0.15, peak: 0.08 }); },
 };
 
+const LOG_SOUNDS = {
+  draw: sfx.draw,
+  play: sfx.play,
+  enter: sfx.enter,
+  roar: sfx.roar,
+  destroy: sfx.destroy,
+  magic: sfx.magic,
+  shuffle: sfx.shuffle,
+  win: sfx.win,
+};
+
 // Map server log `sound` tags to cues.
 export function playLogSound(tag) {
-  const map = {
-    draw: sfx.draw, play: sfx.play, enter: sfx.enter, roar: sfx.roar,
-    destroy: sfx.destroy, magic: sfx.magic, shuffle: sfx.shuffle,
-    turn: null, win: sfx.win,
-  };
-  const fn = map[tag];
-  if (fn) fn();
+  LOG_SOUNDS[tag]?.();
 }

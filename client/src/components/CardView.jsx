@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DEFS } from '../../../shared/cards.js';
-import { useI18n } from '../i18n.jsx';
+import { useI18n } from '../i18n/index.jsx';
 
 export const TYPE_LABEL = {
   baby: 'Baby Dragon',
@@ -121,7 +121,7 @@ export function TypeGlyph({ type }) {
 
 export default function CardView({
   defId, faceDown, onClick, onInspect, onInspectEnd, actionLabel, glow, selected, dimmed, small, mini,
-  suppressed, toad, stopped, count, title, iid,
+  suppressed, toad, stopped, count, title, iid, style,
 }) {
   const { t, card } = useI18n();
   const [imgOk, setImgOk] = useState(true);
@@ -142,9 +142,12 @@ export default function CardView({
 
   if (faceDown) {
     return (
-      <article className={cls} data-iid={iid} title={title} aria-label={title || t('Face-down card')}>
-        <div className="card-back-pattern"><TypeGlyph type="basic" /></div>
-        <span className="card-back-rune" aria-hidden="true">UD</span>
+      <article className={cls} data-iid={iid} title={title} aria-label={title || t('Face-down card')} style={style}>
+        <div className="card-back-frame" aria-hidden="true">
+          <div className="card-back-pattern"><TypeGlyph type="basic" /></div>
+          <span className="card-back-rune">MW</span>
+          <span className="card-back-title">Mythic<br />World</span>
+        </div>
         {count != null && <span className="card-count">{count}</span>}
         {onClick && <button type="button" className="card-action-hit" onClick={onClick} aria-label={actionLabel || title || t('Select card')} />}
       </article>
@@ -162,7 +165,7 @@ export default function CardView({
     <article
       className={cls}
       data-iid={iid}
-      style={{ '--card-color': def.color }}
+      style={{ '--card-color': def.color, ...style }}
       onMouseEnter={inspect}
       onMouseLeave={() => onInspectEnd?.(defId)}
       onFocusCapture={inspect}

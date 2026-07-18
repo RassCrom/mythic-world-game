@@ -41,6 +41,8 @@
   --scroll-thumb: #75613b;
   --scroll-thumb-hover: #b48a49;
 
+  overflow: hidden;
+
   /* z scale */
   --z-table: 1;
   --z-drawer: 40;
@@ -142,7 +144,7 @@ p { margin: 0.4em 0; }
   text-shadow: none;
 }
 .btn-primary:hover:not(:disabled) { background: linear-gradient(160deg, #ffa14a, #d26a18); }
-.btn-ghost { background: transparent; border-color: transparent; color: var(--text-dim); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text-dim); display: flex;justify-content: center; align-items: center; }
 .btn-ghost:hover:not(:disabled) { color: var(--text); background: rgba(255, 255, 255, 0.06); }
 .btn-sm { min-height: 40px; padding: 8px 14px; font-size: 0.9rem; }
 .btn-lg { min-height: 52px; font-size: 1.05rem; }
@@ -217,6 +219,52 @@ p { margin: 0.4em 0; }
   text-transform: uppercase;
 }
 .tagline { color: var(--text-dim); margin: 0; }
+.animal-picker { min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+.animal-picker legend {
+  margin-bottom: 7px;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.animal-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.animal-option { position: relative; min-width: 0; }
+.animal-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.animal-option span {
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 7px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: rgba(5, 13, 9, 0.6);
+  color: var(--text-dim);
+  font-size: clamp(0.66rem, 1.8vw, 0.76rem);
+  font-weight: 800;
+  line-height: 1.1;
+  text-align: center;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+.animal-option:hover span { color: var(--text); border-color: rgba(255, 255, 255, 0.2); }
+.animal-option input:checked + span {
+  color: var(--gold);
+  border-color: rgba(244, 208, 63, 0.62);
+  background: rgba(244, 208, 63, 0.11);
+  box-shadow: inset 0 0 0 1px rgba(244, 208, 63, 0.12);
+}
+.animal-option input:focus-visible + span { outline: 3px solid var(--teal); outline-offset: 2px; }
 .home-actions { display: flex; flex-direction: column; gap: 12px; }
 .home-hint { color: var(--text-faint); font-size: 0.85rem; margin: 0; }
 .language-switcher {
@@ -794,7 +842,7 @@ button { -webkit-tap-highlight-color: transparent; }
   background-image:
     linear-gradient(90deg, rgba(3, 8, 12, .93) 0%, rgba(5, 10, 13, .6) 46%, rgba(10, 5, 8, .66) 100%),
     linear-gradient(0deg, rgba(4, 12, 8, .9), transparent 52%),
-    url('/hero-image-menu.png');
+    var(--home-hero, url('/hero-image-menu.png'));
   background-size: cover;
   background-position: center;
   transform: scale(1.02);
@@ -2652,3 +2700,78 @@ button { -webkit-tap-highlight-color: transparent; }
   .turn-timer.is-urgent { animation: none; }
   .turn-timer .timer-fill { transition: none; }
 }
+
+/* Face-down cards use the same ornate frame everywhere, so opponents read as
+   a complete second hand without exposing any card information. */
+.card-back {
+  isolation: isolate;
+  overflow: hidden;
+  border-color: rgba(241, 202, 119, .72);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(231, 181, 80, .2), transparent 32%),
+    repeating-linear-gradient(45deg, rgba(255, 224, 142, .045) 0 1px, transparent 1px 7px),
+    linear-gradient(145deg, #2b432f, #0b1810 52%, #21130e);
+  box-shadow: inset 0 0 0 2px rgba(6, 14, 9, .78), inset 0 0 20px rgba(0, 0, 0, .45), 0 7px 16px rgba(0, 0, 0, .36);
+}
+.card-back::before,
+.card-back::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+.card-back::before {
+  inset: 5%;
+  border: 1px solid rgba(247, 213, 139, .72);
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 3px rgba(8, 20, 12, .72), inset 0 0 0 4px rgba(230, 179, 75, .2);
+}
+.card-back::after {
+  inset: 12%;
+  border: 1px solid rgba(234, 194, 112, .38);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, transparent 48%, rgba(231, 181, 80, .08) 49% 52%, transparent 53%);
+}
+.card-back-frame {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: #f0c56f;
+}
+.card-back-pattern {
+  width: 54%;
+  color: rgba(255, 213, 130, .78);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .9));
+}
+.card-back-rune {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 33%;
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 223, 154, .8);
+  border-radius: 50%;
+  background: rgba(10, 27, 17, .78);
+  box-shadow: 0 0 0 3px rgba(11, 25, 16, .78), 0 0 13px rgba(231, 181, 80, .24);
+  color: #ffe3a3;
+  font-family: var(--font-display);
+  font-size: clamp(.46rem, .8vw, .78rem);
+  font-weight: 900;
+  letter-spacing: -.05em;
+}
+.card-back-title {
+  position: absolute;
+  bottom: 11%;
+  color: rgba(255, 228, 165, .88);
+  font-family: var(--font-display);
+  font-size: clamp(.28rem, .42vw, .43rem);
+  font-weight: 800;
+  letter-spacing: .12em;
+  line-height: 1.05;
+  text-align: center;
+  text-transform: uppercase;
+}
+.card-mini .card-back-title { display: none; }

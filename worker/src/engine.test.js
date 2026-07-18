@@ -26,6 +26,13 @@ function startedGame() {
   return { game, first, second };
 }
 
+test('player identity requires a token and keeps international names', () => {
+  const game = createGame('TEST');
+  assert.deepEqual(addPlayer(game, { token: '', name: 'Nameless' }), { error: 'Invalid player token.' });
+  const result = addPlayer(game, { token: 'valid-token', name: 'Дракон' });
+  assert.equal(game.players.find((player) => player.id === result.playerId).name, 'Дракон');
+});
+
 function activePlayer(game) {
   return game.players[game.turn.idx];
 }

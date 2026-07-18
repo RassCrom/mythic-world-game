@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { sfx } from '../sound.js';
-import { useI18n } from '../i18n.jsx';
+import { useI18n } from '../i18n/index.jsx';
 
 export default function Lobby({ view, send, onLeave, showToast }) {
   const { t } = useI18n();

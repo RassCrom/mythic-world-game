@@ -16,9 +16,8 @@ const IDLE_CLEANUP_MS = 1000 * 60 * 60 * 24; // wipe rooms idle for 24h
 const BOT_STEP_MS = 700; // thinking pause between bot actions
 
 export class GameRoom {
-  constructor(state, env) {
+  constructor(state) {
     this.state = state;
-    this.env = env;
     this.game = null; // in-memory cache; reloaded from storage after wake-up
   }
 
@@ -166,7 +165,8 @@ export class GameRoom {
     let action = null;
     try {
       action = decideBotAction(view, bot.difficulty);
-    } catch (e) {
+    } catch (error) {
+      console.error('Bot decision failed', { room: g.code, botId, error });
       action = null;
     }
     let res = action ? this.dispatch(g, botId, action) : { error: 'no action' };

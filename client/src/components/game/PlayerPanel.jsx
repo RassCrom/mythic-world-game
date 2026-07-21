@@ -67,6 +67,7 @@ export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCa
                 onClick={isCandidate ? () => onCardPick(stableCard.iid) : undefined}
                 onInspect={onInspect}
                 onInspectEnd={onInspectEnd}
+                touchInspectFirst={isCandidate}
               />
             );
           })}

@@ -121,7 +121,7 @@ export function TypeGlyph({ type }) {
 
 export default function CardView({
   defId, faceDown, onClick, onInspect, onInspectEnd, actionLabel, glow, selected, dimmed, small, mini,
-  suppressed, toad, stopped, count, title, iid, style,
+  suppressed, toad, stopped, count, title, iid, style, touchInspectFirst,
 }) {
   const { t, card } = useI18n();
   const [imgOk, setImgOk] = useState(true);
@@ -138,6 +138,7 @@ export default function CardView({
     selected ? 'card-selected' : '',
     dimmed ? 'card-dimmed' : '',
     onClick || onInspect ? 'card-clickable' : '',
+    touchInspectFirst && onClick && onInspect ? 'card-touch-split' : '',
   ].filter(Boolean).join(' ');
 
   if (faceDown) {
@@ -217,6 +218,31 @@ export default function CardView({
           onClick={primaryAction}
           aria-label={actionLabel || (onClick ? t('Select {card}', { card: def.name }) : t('Inspect {card}', { card: def.name }))}
         />
+      )}
+      {touchInspectFirst && onInspect && onClick && (
+        <>
+          <button
+            type="button"
+            className="card-touch-inspect"
+            onClick={(event) => { event.stopPropagation(); inspect(event); }}
+            aria-label={t('Read {card}', { card: def.name })}
+          />
+          <button
+            type="button"
+            className="card-touch-action"
+            onClick={(event) => {
+              event.stopPropagation();
+              onInspectEnd?.(defId);
+              onClick(event);
+            }}
+            aria-label={actionLabel || t('Select {card}', { card: def.name })}
+            title={actionLabel || t('Select {card}', { card: def.name })}
+          >
+            <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true">
+              <path d="m8 5 7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </>
       )}
       {onInspect && onClick && (
         <button

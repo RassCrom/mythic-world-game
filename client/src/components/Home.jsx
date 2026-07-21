@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { sfx } from '../sound.js';
 import { LanguageSwitcher, useI18n } from '../i18n/index.jsx';
 import { findAnimal, loadAnimal } from './home/animals.js';
+import BattlefieldSettings from './home/BattlefieldSettings.jsx';
 
 export default function Home({ onCreate, onJoin, busy }) {
   const { t } = useI18n();
@@ -78,6 +79,8 @@ export default function Home({ onCreate, onJoin, busy }) {
             <button className="btn btn-ghost" type="button" onClick={() => setMode(null)}>{t('Back')}</button>
           </form>
         )}
+
+        <BattlefieldSettings />
 
         <p className="home-hint">{t('2–8 players · share the room code with the table')}</p>
       </div>

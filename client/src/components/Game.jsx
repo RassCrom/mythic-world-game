@@ -260,6 +260,7 @@ export default function Game({ view, send, onLeave }) {
                 onClick={() => setShowDiscard(true)}
                 onInspect={showCardPreview}
                 onInspectEnd={hideCardPreview}
+                touchInspectFirst
                 actionLabel={t('Open discard pile')}
               />
             ) : (
@@ -360,6 +361,7 @@ export default function Game({ view, send, onLeave }) {
                   onClick={clickable ? () => playFromHand(c.iid) : undefined}
                   onInspect={showCardPreview}
                   onInspectEnd={hideCardPreview}
+                  touchInspectFirst={clickable}
                   actionLabel={clickable
                     ? `${t(inPrompt ? 'Choose' : 'Play')} ${card(c.defId).name}`
                     : t('Read {card}', { card: card(c.defId).name })}
@@ -416,7 +418,7 @@ export default function Game({ view, send, onLeave }) {
         <Modal title={text(myPrompt.title)} wide>
           <div className="card-grid">
             {myPrompt.candidates.map((c) => (
-              <CardView key={c.iid} defId={c.defId} small onClick={() => { sfx.click(); send({ type: 'choose', value: c.iid }); }} onInspect={showCardPreview} onInspectEnd={hideCardPreview} glow="pick" />
+              <CardView key={c.iid} defId={c.defId} small onClick={() => { sfx.click(); send({ type: 'choose', value: c.iid }); }} onInspect={showCardPreview} onInspectEnd={hideCardPreview} touchInspectFirst glow="pick" />
             ))}
           </div>
           {myPrompt.canSkip && <button className="btn btn-ghost" onClick={skipPrompt}>{t('Take nothing')}</button>}

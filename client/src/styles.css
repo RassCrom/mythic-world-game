@@ -913,19 +913,17 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .card-head {
   position: absolute; left: 5px; right: 5px; bottom: 5px; z-index: 3;
-  min-height: 35px; padding: 7px 7px 7px 31px;
+  min-height: 35px; padding: 6px 7px;
+  display: flex; align-items: center; justify-content: center; text-align: center;
   border: 1px solid rgba(244, 215, 157, .32); border-radius: 5px;
   background: linear-gradient(90deg, rgba(7,12,9,.96), color-mix(in srgb, var(--card-color, #777) 35%, rgba(7,12,9,.96)));
   box-shadow: 0 -5px 15px rgba(0,0,0,.48);
 }
-.card-type-gem {
-  position: absolute; left: 5px; top: 50%; transform: translateY(-50%);
-  width: 21px; height: 21px; display: grid; place-items: center;
-  color: #fff1d3; border: 1px solid rgba(255,255,255,.32); border-radius: 50%;
-  background: color-mix(in srgb, var(--card-color, #777) 72%, #101510);
+.card-name {
+  display: block; width: 100%;
+  font-size: .7rem; letter-spacing: .02em; line-height: 1.08;
+  overflow-wrap: break-word; text-wrap: balance;
 }
-.card-type-gem .glyph { width: 13px; height: 13px; }
-.card-name { font-size: .7rem; letter-spacing: .02em; line-height: 1.1; }
 .card-art { position: absolute; inset: 0; min-height: 0; }
 .card-art img { width: 100%; height: 100%; object-fit: cover; }
 .card-art-vignette {
@@ -941,12 +939,6 @@ button { -webkit-tap-highlight-color: transparent; }
 .card-type { color: #e8d3a7; font-size: .59rem; }
 .card-text { color: #e7dfcf; font-size: .67rem; }
 .card-sm .card-body, .card-mini .card-body { display: none; }
-.card-sm .card-head { min-height: 29px; padding: 5px 5px 5px 26px; }
-.card-sm .card-name { font-size: .56rem; }
-.card-sm .card-type-gem { width: 18px; height: 18px; left: 4px; }
-.card-mini .card-head { min-height: 22px; left: 3px; right: 3px; bottom: 3px; padding: 3px 3px 3px 4px; }
-.card-mini .card-name { font-size: .43rem; text-align: center; width: 100%; }
-.card-mini .card-type-gem { display: none; }
 .card-clickable:hover { transform: translateY(-6px) scale(1.02); box-shadow: inset 0 0 0 2px #100b06, 0 13px 25px rgba(0,0,0,.62); }
 .card-action-hit {
   position: absolute; inset: 0; z-index: 4;
@@ -1126,7 +1118,7 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .hand-area {
   position: relative; bottom: auto; z-index: 10;
-  min-height: 0; margin: 0; padding: 4px 8px 5px;
+  min-height: 0; margin: 0; padding: 4px 8px 1px;
   border: 1px solid rgba(226, 200, 143, .18); border-radius: 15px;
   background: linear-gradient(180deg, rgba(9, 20, 13, .88), rgba(5, 12, 8, .97));
   box-shadow: 0 -10px 30px rgba(0,0,0,.3);
@@ -1307,8 +1299,6 @@ button { -webkit-tap-highlight-color: transparent; }
   .hand-guidance { font-size: .42rem; }
   .hand { height: 84px; align-items: flex-start; gap: 4px; padding: 0 38px 2px; }
   .hand .card-sm { --w: clamp(55px, 16vh, 72px); }
-  .hand .card-sm .card-head { min-height: 21px; }
-  .hand .card-sm .card-name { font-size: .43rem; }
   .hand .card-info-button { width: 21px; height: 21px; right: 4px; top: 4px; }
   .codex-fab { right: 6px; bottom: 6px; width: 44px; min-height: 44px; padding: 0; justify-content: center; }
   .codex-fab span { display: none; }
@@ -1420,43 +1410,6 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .opponents.few-foes .avatar, .my-area .avatar { width: 38px; height: 38px; font-size: .95rem; }
 .player-panel.is-turn .avatar { border-color: #ffd98f; box-shadow: 0 0 12px rgba(240, 185, 92, .55), inset 0 1px rgba(255,255,255,.25); }
-
-/* ---------------- card value plaques ---------------- */
-
-.card-head { padding-left: 8px; }
-.card-sm .card-head { padding-left: 6px; }
-.card-value {
-  position: absolute; z-index: 5; left: 5px; top: 5px;
-  min-width: 27px; height: 27px; padding: 0 5px;
-  display: grid; place-items: center;
-  border: 1px solid rgba(56, 36, 12, .85);
-  border-radius: 50%;
-  color: #201405;
-  font-family: var(--font-display); font-weight: 900; font-size: .95rem; line-height: 1;
-  background: radial-gradient(circle at 32% 28%, #fdf2d2, #e7cb90 55%, #a8834a);
-  box-shadow: inset 0 1px rgba(255, 255, 255, .75), 0 0 0 2px rgba(16, 11, 5, .6), 0 3px 8px rgba(0, 0, 0, .55);
-}
-.card-value.value-2 {
-  color: #2a1502;
-  background: radial-gradient(circle at 32% 28%, #ffe9a8, #ffb84d 56%, #c96a1a);
-  box-shadow: inset 0 1px rgba(255,255,255,.8), 0 0 0 2px rgba(16, 11, 5, .6), 0 0 12px rgba(255, 173, 64, .5);
-}
-.card-value.value-0 {
-  color: #eafcdf;
-  background: radial-gradient(circle at 32% 28%, #b9e79b, #5da45b 62%, #2e5e33);
-}
-.card-value.value-spell {
-  color: #fdf3da;
-  background:
-    radial-gradient(circle at 32% 28%, rgba(255,255,255,.4), transparent 45%),
-    linear-gradient(160deg, color-mix(in srgb, var(--card-color, #777) 82%, #fff), color-mix(in srgb, var(--card-color, #777) 72%, #000));
-}
-.card-value .glyph { width: 15px; height: 15px; }
-.card-sm .card-value { min-width: 23px; height: 23px; font-size: .82rem; left: 4px; top: 4px; }
-.card-sm .card-value .glyph { width: 12px; height: 12px; }
-.card-mini .card-value { min-width: 17px; height: 17px; font-size: .64rem; left: 3px; top: 3px; padding: 0 3px; }
-.card-mini .card-value .glyph { width: 9px; height: 9px; }
-.card-back .card-value { display: none; }
 
 /* ---------------- score rail ---------------- */
 
@@ -1667,7 +1620,6 @@ button { -webkit-tap-highlight-color: transparent; }
   .opponents.few-foes .avatar, .my-area .avatar { width: 24px; height: 24px; font-size: .62rem; }
   .fan-slot + .fan-slot { margin-left: clamp(-40px, calc(-4px - var(--n, 5) * 3px), -8px); }
   .quick-inspector { display: none; }
-  .card-mini .card-value { min-width: 14px; height: 14px; font-size: .52rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1691,6 +1643,297 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .game::after {
   background: radial-gradient(ellipse at center, transparent 56%, rgba(2, 7, 5, .4) 100%);
+}
+
+/* Scene-matched weather with seeded, non-repeating depth and trajectories. */
+.battlefield-ambience {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+.battlefield-ambience::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+html[data-ambience='rain'] .battlefield-ambience::before {
+  opacity: 1;
+  background: linear-gradient(180deg, rgba(25, 42, 51, .24), rgba(16, 32, 38, .17) 48%, rgba(8, 21, 25, .26));
+}
+html[data-ambience='snow'] .battlefield-ambience::before {
+  opacity: 1;
+  background: linear-gradient(180deg, rgba(103, 137, 162, .07), transparent 52%, rgba(157, 185, 201, .07));
+}
+html[data-ambience='ash'] .battlefield-ambience::before {
+  opacity: 1;
+  background: linear-gradient(180deg, rgba(50, 28, 19, .12), transparent 46%, rgba(34, 20, 14, .17));
+}
+html[data-ambience='underwater'] .battlefield-ambience::before {
+  opacity: 1;
+  background: linear-gradient(180deg, rgba(24, 112, 132, .05), transparent 45%, rgba(10, 74, 91, .09));
+}
+.ambience-particles,
+.ambience-haze,
+.ambience-aurora { position: absolute; }
+.ambience-particles { inset: 0; }
+.ambience-particle {
+  position: absolute;
+  left: var(--x);
+  display: block;
+  opacity: 0;
+  filter: blur(var(--blur));
+}
+.ambience-haze,
+.ambience-aurora { display: none; pointer-events: none; will-change: transform, opacity; }
+
+/* Rain: varied drop length, perspective speed, and a slow veil of moisture. */
+html[data-ambience='rain'] .ambience-haze {
+  display: block;
+  inset: -12%;
+  background: radial-gradient(ellipse at 65% 12%, rgba(106, 145, 163, .09), transparent 48%), linear-gradient(112deg, transparent 22%, rgba(174, 205, 215, .045) 47%, transparent 68%);
+  animation: ambience-weather-haze 18s ease-in-out infinite alternate;
+}
+html[data-ambience='rain'] .ambience-haze-b { animation-duration: 27s; animation-delay: -11s; transform: scaleX(-1); }
+html[data-ambience='rain'] .ambience-particle {
+  top: -14vh;
+  width: var(--rain-width);
+  height: var(--rain-length);
+  background: linear-gradient(180deg, transparent 0%, rgba(205, 229, 239, .16) 18%, rgba(218, 239, 247, .86) 100%);
+  animation: ambience-rain var(--rain-duration) linear infinite var(--rain-delay);
+}
+html[data-ambience='rain'] .ambience-particle.is-near { box-shadow: 0 0 1px rgba(219, 240, 247, .34); }
+
+/* Snow: flakes meander on independent paths; distant flakes stay soft and small. */
+html[data-ambience='snow'] .ambience-haze {
+  display: block;
+  left: -15%; right: -15%; bottom: -7%; height: 42%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(195, 221, 234, .13), transparent 66%);
+  animation: ambience-ground-mist 24s ease-in-out infinite alternate;
+}
+html[data-ambience='snow'] .ambience-haze-b { bottom: 14%; opacity: .45; animation-duration: 33s; animation-delay: -14s; }
+html[data-ambience='snow'] .ambience-particle:nth-child(n + 53) { display: none; }
+html[data-ambience='snow'] .ambience-particle {
+  top: -8vh;
+  width: var(--snow-size);
+  aspect-ratio: 1;
+  border-radius: 48% 52% 46% 54%;
+  background: rgba(241, 248, 252, .92);
+  box-shadow: 0 0 5px rgba(221, 240, 249, .3);
+  animation: ambience-snow var(--snow-duration) linear infinite var(--snow-delay);
+}
+
+/* Ash: irregular flakes move through rising pockets of warm, smoky air. */
+html[data-ambience='ash'] .ambience-haze {
+  display: block;
+  left: -20%; bottom: -25%; width: 82%; height: 82%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(107, 55, 31, .16), rgba(43, 35, 30, .08) 44%, transparent 70%);
+  filter: blur(22px);
+  animation: ambience-smoke 23s ease-in-out infinite alternate;
+}
+html[data-ambience='ash'] .ambience-haze-b { left: 42%; bottom: -38%; animation-duration: 31s; animation-delay: -17s; }
+html[data-ambience='ash'] .ambience-particle:nth-child(n + 39) { display: none; }
+html[data-ambience='ash'] .ambience-particle {
+  top: -7vh;
+  width: var(--ash-width);
+  height: var(--ash-height);
+  border-radius: 64% 18% 57% 31%;
+  background: rgba(193, 166, 136, .72);
+  box-shadow: 0 0 4px rgba(228, 113, 50, .14);
+  animation: ambience-ash var(--ash-duration) cubic-bezier(.32, .05, .67, .97) infinite var(--ash-delay);
+}
+html[data-ambience='ash'] .ambience-particle:nth-child(7n + 2) {
+  background: rgba(241, 118, 48, .78);
+  box-shadow: 0 0 7px 1px rgba(246, 91, 31, .36);
+}
+
+/* Fireflies: sparse local wandering with a separate, asynchronous glow cycle. */
+html[data-ambience='fireflies'] .ambience-haze {
+  display: block;
+  left: -12%; right: -12%; bottom: -9%; height: 45%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(88, 118, 73, .12), transparent 68%);
+  filter: blur(16px);
+  animation: ambience-ground-mist 29s ease-in-out infinite alternate;
+}
+html[data-ambience='fireflies'] .ambience-haze-b { bottom: 19%; opacity: .38; animation-duration: 37s; animation-delay: -18s; }
+html[data-ambience='fireflies'] .ambience-particle:nth-child(n + 23) { display: none; }
+html[data-ambience='fireflies'] .ambience-particle {
+  top: var(--y);
+  width: var(--firefly-size);
+  aspect-ratio: 1;
+  animation: ambience-firefly-path var(--firefly-duration) cubic-bezier(.45, .08, .52, .94) infinite var(--firefly-delay);
+}
+html[data-ambience='fireflies'] .ambience-particle::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  background: #f3ed75;
+  box-shadow: 0 0 6px 2px rgba(190, 238, 89, .52), 0 0 14px rgba(156, 216, 70, .24);
+  animation: ambience-firefly-pulse var(--pulse-duration) ease-in-out infinite var(--pulse-delay);
+}
+
+/* Underwater: mostly suspended sediment, with occasional bubbles and moving light. */
+html[data-ambience='underwater'] .ambience-haze {
+  display: block;
+  inset: -25%;
+  background: radial-gradient(ellipse at 34% 8%, rgba(93, 226, 220, .11), transparent 34%), radial-gradient(ellipse at 73% 17%, rgba(107, 182, 222, .09), transparent 28%);
+  mix-blend-mode: screen;
+  filter: blur(20px);
+  animation: ambience-caustic 19s ease-in-out infinite alternate;
+}
+html[data-ambience='underwater'] .ambience-haze-b { transform: scaleX(-1); animation-duration: 28s; animation-delay: -12s; }
+html[data-ambience='underwater'] .ambience-particle {
+  top: var(--y);
+  width: var(--bubble-size);
+  aspect-ratio: 1;
+}
+html[data-ambience='underwater'] .ambience-particle:nth-child(n + 57) { display: none; }
+html[data-ambience='underwater'] .ambience-particle.is-mote {
+  border-radius: 50%;
+  background: rgba(185, 233, 224, .48);
+  box-shadow: 0 0 3px rgba(110, 218, 209, .24);
+  animation: ambience-underwater-mote var(--mote-duration) ease-in-out infinite var(--mote-delay);
+}
+html[data-ambience='underwater'] .ambience-particle.is-bubble {
+  top: auto;
+  bottom: -10vh;
+  border: 1px solid rgba(187, 235, 239, .46);
+  border-radius: 50%;
+  background: radial-gradient(circle at 31% 27%, rgba(241, 255, 255, .34), rgba(96, 200, 207, .06) 43%, transparent 68%);
+  box-shadow: inset -1px -1px 2px rgba(23, 104, 121, .18);
+  animation: ambience-bubble var(--bubble-duration) ease-in infinite var(--bubble-delay);
+}
+
+/* Aurora: three broad translucent curtains move at different rates. */
+html[data-ambience='aurora'] .ambience-aurora {
+  display: block;
+  top: -18%;
+  left: -12%;
+  width: 125%;
+  height: 48%;
+  border-radius: 42% 58% 51% 49%;
+  mix-blend-mode: screen;
+  filter: blur(22px);
+  transform-origin: 50% 0;
+  mask-image: linear-gradient(180deg, #000 7%, rgba(0, 0, 0, .82) 50%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 7%, rgba(0, 0, 0, .82) 50%, transparent 100%);
+  background: linear-gradient(104deg, transparent 4%, rgba(63, 202, 151, .04) 17%, rgba(70, 239, 175, .27) 31%, rgba(67, 165, 214, .13) 46%, rgba(108, 92, 207, .19) 61%, rgba(73, 218, 178, .1) 77%, transparent 95%);
+  animation: ambience-aurora 18s ease-in-out infinite alternate;
+}
+html[data-ambience='aurora'] .ambience-aurora-b {
+  top: -9%; left: 9%; width: 112%; height: 39%;
+  opacity: .62;
+  background: linear-gradient(96deg, transparent 5%, rgba(99, 95, 218, .13) 24%, rgba(81, 224, 190, .25) 43%, rgba(91, 163, 222, .12) 59%, rgba(156, 92, 211, .13) 76%, transparent 96%);
+  animation-duration: 25s;
+  animation-delay: -9s;
+}
+html[data-ambience='aurora'] .ambience-aurora-c {
+  top: 2%; left: -18%; width: 105%; height: 31%;
+  opacity: .42;
+  background: linear-gradient(112deg, transparent 7%, rgba(74, 191, 157, .12) 29%, rgba(116, 85, 201, .17) 53%, rgba(70, 209, 176, .12) 71%, transparent 94%);
+  animation-duration: 32s;
+  animation-delay: -19s;
+}
+html[data-ambience='aurora'] .ambience-particle:nth-child(n + 31) { display: none; }
+html[data-ambience='aurora'] .ambience-particle {
+  top: var(--y);
+  width: var(--star-size);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(219, 241, 247, .84);
+  box-shadow: 0 0 4px rgba(142, 224, 213, .42);
+  animation: ambience-star var(--star-duration) ease-in-out infinite var(--star-delay);
+}
+
+@keyframes ambience-rain {
+  0% { opacity: 0; transform: translate3d(6vw, -10vh, 0) rotate(8deg); }
+  7% { opacity: var(--alpha); }
+  88% { opacity: var(--alpha); }
+  100% { opacity: 0; transform: translate3d(-14vw, 124vh, 0) rotate(8deg); }
+}
+@keyframes ambience-snow {
+  0% { opacity: 0; transform: translate3d(0, -9vh, 0) rotate(0); }
+  9% { opacity: var(--alpha); }
+  24% { transform: translate3d(var(--drift-a), 23vh, 0) rotate(.2turn); }
+  51% { transform: translate3d(var(--drift-b), 55vh, 0) rotate(.55turn); }
+  76% { transform: translate3d(var(--drift-c), 84vh, 0) rotate(.78turn); }
+  91% { opacity: var(--alpha); }
+  100% { opacity: 0; transform: translate3d(var(--drift-a), 118vh, 0) rotate(1turn); }
+}
+@keyframes ambience-ash {
+  0% { opacity: 0; transform: translate3d(0, -8vh, 0) rotate(0); }
+  10% { opacity: var(--alpha); }
+  31% { transform: translate3d(var(--drift-a), 30vh, 0) rotate(.28turn); }
+  48% { transform: translate3d(var(--drift-c), 47vh, 0) rotate(.45turn); }
+  69% { transform: translate3d(var(--drift-b), 72vh, 0) rotate(.72turn); }
+  90% { opacity: var(--alpha); }
+  100% { opacity: 0; transform: translate3d(var(--drift-c), 116vh, 0) rotate(var(--spin)); }
+}
+@keyframes ambience-firefly-path {
+  0%, 100% { opacity: .82; transform: translate3d(0, 0, 0); }
+  17% { transform: translate3d(var(--drift-a), -2.4vh, 0); }
+  39% { transform: translate3d(var(--drift-b), 1.6vh, 0); }
+  62% { transform: translate3d(var(--drift-c), -1.1vh, 0); }
+  81% { transform: translate3d(var(--drift-a), 2.2vh, 0); }
+}
+@keyframes ambience-firefly-pulse {
+  0%, 12%, 32%, 100% { opacity: .08; transform: scale(.68); }
+  18%, 24% { opacity: .92; transform: scale(1.12); }
+  52%, 67% { opacity: .18; transform: scale(.76); }
+  59% { opacity: .72; transform: scale(1); }
+}
+@keyframes ambience-bubble {
+  0% { opacity: 0; transform: translate3d(0, 8vh, 0) scale(.72); }
+  13% { opacity: var(--alpha); }
+  36% { transform: translate3d(var(--drift-a), -32vh, 0) scale(.86); }
+  67% { transform: translate3d(var(--drift-b), -69vh, 0) scale(1.02); }
+  88% { opacity: var(--alpha); }
+  100% { opacity: 0; transform: translate3d(var(--drift-c), -118vh, 0) scale(1.12); }
+}
+@keyframes ambience-underwater-mote {
+  0%, 100% { opacity: .12; transform: translate3d(-1vw, 2vh, 0) scale(.8); }
+  28% { opacity: var(--alpha-soft); transform: translate3d(var(--drift-a), -1vh, 0) scale(1); }
+  61% { opacity: .2; transform: translate3d(var(--drift-b), 1vh, 0) scale(.86); }
+  82% { opacity: var(--alpha-dim); transform: translate3d(var(--drift-c), -2.2vh, 0) scale(.94); }
+}
+@keyframes ambience-aurora {
+  0% { opacity: .38; transform: translate3d(-3%, -2%, 0) rotate(-2deg) skewX(-7deg) scaleY(.86); }
+  48% { opacity: .66; transform: translate3d(2%, 1%, 0) rotate(.6deg) skewX(3deg) scaleY(1.04); }
+  100% { opacity: .48; transform: translate3d(6%, -1%, 0) rotate(2deg) skewX(-2deg) scaleY(.94); }
+}
+@keyframes ambience-star {
+  0%, 18%, 100% { opacity: .08; transform: scale(.7); }
+  46% { opacity: var(--alpha); transform: scale(1); }
+  59% { opacity: .16; transform: scale(.78); }
+  78% { opacity: var(--alpha-star); transform: scale(.92); }
+}
+@keyframes ambience-weather-haze {
+  0% { opacity: .42; transform: translate3d(-2%, 0, 0) scale(1.02); }
+  100% { opacity: .72; transform: translate3d(3%, -1%, 0) scale(1.08); }
+}
+@keyframes ambience-ground-mist {
+  0% { opacity: .38; transform: translate3d(-4%, 1%, 0) scaleX(.96); }
+  100% { opacity: .7; transform: translate3d(5%, -2%, 0) scaleX(1.08); }
+}
+@keyframes ambience-smoke {
+  0% { opacity: .34; transform: translate3d(-3%, 5%, 0) rotate(-2deg) scale(.94); }
+  100% { opacity: .66; transform: translate3d(6%, -5%, 0) rotate(3deg) scale(1.12); }
+}
+@keyframes ambience-caustic {
+  0% { opacity: .34; transform: translate3d(-3%, -2%, 0) rotate(-1deg) scale(.96); }
+  100% { opacity: .68; transform: translate3d(4%, 3%, 0) rotate(2deg) scale(1.07); }
+}
+
+@media (max-width: 640px) {
+  html[data-ambience='rain'] .ambience-particle:nth-child(n + 45),
+  html[data-ambience='snow'] .ambience-particle:nth-child(n + 41),
+  html[data-ambience='underwater'] .ambience-particle:nth-child(n + 43) { display: none; }
 }
 
 .topbar {
@@ -1830,26 +2073,6 @@ button { -webkit-tap-highlight-color: transparent; }
 .revealed-hand { flex-wrap: nowrap; justify-content: center; overflow: hidden; }
 .fan-slot { transform: none; }
 
-/* Authoritative 60-second turn clock. */
-.turn-timer {
-  position: relative; flex: none; width: 46px; height: 46px;
-  display: grid; place-items: center;
-  color: #dfd7c4; font-variant-numeric: tabular-nums;
-}
-.turn-timer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
-.turn-timer circle { fill: none; stroke-width: 3; }
-.turn-timer .timer-track { stroke: rgba(225, 211, 177, .16); }
-.turn-timer .timer-value {
-  stroke: #d9b769; stroke-linecap: round; stroke-dasharray: 100;
-  transition: stroke-dashoffset .25s linear, stroke .2s ease;
-  filter: drop-shadow(0 0 4px rgba(226, 176, 83, .42));
-}
-.turn-timer strong { margin-top: -5px; font-family: var(--font-display); font-size: .78rem; line-height: 1; }
-.turn-timer span { position: absolute; bottom: 8px; font-size: .42rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
-.turn-timer.is-you { color: #ffe7b4; }
-.turn-timer.is-urgent .timer-value { stroke: #ef785f; filter: drop-shadow(0 0 6px rgba(239, 82, 62, .72)); }
-.turn-timer.is-urgent strong { color: #ff9b83; }
-
 /* Card rules appear beside the cursor without changing table layout. */
 .card-cursor-popup {
   position: fixed; z-index: 110; width: min(350px, calc(100vw - 24px));
@@ -1912,9 +2135,6 @@ button { -webkit-tap-highlight-color: transparent; }
       'opponents opponents opponents'
       'table mine rail';
   }
-  .turn-timer { width: 38px; height: 38px; }
-  .turn-timer strong { font-size: .66rem; }
-  .turn-timer span { bottom: 5px; font-size: .36rem; }
   .opponents .card-mini { --w: 40px; }
   .opponents:not(.few-foes) .stable-row .card-mini + .card-mini { margin-left: -22px; }
   .opponents.few-foes .stable-row .card-mini + .card-mini { margin-left: -7px; }
@@ -1939,7 +2159,6 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   .card-cursor-popup { animation: none; }
   .played-card-flash, .played-card-flash-content { animation: played-flash-life 2.3s linear both; }
-  .turn-timer .timer-value { transition: none; }
 }
 
 /* ==================================================================
@@ -2429,83 +2648,6 @@ button { -webkit-tap-highlight-color: transparent; }
   gap: 6px;
 }
 .rail-action .medallion { width: clamp(68px, 6vw, 92px); }
-.turn-timer {
-  position: relative;
-  flex: none;
-  width: 28px;
-  height: clamp(78px, 7vw, 96px);
-  padding: 5px 4px;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  place-items: center;
-  gap: 4px;
-  border: 1px solid rgba(226, 191, 117, .28);
-  border-radius: 999px;
-  color: #dfd7c4;
-  background: linear-gradient(180deg, rgba(29, 43, 32, .94), rgba(5, 13, 8, .96));
-  box-shadow: inset 0 1px rgba(255,255,255,.06), 0 6px 18px rgba(0,0,0,.34);
-  font-variant-numeric: tabular-nums;
-}
-.turn-timer .timer-number {
-  margin: 0;
-  color: #f3db9e;
-  font-family: var(--font-display);
-  font-size: .72rem;
-  line-height: 1;
-}
-.turn-timer .timer-track {
-  position: relative;
-  inset: auto;
-  display: block;
-  align-self: stretch;
-  width: 8px;
-  min-height: 28px;
-  overflow: hidden;
-  border: 1px solid rgba(225, 211, 177, .14);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, .42);
-}
-.turn-timer .timer-fill {
-  position: absolute;
-  inset: auto 0 0;
-  display: block;
-  width: 100%;
-  height: calc(var(--timer-progress, 0) * 100%);
-  border-radius: inherit;
-  background: linear-gradient(180deg, #f3d37e, #9c692f);
-  box-shadow: 0 0 8px rgba(226, 176, 83, .7);
-  transition: height .25s linear, background .2s ease;
-}
-.turn-timer .timer-fill::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: 50%;
-  width: 8px;
-  height: 4px;
-  border-radius: 50%;
-  background: #fff1b7;
-  box-shadow: 0 0 7px #e7bc5b;
-  transform: translateX(-50%);
-}
-.turn-timer .timer-unit {
-  position: static;
-  inset: auto;
-  color: #9f9a8d;
-  font-size: .36rem;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-.turn-timer.is-you { border-color: rgba(255, 211, 119, .58); }
-.turn-timer.is-urgent { border-color: rgba(244, 111, 83, .6); }
-.turn-timer.is-urgent .timer-number { color: #ff9b83; }
-.turn-timer.is-urgent .timer-fill {
-  background: linear-gradient(180deg, #ff9a7f, #b93427);
-  box-shadow: 0 0 10px rgba(239, 82, 62, .82);
-}
-.turn-timer.is-urgent .timer-fill::before { background: #ffd2c6; box-shadow: 0 0 8px #ef523e; }
 
 @media (orientation: landscape) and (max-height: 650px) {
   .log-drawer { width: min(360px, 76vw); }
@@ -2526,152 +2668,17 @@ button { -webkit-tap-highlight-color: transparent; }
   .log-kicker { font-size: .43rem; }
   .rail-action { gap: 3px; }
   .rail-action .medallion { width: 54px; }
-  .turn-timer { width: 24px; height: 58px; padding: 4px 3px; gap: 2px; }
-  .turn-timer .timer-number { font-size: .58rem; }
-  .turn-timer .timer-track { width: 6px; min-height: 20px; }
-  .turn-timer .timer-unit { font-size: .31rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .chronicle-card .card-clickable:hover,
   .chronicle-card .card-clickable:focus-within { transform: none; }
-  .turn-timer .timer-fill { transition: none; }
 }
 
-/* Larger dragon-hourglass timer: an ornate instrument, not a utility pill. */
+/* The score rail is wide enough for the clock and the action medallion. */
 .game-board { --battle-rail: clamp(154px, 12vw, 184px); }
 .rail-action { gap: 8px; }
 .rail-action .medallion { width: clamp(76px, 6.4vw, 96px); }
-.turn-timer {
-  isolation: isolate;
-  width: 52px;
-  height: clamp(176px, 14vw, 196px);
-  padding: 10px 7px 11px;
-  grid-template-rows: 28px auto auto minmax(78px, 1fr);
-  gap: 3px;
-  overflow: hidden;
-  border: 1px solid rgba(245, 210, 133, .65);
-  border-radius: 0;
-  clip-path: polygon(50% 0, 82% 5%, 100% 16%, 100% 84%, 82% 95%, 50% 100%, 18% 95%, 0 84%, 0 16%, 18% 5%);
-  background:
-    radial-gradient(circle at 50% 12%, rgba(255, 220, 143, .2), transparent 28%),
-    linear-gradient(180deg, rgba(37, 51, 37, .98), rgba(8, 17, 10, .99) 56%, rgba(29, 21, 10, .98));
-  box-shadow:
-    inset 0 0 0 3px rgba(5, 12, 7, .72),
-    inset 0 0 18px rgba(226, 169, 75, .14),
-    0 10px 28px rgba(0,0,0,.5),
-    0 0 18px rgba(214, 161, 67, .14);
-}
-.turn-timer::before {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  inset: 4px;
-  border: 1px solid rgba(239, 203, 128, .2);
-  clip-path: inherit;
-  pointer-events: none;
-}
-.turn-timer::after {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  top: 35px;
-  left: 7px;
-  right: 7px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(242, 205, 126, .65), transparent);
-  box-shadow: 0 52px rgba(242, 205, 126, .13);
-}
-.turn-timer .timer-crest {
-  position: static;
-  inset: auto;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  color: #efcd7f;
-  filter: drop-shadow(0 0 5px rgba(231, 183, 87, .48));
-}
-.turn-timer .timer-crest svg {
-  position: static;
-  inset: auto;
-  width: 25px;
-  height: 25px;
-  transform: none;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.55;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.turn-timer .timer-number {
-  margin: 2px 0 0;
-  color: #ffe1a0;
-  font-size: 1.24rem;
-  line-height: 1;
-  text-shadow: 0 2px 3px #000, 0 0 10px rgba(241, 193, 96, .42);
-}
-.turn-timer .timer-unit {
-  position: static;
-  inset: auto;
-  color: #c8b98f;
-  font-size: .43rem;
-  line-height: 1;
-  letter-spacing: .09em;
-}
-.turn-timer .timer-track {
-  position: relative;
-  inset: auto;
-  align-self: stretch;
-  width: 16px;
-  min-height: 42px;
-  border: 1px solid rgba(244, 213, 146, .42);
-  border-radius: 4px 4px 8px 8px;
-  background: linear-gradient(90deg, rgba(0,0,0,.68), rgba(12,21,14,.86), rgba(0,0,0,.68));
-  box-shadow: inset 0 0 5px #000, 0 0 0 2px rgba(5,12,7,.72), 0 0 9px rgba(220,168,73,.16);
-}
-.turn-timer .timer-fill {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background:
-    linear-gradient(90deg, rgba(255,255,255,.35), transparent 28%),
-    linear-gradient(180deg, #ffe19a, #d79b3e 52%, #7b4b1e);
-  box-shadow: inset 0 0 6px rgba(255,237,186,.35), 0 0 10px rgba(229,176,75,.68);
-  transform: scaleY(var(--timer-progress, 0));
-  transform-origin: 50% 100%;
-  transition: transform .25s linear, background .2s ease;
-}
-.turn-timer .timer-ticks {
-  position: absolute;
-  z-index: 2;
-  inset: 2px;
-  display: block;
-  width: auto;
-  height: auto;
-  border-radius: 2px 2px 6px 6px;
-  background: repeating-linear-gradient(to bottom, transparent 0 7px, rgba(9,15,10,.52) 7px 8px);
-}
-.turn-timer.is-you {
-  border-color: rgba(255, 220, 137, .92);
-  box-shadow: inset 0 0 0 3px rgba(5,12,7,.72), inset 0 0 19px rgba(232,179,80,.19), 0 10px 28px rgba(0,0,0,.5), 0 0 24px rgba(235,184,82,.25);
-}
-.turn-timer.is-warning .timer-number { color: #ffc56f; }
-.turn-timer.is-warning .timer-fill {
-  background: linear-gradient(180deg, #ffd17d, #d87332 58%, #80331d);
-  box-shadow: 0 0 12px rgba(231, 121, 50, .74);
-}
-.turn-timer.is-urgent {
-  border-color: rgba(255, 130, 103, .9);
-  animation: timer-urgent-pulse .9s ease-in-out infinite alternate;
-}
-.turn-timer.is-urgent .timer-unit { color: #ffad98; font-size: .46rem; }
-.turn-timer.is-urgent .timer-fill {
-  background: linear-gradient(180deg, #ffd0c3, #ef6a50 46%, #8f211d);
-  box-shadow: 0 0 14px rgba(239, 82, 62, .88);
-}
 @keyframes timer-urgent-pulse {
   from { filter: brightness(1); }
   to { filter: brightness(1.16) drop-shadow(0 0 7px rgba(239,82,62,.42)); }
@@ -2681,26 +2688,6 @@ button { -webkit-tap-highlight-color: transparent; }
   .game-board { --battle-rail: 118px; }
   .rail-action { gap: 4px; }
   .rail-action .medallion { width: 60px; }
-  .turn-timer {
-    width: 40px;
-    height: 116px;
-    padding: 5px 5px 7px;
-    grid-template-rows: 18px auto auto minmax(48px, 1fr);
-    gap: 1px;
-  }
-  .turn-timer::after { top: 24px; left: 5px; right: 5px; box-shadow: 0 38px rgba(242, 205, 126, .12); }
-  .turn-timer .timer-crest { width: 19px; height: 19px; }
-  .turn-timer .timer-crest svg { width: 18px; height: 18px; }
-  .turn-timer .timer-number { margin: 0; font-size: .82rem; }
-  .turn-timer .timer-unit { font-size: .32rem; }
-  .turn-timer.is-urgent .timer-unit { font-size: .34rem; }
-  .turn-timer .timer-track { width: 11px; min-height: 48px; }
-  .turn-timer .timer-ticks { inset: 1px; background: repeating-linear-gradient(to bottom, transparent 0 4px, rgba(9,15,10,.5) 4px 5px); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .turn-timer.is-urgent { animation: none; }
-  .turn-timer .timer-fill { transition: none; }
 }
 
 /* Face-down cards use the same ornate frame everywhere, so opponents read as
@@ -2908,11 +2895,7 @@ button { -webkit-tap-highlight-color: transparent; }
   .topbar-mid { align-items: flex-start; text-align: left; }
   .topbar-status {
     max-width: 100%;
-    overflow: hidden;
     font-size: clamp(.76rem, 2.3vw, .92rem);
-    line-height: 1.25;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
   .turn-tracker { display: none; }
 
@@ -2987,28 +2970,6 @@ button { -webkit-tap-highlight-color: transparent; }
   .medallion strong { font-size: .76rem; }
   .medallion em { font-size: .43rem; }
   .medallion-idle strong { font-size: 1.1rem; }
-
-  .turn-timer {
-    width: 56px;
-    height: 56px;
-    min-width: 56px;
-    padding: 5px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1px;
-    overflow: visible;
-    border-radius: 50%;
-    clip-path: none;
-  }
-  .turn-timer::before,
-  .turn-timer::after,
-  .turn-timer .timer-crest,
-  .turn-timer .timer-track { display: none; }
-  .turn-timer .timer-number { margin: 0; font-size: 1.05rem; }
-  .turn-timer .timer-unit,
-  .turn-timer.is-urgent .timer-unit { font-size: .42rem; }
 
   .opponents {
     order: 1;
@@ -3335,7 +3296,6 @@ button { -webkit-tap-highlight-color: transparent; }
   .rail-action { gap: 5px; }
   .rail-action .medallion,
   .medallion { width: 60px; min-width: 60px; min-height: 60px; }
-  .turn-timer { width: 52px; height: 52px; min-width: 52px; }
 
   .opponents .player-panel,
   .opponents.few-foes .player-panel {
@@ -3379,19 +3339,6 @@ button { -webkit-tap-highlight-color: transparent; }
   .side-rail { padding-inline: 2px; }
   .rail-action { gap: 3px; }
   .rail-action .medallion { width: 58px; }
-  .turn-timer {
-    width: 38px;
-    height: 58px;
-    padding: 3px;
-    grid-template-rows: auto auto minmax(22px, 1fr);
-    clip-path: none;
-    border-radius: 12px;
-  }
-  .turn-timer::before,
-  .turn-timer::after,
-  .turn-timer .timer-crest { display: none; }
-  .turn-timer .timer-track { width: 8px; min-height: 22px; }
-  .turn-timer .timer-number { font-size: .72rem; }
 
   .hand-area,
   .hand-area.is-ready,
@@ -3438,11 +3385,6 @@ button { -webkit-tap-highlight-color: transparent; }
   .game-board { --battle-rail: 132px; }
   .rail-action { gap: 5px; }
   .rail-action .medallion { width: 76px; }
-  .turn-timer {
-    width: 46px;
-    height: 142px;
-    grid-template-rows: 24px auto auto minmax(54px, 1fr);
-  }
   .opponents .has-full-stable .card-sm { --w: clamp(86px, 14vh, 118px); }
   .my-area .has-full-stable .card-sm { --w: clamp(94px, 15vh, 128px); }
   .hand .card-sm { --w: clamp(88px, 10vw, 106px); }
@@ -3648,6 +3590,36 @@ button { -webkit-tap-highlight-color: transparent; }
   outline-offset: 2px;
 }
 
+.settings-select {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(132px, 42%);
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px 9px 12px;
+  border: 1px solid rgba(231, 202, 140, .13);
+  border-radius: 13px;
+  background: rgba(19, 32, 23, .5);
+}
+.settings-select select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 28px 8px 10px;
+  border: 1px solid rgba(231, 202, 140, .28);
+  border-radius: 10px;
+  background: #07110b;
+  color: var(--text);
+  font: inherit;
+  font-size: .72rem;
+  cursor: pointer;
+}
+.settings-select select:hover { border-color: rgba(231, 202, 140, .48); }
+.settings-select select:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+}
+
 .settings-toggles {
   overflow: hidden;
   border: 1px solid rgba(231, 202, 140, .13);
@@ -3717,15 +3689,27 @@ button { -webkit-tap-highlight-color: transparent; }
   outline-offset: 3px;
 }
 
-html[data-effects='reduced'] .embers { display: none; }
+html[data-ambience='none'] .battlefield-ambience,
+html[data-effects='reduced'] :is(.embers, .battlefield-ambience) { display: none; }
+.app:has(.game) > .embers { display: none; }
 html[data-effects='reduced'] :is(
   .played-card-flash,
   .played-card-flash-content,
-  .turn-timer.is-urgent,
   .medallion-draw,
   .medallion-pass,
-  .glow
+  .turn-aura,
+  .my-area .player-panel,
+  .turn-timer.is-urgent,
+  .turn-timer.is-urgent .timer-gem
 ) { animation: none !important; }
+html[data-effects='reduced'] [class*='glow-'] { animation: none !important; }
+html[data-effects='reduced'] .hand .card[class*='glow-']::after { display: none; }
+/* The banner is the one cue that has to stay, so it fades instead of moving. */
+html[data-effects='reduced'] .turn-banner { animation-name: turn-banner-hold; }
+@keyframes turn-banner-hold {
+  0%, 78% { opacity: 1; }
+  100% { opacity: 0; }
+}
 html[data-effects='reduced'] :is(.card, .btn, .medallion, .battlefield-choice) {
   transition-duration: .01ms !important;
 }
@@ -3733,11 +3717,529 @@ html[data-effects='reduced'] :is(.card, .btn, .medallion, .battlefield-choice) {
 @media (max-width: 640px) {
   .home-settings summary { min-height: 60px; padding-inline: 11px; }
   .settings-body { padding-inline: 10px; }
-  .battlefield-options { gap: 6px; }
+  .battlefield-options { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .home:has(.home-settings[open]) ~ .codex-fab { visibility: hidden; }
   .battlefield-choice {
     min-height: 92px;
     padding: 4px 4px 7px;
     font-size: clamp(.65rem, 3vw, .75rem);
   }
   .settings-toggle { min-height: 62px; }
+  .settings-select { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .battlefield-ambience { display: none; }
+}
+
+/* ==================================================================
+   Adaptive card internals
+   Every card is its own query container, so the nameplate, the rules
+   panel and the touch controls are sized from the card's own width
+   instead of from a per-breakpoint pixel guess. The plate stack sits
+   in normal flow at the bottom of the frame, which means a long name
+   pushes the rules panel up rather than spilling off the artwork.
+   ================================================================== */
+
+.card {
+  container-type: inline-size;
+  container-name: card;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.card-art { position: absolute; inset: 0; z-index: 0; min-height: 0; }
+.card-ornament { inset: 2.2cqw; z-index: 3; border-radius: 4cqw; }
+
+.card-body {
+  order: 1;
+  position: static;
+  z-index: 3;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 46%;
+  margin: 0 4.8cqw 2.6cqw;
+  padding: 3.6cqw 4.2cqw;
+  gap: 1.6cqw;
+  border-radius: 3.4cqw;
+  overflow: hidden;
+}
+.card-head {
+  order: 2;
+  position: static;
+  z-index: 3;
+  flex: none;
+  min-height: 0;
+  margin: 0 4.4cqw 4.4cqw;
+  padding: 3.4cqw 3.8cqw;
+  border-radius: 3.4cqw;
+}
+.card-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  width: 100%;
+  font-size: clamp(6.5px, 8.6cqw, 13px);
+  line-height: 1.14;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: auto;
+}
+.card-type { font-size: clamp(6px, 5.6cqw, 10px); line-height: 1.2; }
+.card-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+  font-size: clamp(7px, 6.4cqw, 12px);
+  line-height: 1.3;
+}
+.card-flag { font-size: clamp(6px, 7cqw, 11px); padding: 1.6cqw 4cqw; }
+.card-count { font-size: clamp(8px, 9cqw, 14px); }
+
+.card .card-info-button {
+  right: 5.5cqw;
+  top: 5.5cqw;
+  width: clamp(15px, 17cqw, 26px);
+  height: clamp(15px, 17cqw, 26px);
+  font-size: clamp(7px, 9cqw, 14px);
+}
+
+/* Below these widths the frame is a token, not a readable card. */
+@container card (max-width: 84px) {
+  .card-body { display: none; }
+}
+@container card (max-width: 62px) {
+  .card .card-info-button { display: none; }
+}
+@container card (max-width: 40px) {
+  .card-head { display: none; }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .card .card-info-button {
+    top: 5cqw;
+    right: 5cqw;
+    width: clamp(18px, 24cqw, 34px);
+    height: clamp(18px, 24cqw, 34px);
+  }
+  .card-touch-split .card-touch-action {
+    top: 5cqw;
+    right: 5cqw;
+    width: clamp(24px, 42cqw, 40px);
+    height: clamp(24px, 42cqw, 40px);
+  }
+  .card-touch-split .card-touch-action .glyph { width: 56%; height: 56%; }
+}
+
+/* The status line wraps instead of truncating; a clipped sentence reads
+   as a rendering bug on short landscape viewports. */
+.topbar-status {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  line-height: 1.18;
+}
+.pile-label { max-width: 100%; }
+
+/* ==================================================================
+   "It is your move" cues
+   A warm frame around the arena, a one-shot banner, and a sheen that
+   sweeps the cards you can actually play.
+   ================================================================== */
+
+.turn-aura {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 30px rgba(255, 208, 130, .16),
+    inset 0 0 110px rgba(255, 176, 70, .16);
+  animation: turn-aura-breathe 2.8s ease-in-out infinite;
+}
+.game.is-my-response .turn-aura {
+  box-shadow:
+    inset 0 0 30px rgba(255, 154, 128, .2),
+    inset 0 0 110px rgba(226, 84, 60, .2);
+  animation-duration: 1.5s;
+}
+@keyframes turn-aura-breathe {
+  0%, 100% { opacity: .45; }
+  50% { opacity: 1; }
+}
+
+.turn-banner {
+  position: fixed;
+  left: 50%;
+  top: 26%;
+  z-index: 68;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: turn-banner-life 2s cubic-bezier(.2, .85, .3, 1) forwards;
+}
+.turn-banner strong {
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 3.4vw, 2.3rem);
+  font-weight: 900;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: #ffeec4;
+  text-shadow: 0 0 22px rgba(255, 176, 70, .75), 0 3px 10px rgba(0, 0, 0, .85);
+  white-space: nowrap;
+}
+.turn-banner-rule {
+  width: clamp(28px, 9vw, 96px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 216, 150, .9), transparent);
+  box-shadow: 0 0 10px rgba(255, 190, 100, .7);
+}
+@keyframes turn-banner-life {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.86); }
+  16% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  72% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -58%) scale(1.04); }
+}
+
+/* Playable cards catch the light. */
+.hand .card[class*="glow-"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(112deg, transparent 40%, rgba(255, 243, 214, .55) 50%, transparent 60%);
+  background-size: 280% 100%;
+  background-repeat: no-repeat;
+  mix-blend-mode: screen;
+  animation: card-sheen 2.9s ease-in-out infinite;
+}
+.hand .card.glow-roar::after { animation-duration: 1.7s; }
+@keyframes card-sheen {
+  0% { background-position: 165% 0; opacity: 0; }
+  14% { opacity: 1; }
+  46% { background-position: -75% 0; opacity: 0; }
+  100% { background-position: -75% 0; opacity: 0; }
+}
+
+.game.is-my-turn .my-area .player-panel,
+.game.is-my-response .my-area .player-panel {
+  border-color: rgba(255, 213, 141, .75);
+  animation: my-panel-breathe 2.8s ease-in-out infinite;
+}
+@keyframes my-panel-breathe {
+  0%, 100% { box-shadow: inset 0 0 26px rgba(240, 183, 84, .08), 0 0 16px rgba(233, 168, 63, .2); }
+  50% { box-shadow: inset 0 0 40px rgba(240, 183, 84, .18), 0 0 34px rgba(233, 168, 63, .42); }
+}
+.rail-turn.is-you {
+  color: #ffe0a6;
+  text-shadow: 0 0 12px rgba(255, 179, 76, .55);
+}
+.game.is-my-turn .topbar { border-color: rgba(255, 206, 132, .45); }
+
+/* ==================================================================
+   Hand: cards lift clear of the fan
+   One shared transform built from custom properties, so the lift, the
+   sideways parting of the neighbours and the resting arc never fight
+   each other across breakpoints.
+   ================================================================== */
+
+.hand { --pop-shift: 15px; --pop-lift: -46px; --pop-scale: 1.24; }
+.fan-slot {
+  --lift: 0px;
+  --shift: 0px;
+  --pop: 1;
+  --tilt: 1;
+  position: relative;
+  flex: none;
+  transform-origin: 50% 120%;
+  /* The arc is anchored at the baseline: the outermost card sits on it and the
+     inner cards rise, so no card is ever pushed below the hand's box. */
+  --arc: max(-34px, calc((var(--k, 0) * var(--k, 0) - (var(--n, 5) - 1) * (var(--n, 5) - 1) / 4) * 1.4px));
+  transform:
+    translate(var(--shift), calc(var(--arc) + var(--lift)))
+    rotate(calc(var(--k, 0) * 2.1deg * var(--tilt)))
+    scale(var(--pop));
+  transition: transform .2s cubic-bezier(.2, .9, .3, 1.15);
+}
+.fan-slot.is-popped {
+  --lift: var(--pop-lift);
+  --pop: var(--pop-scale);
+  --tilt: 0;
+  z-index: 99 !important;
+}
+.fan-slot:has(~ .fan-slot.is-popped) { --shift: calc(var(--pop-shift) * -1); }
+.fan-slot.is-popped ~ .fan-slot { --shift: var(--pop-shift); }
+
+@media (hover: hover) and (pointer: fine) {
+  .fan-slot:hover,
+  .fan-slot:focus-within {
+    --lift: var(--pop-lift);
+    --pop: var(--pop-scale);
+    --tilt: 0;
+    z-index: 99 !important;
+  }
+  .fan-slot:has(~ .fan-slot:hover),
+  .fan-slot:has(~ .fan-slot:focus-within) { --shift: calc(var(--pop-shift) * -1); }
+  .fan-slot:hover ~ .fan-slot,
+  .fan-slot:focus-within ~ .fan-slot { --shift: var(--pop-shift); }
+}
+
+/* The lifted card gets its own rim light so it reads as detached. */
+.fan-slot.is-popped > .card,
+.fan-slot:hover > .card,
+.fan-slot:focus-within > .card {
+  border-color: rgba(255, 226, 160, .9);
+  box-shadow:
+    inset 0 0 0 2px rgba(12, 8, 5, .82),
+    0 0 0 1px rgba(255, 226, 160, .7),
+    0 18px 34px rgba(0, 0, 0, .62),
+    0 0 30px rgba(255, 191, 96, .38);
+}
+.hand .card-clickable:hover { transform: none; }
+
+/* Keep the resting row — nameplates included — inside the viewport, and let a
+   lifted card rise clear of the board. */
+.hand-area,
+.hand-area.is-ready,
+.hand-area.is-roar {
+  margin-bottom: 0;
+  /* The hand is the frontmost board layer: a lifted card rises over the table
+     band (z-index 18) but still passes under the top bar and the drawers. */
+  z-index: 19;
+}
+.hand {
+  /* The fanned hand does not scroll, so nothing here clips: a lifted card is
+     bounded only by the board itself. The phone strips below scroll sideways
+     and cannot do this, which is why they reserve headroom instead. */
+  overflow: visible;
+  /* Small — just enough to absorb a rotated card's extra bounding-box height.
+     The rest of the old gap is gone so the resting hand sits closer to the
+     bottom edge. */
+  padding-bottom: 2px;
+}
+
+/* Phones lay the hand out as a flat scrolling strip rather than a fan, but a
+   tapped card still has to lift clear of the row to be readable. A strip that
+   scrolls horizontally cannot let content escape vertically, so it reserves
+   the headroom above the cards and is pulled back up by the same amount. */
+@media (orientation: portrait) and (max-width: 1100px),
+       (orientation: landscape) and (max-height: 650px) and (pointer: coarse) {
+  .hand-area,
+  .hand-area.is-ready,
+  .hand-area.is-roar { overflow: visible; }
+  .hand {
+    --pop-shift: 10px;
+    --pop-lift: -26px;
+    --pop-scale: 1.14;
+    height: auto;
+    max-height: none;
+    margin-top: -50px;
+    padding-top: 54px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .fan-slot {
+    --tilt: 0;
+    transform: translate(var(--shift), var(--lift)) scale(var(--pop));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 650px) and (pointer: coarse) {
+  .hand-area,
+  .hand-area.is-ready,
+  .hand-area.is-roar { height: auto; max-height: none; }
+}
+
+/* Rail labels wrap rather than truncate; the rail is too narrow for ellipses
+   to carry any meaning. */
+.rail-score-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: clip;
+  line-height: 1.15;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fan-slot { transition: none; }
+  .fan-slot.is-popped,
+  .fan-slot:hover,
+  .fan-slot:focus-within { --pop: 1.06; }
+  .turn-aura,
+  .hand .card[class*="glow-"]::after,
+  .game.is-my-turn .my-area .player-panel,
+  .game.is-my-response .my-area .player-panel { animation: none; }
+  .turn-banner { animation-name: turn-banner-hold; }
+}
+
+/* ==================================================================
+   Turn clock: a tapered rune bar
+   Discrete pips burn out from the top as the clock drains, a gem marks
+   the midpoint, and the remaining count sits beneath the column.
+   ================================================================== */
+
+.turn-timer {
+  --tc: 122, 200, 180;
+  --tc-hi: 205, 249, 236;
+  position: relative;
+  width: 30px;
+  height: clamp(132px, 12vw, 172px);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  justify-items: center;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  clip-path: none;
+  background: none;
+  box-shadow: none;
+}
+.turn-timer::before,
+.turn-timer::after { display: none; }
+.turn-timer.is-you { --tc: 255, 190, 88; --tc-hi: 255, 236, 186; }
+.turn-timer.is-warning { --tc: 244, 152, 58; --tc-hi: 255, 216, 154; }
+.turn-timer.is-urgent { --tc: 238, 92, 68; --tc-hi: 255, 198, 180; }
+
+.timer-rail {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  align-self: stretch;
+  width: 100%;
+  min-height: 0;
+}
+.timer-rail::before,
+.timer-rail::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  transform: translateX(-50%) rotate(45deg);
+  background: rgb(var(--tc-hi));
+  box-shadow: 0 0 8px rgba(var(--tc), .95);
+}
+.timer-rail::before { top: -2px; }
+.timer-rail::after { bottom: -2px; }
+
+.timer-column {
+  display: flex;
+  align-self: stretch;
+  width: 12px;
+  min-height: 0;
+  padding: 7px 2px;
+  clip-path: polygon(50% 0, 100% 6%, 100% 94%, 50% 100%, 0 94%, 0 6%);
+  background: linear-gradient(180deg, rgba(8, 15, 11, .92), rgba(3, 7, 5, .96));
+  box-shadow: inset 0 0 0 1px rgba(var(--tc), .34);
+}
+.timer-segments {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-height: 0;
+}
+.timer-segments i {
+  flex: 1 1 0;
+  min-height: 0;
+  border-radius: 1px;
+  background: rgba(var(--tc), .12);
+  transition: background .3s ease, box-shadow .3s ease;
+}
+.timer-segments i.is-lit {
+  background: linear-gradient(90deg, rgba(var(--tc-hi), .95), rgba(var(--tc), .9));
+  box-shadow: 0 0 4px rgba(var(--tc), .9), 0 0 10px rgba(var(--tc), .45);
+}
+.timer-gem {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  border-radius: 2px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 1px solid rgba(var(--tc-hi), .9);
+  background: linear-gradient(135deg, rgba(var(--tc-hi), .95), rgba(var(--tc), .55));
+  box-shadow: 0 0 11px rgba(var(--tc), .9), inset 0 0 6px rgba(255, 255, 255, .55);
+}
+
+.turn-timer .timer-number {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(.82rem, 1.15vw, 1.06rem);
+  line-height: 1;
+  color: rgb(var(--tc-hi));
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 10px rgba(var(--tc), .6), 0 1px 2px #000;
+}
+.turn-timer .timer-unit {
+  position: static;
+  inset: auto;
+  font-size: .42rem;
+  line-height: 1;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: rgba(var(--tc-hi), .62);
+}
+.turn-timer.is-urgent {
+  animation: timer-urgent-pulse .85s ease-in-out infinite alternate;
+}
+.turn-timer.is-urgent .timer-gem { animation: timer-gem-flare .85s ease-in-out infinite alternate; }
+@keyframes timer-gem-flare {
+  from { box-shadow: 0 0 11px rgba(var(--tc), .9), inset 0 0 6px rgba(255, 255, 255, .55); }
+  to { box-shadow: 0 0 22px rgba(var(--tc), 1), inset 0 0 8px rgba(255, 255, 255, .8); }
+}
+
+@media (orientation: landscape) and (max-height: 650px) {
+  .turn-timer { width: 26px; height: 100px; gap: 2px; }
+  .timer-column { width: 10px; padding: 5px 2px; }
+  .timer-segments { gap: 1px; }
+  .timer-gem { width: 11px; height: 11px; }
+  .timer-rail::before, .timer-rail::after { width: 4px; height: 4px; }
+  .turn-timer .timer-number { font-size: .78rem; }
+  .turn-timer .timer-unit { font-size: .34rem; }
+}
+
+@media (orientation: landscape) and (min-height: 651px) and (max-width: 1100px) {
+  .turn-timer { width: 28px; height: 128px; }
+}
+
+/* Portrait keeps the rail as a slim horizontal bar, so the clock stays close
+   to the height of the medallion beside it. */
+@media (orientation: portrait) and (max-width: 1100px) {
+  .turn-timer { width: 24px; height: 78px; gap: 2px; }
+  .turn-timer .timer-unit { display: none; }
+  .timer-column { width: 10px; padding: 5px 2px; }
+  .timer-segments { gap: 1px; }
+  .timer-gem { width: 11px; height: 11px; }
+  .timer-rail::before, .timer-rail::after { width: 4px; height: 4px; }
+  .turn-timer .timer-number { font-size: .8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-timer.is-urgent,
+  .turn-timer.is-urgent .timer-gem { animation: none; }
+  .timer-segments i { transition: none; }
 }

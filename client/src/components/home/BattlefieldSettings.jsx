@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useI18n } from '../../i18n/index.jsx';
-import { BATTLEFIELDS, loadPreferences, savePreferences } from '../../preferences.js';
+import { AMBIENCES, BATTLEFIELDS, loadPreferences, savePreferences } from '../../preferences.js';
 import { isMuted, setMuted, sfx } from '../../sound.js';
 
 function SettingsIcon() {
@@ -83,6 +83,22 @@ export default function BattlefieldSettings() {
             ))}
           </div>
         </fieldset>
+
+        <label className="settings-select">
+          <span className="settings-toggle-copy">
+            <strong>{t('Battlefield ambience')}</strong>
+            <span>{t('Weather and magical particles')}</span>
+          </span>
+          <select
+            value={preferences.ambience}
+            onChange={(event) => updatePreferences({ ambience: event.target.value })}
+            aria-label={t('Battlefield ambience')}
+          >
+            {AMBIENCES.map((ambience) => (
+              <option value={ambience.id} key={ambience.id}>{t(ambience.name)}</option>
+            ))}
+          </select>
+        </label>
 
         <div className="settings-toggles">
           <label className="settings-toggle">

@@ -30,6 +30,7 @@ export function createGame(code) {
     discard: [],
     nest: [],
     turn: null,
+    direction: 1,
     chain: [],
     window: null,
     effects: [],
@@ -256,8 +257,11 @@ function endGame(g, winnerId, msg) {
 
 function turnOrderFrom(g, startPid) {
   const start = g.players.findIndex((p) => p.id === startPid);
+  const direction = g.direction === -1 ? -1 : 1;
   const out = [];
-  for (let i = 0; i < g.players.length; i++) out.push(g.players[(start + i) % g.players.length].id);
+  for (let i = 0; i < g.players.length; i++) {
+    out.push(g.players[(start + (i * direction) + g.players.length) % g.players.length].id);
+  }
   return out;
 }
 
@@ -770,6 +774,64 @@ function execStep(g, frame, step, choice) {
       return 'done';
     }
 
+    case 'reverseTurnOrder': {
+      g.direction = g.direction === -1 ? 1 : -1;
+      addLog(g, `${byId(g, frame.owner).name} reversed the flow of time.`, 'play');
+      return 'done';
+    }
+
+    case 'copyEntrance': {
+      const chooser = frame.owner;
+      const cands = legalStableTargets(g, { kind: 'dragon', zone: 'any' }, { chooser })
+        .filter((iid) => {
+          const d = defOf(g, iid);
+          return iid !== frame.source && d.type === 'magical' && d.id !== 'm_mirrorwing' &&
+            Array.isArray(d.onEnter) && d.onEnter.length > 0 && abilitiesActive(g, iid);
+        });
+      if (!cands.length) return 'done';
+      if (choice === undefined) {
+        setPrompt(g, {
+          playerId: chooser,
+          kind: 'pickCard',
+          title: 'Copy the entrance ability of which Magical Dragon?',
+          candidates: cands,
+          canSkip: !!step.optional,
+        });
+        return 'wait';
+      }
+      if (choice === null) return 'done';
+      const copied = defOf(g, choice);
+      addLog(g, `${byId(g, chooser).name} echoed ${copied.name}'s entrance ability.`, 'play');
+      pushFrame(g, { owner: chooser, source: frame.source, steps: copied.onEnter });
+      return 'done';
+    }
+
+    case 'swapDragon': {
+      const chooser = frame.owner;
+      const sourceOwner = stableOwner(g, frame.source);
+      if (!sourceOwner || sourceOwner.id !== chooser) return 'done';
+      const cands = legalStableTargets(g, { kind: 'dragon', zone: 'others' }, { chooser })
+        .filter((iid) => canAttachOrEnter(g, iid, chooser));
+      if (!cands.length) return 'done';
+      if (choice === undefined) {
+        setPrompt(g, {
+          playerId: chooser,
+          kind: 'pickCard',
+          title: 'Swap Riftcoil Dragon with which Dragon?',
+          candidates: cands,
+          canSkip: !!step.optional,
+        });
+        return 'wait';
+      }
+      if (choice === null) return 'done';
+      const targetOwner = stableOwner(g, choice);
+      if (!targetOwner || targetOwner.id === chooser) return 'done';
+      sourceOwner.stable[sourceOwner.stable.indexOf(frame.source)] = choice;
+      targetOwner.stable[targetOwner.stable.indexOf(choice)] = frame.source;
+      addLog(g, `${cardName(g, frame.source)} and ${cardName(g, choice)} traded stables.`, 'play');
+      return 'done';
+    }
+
     case 'shuffleDiscardIntoDeck': {
       reshuffleDiscardIntoDeck(g, false);
       return 'done';
@@ -1189,8 +1251,9 @@ function advanceFlow(g) {
       }
       // Next player (skip fully disconnected seats if any connected player exists).
       let idx = t.idx;
+      const direction = g.direction === -1 ? -1 : 1;
       for (let i = 1; i <= g.players.length; i++) {
-        const cand = (t.idx + i) % g.players.length;
+        const cand = (t.idx + (i * direction) + g.players.length) % g.players.length;
         idx = cand;
         if (g.players[cand].connected || !g.players.some((x) => x.connected)) break;
       }
@@ -1298,6 +1361,7 @@ export function startGame(g, pid) {
   g.effects = [];
   g.prompt = null;
   g.lastPlayed = null;
+  g.direction = 1;
   g.status = 'playing';
 
   for (const p of g.players) {

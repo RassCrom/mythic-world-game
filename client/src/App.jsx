@@ -113,7 +113,7 @@ export default function App() {
       {screen}
       <button className="codex-fab" type="button" onClick={() => setCodexOpen(true)}>
         <CodexIcon />
-        <span>{t('Card Codex')}</span>
+        {/* <span>{t('Card Codex')}</span> */}
       </button>
       <CardCodex open={codexOpen} onClose={() => setCodexOpen(false)} />
       {status === 'reconnecting' && view && (

@@ -42,6 +42,9 @@ const FEATURE_ART = new Set([
   'm_tidal',
   'm_nagging',
   'm_pest',
+  'm_chronodrake',
+  'm_mirrorwing',
+  'm_riftcoil',
   'u_armor',
   'd_fog',
   's_venom',
@@ -159,9 +162,6 @@ export default function CardView({
   const inspect = (event) => onInspect?.(defId, event);
   const primaryAction = onClick || (onInspect ? inspect : null);
 
-  const isDragon = ['baby', 'basic', 'magical'].includes(def.type);
-  const dragonValue = toad ? 0 : def.countsAs === 2 && !suppressed ? 2 : 1;
-
   return (
     <article
       className={cls}
@@ -177,13 +177,6 @@ export default function CardView({
       title={title || (!onInspect ? `${def.name} — ${def.text}` : undefined)}
     >
       <div className="card-ornament" aria-hidden="true" />
-      <span
-        className={`card-value ${isDragon ? `value-${dragonValue}` : 'value-spell'}`}
-        title={isDragon ? t(`Counts as {count} Dragon${dragonValue === 1 ? '' : 's'}`, { count: dragonValue }) : t(TYPE_LABEL[def.type])}
-        aria-hidden="true"
-      >
-        {isDragon ? dragonValue : <TypeGlyph type={def.type} />}
-      </span>
       <header className="card-head">
         <span className="card-name">{def.name}</span>
       </header>

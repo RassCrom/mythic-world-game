@@ -10,6 +10,7 @@ import PlayerPanel from './game/PlayerPanel.jsx';
 import { SideRail, TurnTracker } from './game/TurnUi.jsx';
 import { PHASE_LABEL } from './game/constants.js';
 import { useCardFlight } from './game/useCardFlight.js';
+import BattlefieldAmbience from './game/BattlefieldAmbience.jsx';
 
 export default function Game({ view, send, onLeave }) {
   const { t, text, card } = useI18n();
@@ -19,6 +20,8 @@ export default function Game({ view, send, onLeave }) {
   const [showDiscard, setShowDiscard] = useState(false);
   const [cardPreview, setCardPreview] = useState(null);
   const [playedFlash, setPlayedFlash] = useState(null);
+  const [poppedIid, setPoppedIid] = useState(null); // hand card lifted out of the fan
+  const [turnFlash, setTurnFlash] = useState(0); // bumped once each time the turn becomes ours
   const [muted, setMutedState] = useState(isMuted());
   const lastLogRef = useRef(0);
   const lastTurnRef = useRef(null);
@@ -51,7 +54,10 @@ export default function Game({ view, send, onLeave }) {
     }
     if (view.turn && view.turn.playerId !== lastTurnRef.current) {
       lastTurnRef.current = view.turn.playerId;
-      if (view.turn.playerId === view.you && view.status === 'playing') sfx.turn();
+      if (view.turn.playerId === view.you && view.status === 'playing') {
+        sfx.turn();
+        setTurnFlash((n) => n + 1);
+      }
     }
   }, [view]);
 
@@ -65,10 +71,20 @@ export default function Game({ view, send, onLeave }) {
   useEffect(() => () => clearTimeout(previewTimerRef.current), []);
 
   useEffect(() => {
+    if (!turnFlash) return undefined;
+    const timer = setTimeout(() => setTurnFlash(0), 2_000);
+    return () => clearTimeout(timer);
+  }, [turnFlash]);
+
+  // A card leaving or entering the hand invalidates whichever card was lifted.
+  const handKey = myHand.map((c) => c.iid).join(',');
+  useEffect(() => { setPoppedIid(null); }, [handKey]);
+
+  useEffect(() => {
     const play = view.lastPlayed;
     if (!play || play.n <= lastPlayedRef.current) return;
     lastPlayedRef.current = play.n;
-    if (Date.now() - play.at > 5_000) return;
+    if (view.serverNow - play.at > 5_000) return;
     setPlayedFlash(play);
     const timer = setTimeout(() => setPlayedFlash((currentPlay) => (
       currentPlay?.n === play.n ? null : currentPlay
@@ -199,15 +215,26 @@ export default function Game({ view, send, onLeave }) {
 
   /* ---------- render ---------- */
 
+  const yourTurnLive = Boolean(isMyTurn && !view.winner && view.status === 'playing');
+
   return (
-    <main className="game">
+    <main className={`game ${yourTurnLive ? 'is-my-turn' : ''} ${view.window?.canRespond ? 'is-my-response' : ''}`}>
+      <BattlefieldAmbience />
+      {(yourTurnLive || view.window?.canRespond) && <div className="turn-aura" aria-hidden="true" />}
+      {turnFlash > 0 && yourTurnLive && (
+        <div key={turnFlash} className="turn-banner" role="status">
+          <span className="turn-banner-rule" aria-hidden="true" />
+          <strong>{t('Your turn')}</strong>
+          <span className="turn-banner-rule" aria-hidden="true" />
+        </div>
+      )}
       {/* The command rail keeps turn state and utility actions in one predictable place. */}
       <header className="topbar">
         <button className="icon-button topbar-leave" onClick={onLeave} aria-label={t('Leave the game')} title={t('Leave game')}>
           <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true"><path d="m10 6-6 6 6 6M4 12h12M16 5h3a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
         <div className="topbar-mid">
-          <span className="topbar-code" title={t('Room code')}>{t('Realm {code}', { code: view.code })}</span>
+          {/* <span className="topbar-code" title={t('Room code')}>{t('Realm {code}', { code: view.code })}</span> */}
           <span className={`topbar-status ${isMyTurn && !view.winner ? 'is-you' : ''}`}>{statusLine}</span>
         </div>
         <TurnTracker turn={view.turn} isMyTurn={isMyTurn} />
@@ -348,7 +375,7 @@ export default function Game({ view, send, onLeave }) {
             return (
               <div
                 key={c.iid}
-                className="fan-slot"
+                className={`fan-slot ${poppedIid === c.iid ? 'is-popped' : ''}`}
                 style={{ '--k': i - (myHand.length - 1) / 2, zIndex: i + 1 }}
               >
                 <CardView
@@ -359,8 +386,8 @@ export default function Game({ view, send, onLeave }) {
                   dimmed={(inPrompt || view.window?.canRespond || (isMyTurn && view.canDraw)) && !clickable}
                   selected={selected.includes(c.iid)}
                   onClick={clickable ? () => playFromHand(c.iid) : undefined}
-                  onInspect={showCardPreview}
-                  onInspectEnd={hideCardPreview}
+                  onInspect={(id, event) => { setPoppedIid(c.iid); showCardPreview(id, event); }}
+                  onInspectEnd={(id) => { setPoppedIid((cur) => (cur === c.iid ? null : cur)); hideCardPreview(id); }}
                   touchInspectFirst={clickable}
                   actionLabel={clickable
                     ? `${t(inPrompt ? 'Choose' : 'Play')} ${card(c.defId).name}`

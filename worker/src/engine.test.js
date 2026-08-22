@@ -126,6 +126,65 @@ test('a Magical Dragon resolves its enter effect and consumes the action', () =>
   assert.equal(game.turn.idx, 1);
 });
 
+test('Chronodrake reverses the next-player direction', () => {
+  const game = createGame('TIME');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
+  addPlayer(game, { token: 'second', name: 'Bramble' });
+  const third = addPlayer(game, { token: 'third', name: 'Cinder' }).playerId;
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try {
+    assert.deepEqual(startGame(game, first), {});
+  } finally {
+    Math.random = originalRandom;
+  }
+  const chronodrake = putInActiveHand(game, 'm_chronodrake');
+
+  assert.deepEqual(playCard(game, first, chronodrake), {});
+  passAllResponses(game);
+
+  assert.equal(game.direction, -1);
+  assert.equal(activePlayer(game).id, third, 'play continues to the previous seat after reversal');
+});
+
+test('Mirrorwing copies another Magical Dragon entrance ability', () => {
+  const { game, first } = startedGame();
+  const player = game.players.find((candidate) => candidate.id === first);
+  const hoardwing = game.deck.find((iid) => game.inst[iid] === 'm_hoardwing');
+  game.deck = game.deck.filter((iid) => iid !== hoardwing);
+  player.stable.push(hoardwing);
+  const mirrorwing = putInActiveHand(game, 'm_mirrorwing');
+
+  assert.deepEqual(playCard(game, first, mirrorwing), {});
+  passAllResponses(game);
+  assert.equal(game.prompt?.kind, 'pickCard');
+  assert.ok(game.prompt.candidates.includes(hoardwing));
+  assert.deepEqual(choose(game, first, hoardwing), {});
+
+  assert.equal(player.hand.length, 6, 'copied Hoardwing ability draws one card');
+});
+
+test('Riftcoil swaps itself with an opposing Dragon without retriggering either card', () => {
+  const { game, first, second } = startedGame();
+  const firstPlayer = game.players.find((candidate) => candidate.id === first);
+  const secondPlayer = game.players.find((candidate) => candidate.id === second);
+  const target = game.deck.find((iid) => game.inst[iid] === 'basic_verdant');
+  game.deck = game.deck.filter((iid) => iid !== target);
+  secondPlayer.stable.push(target);
+  const riftcoil = putInActiveHand(game, 'm_riftcoil');
+
+  assert.deepEqual(playCard(game, first, riftcoil), {});
+  passAllResponses(game);
+  assert.equal(game.prompt?.kind, 'pickCard');
+  assert.ok(game.prompt.candidates.includes(target));
+  assert.deepEqual(choose(game, first, target), {});
+
+  assert.ok(firstPlayer.stable.includes(target));
+  assert.ok(!firstPlayer.stable.includes(riftcoil));
+  assert.ok(secondPlayer.stable.includes(riftcoil));
+  assert.ok(!secondPlayer.stable.includes(target));
+});
+
 test('playing a card publishes a synchronized spotlight event', () => {
   const { game, first } = startedGame();
   const hoardwing = putInActiveHand(game, 'm_hoardwing');
@@ -147,7 +206,7 @@ test('every effect action referenced by the card database is implemented by the 
     'fromDiscard', 'randomSteal', 'lookTake', 'tradeHands', 'targetDiscard',
     'shuffleDiscardIntoDeck', 'moltHand', 'moveUpDown', 'destroyUpOrSacDown',
     'costDiscardThen', 'costSacrificeSelfThen', 'babyFromNest', 'ask', 'ifVar',
-    'skipToEnd', 'extraAction',
+    'skipToEnd', 'extraAction', 'reverseTurnOrder', 'copyEntrance', 'swapDragon',
   ]);
   const referenced = new Set();
   const visit = (value) => {

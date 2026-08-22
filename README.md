@@ -130,7 +130,7 @@ as a build-time environment variable there.
   made when a card *resolves* (after the Roar window), exactly like the
   tabletop flow.
 
-The full 109-card deck (+13 babies) with quantities lives in
+The full 112-card deck (+13 babies) with quantities lives in
 [shared/cards.js](shared/cards.js) — every mechanic (steal, sacrifice,
 destroy-protection, ability suppression, hand-reveal, forced discards, deck
 searches, resurrection, the wandering whelp, guardians, phoenix saves, …) is

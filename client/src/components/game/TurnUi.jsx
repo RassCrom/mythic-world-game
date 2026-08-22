@@ -51,7 +51,7 @@ export function SideRail({ view, isMyTurn, send, me }) {
             </div>
           )}
         </div>
-        <span className="rail-turn">{isMyTurn ? t('Your move') : t("{name}'s move", { name: view.turn?.playerName ?? '—' })}</span>
+        <span className={`rail-turn ${isMyTurn ? 'is-you' : ''}`}>{isMyTurn ? t('Your move') : t("{name}'s move", { name: view.turn?.playerName ?? '—' })}</span>
       </div>
 
       <div className={`rail-score rail-score-you ${isMyTurn ? 'is-turn' : ''}`}>
@@ -63,6 +63,10 @@ export function SideRail({ view, isMyTurn, send, me }) {
   );
 }
 
+const TIMER_SEGMENTS = 20;
+
+// A Gwent-style rune bar: a tapered vertical column of discrete pips that
+// burn out from the top as the clock runs down, with the count beneath it.
 function TurnTimer({ turn, serverNow, isMyTurn }) {
   const { t } = useI18n();
   const initial = Math.max(0, (turn?.deadline || 0) - (serverNow || Date.now()));
@@ -83,6 +87,7 @@ function TurnTimer({ turn, serverNow, isMyTurn }) {
   if (!turn?.deadline) return null;
   const seconds = Math.ceil(remaining / 1000);
   const progress = Math.max(0, Math.min(1, remaining / 60_000));
+  const litCount = remaining > 0 ? Math.max(1, Math.ceil(progress * TIMER_SEGMENTS)) : 0;
   const urgency = seconds <= 10 ? 'is-urgent' : seconds <= 20 ? 'is-warning' : '';
   return (
     <div
@@ -91,18 +96,18 @@ function TurnTimer({ turn, serverNow, isMyTurn }) {
       aria-label={t("{seconds} seconds remaining in {name}'s turn", { seconds, name: turn.playerName })}
       style={{ '--timer-progress': progress }}
     >
-      <span className="timer-crest" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <path d="M7 3h10M7 21h10M8 4c0 4 1.4 5.4 4 8-2.6 2.6-4 4-4 8m8-16c0 4-1.4 5.4-4 8 2.6 2.6 4 4 4 8" />
-          <path d="M9.2 7h5.6M9.3 17h5.4" />
-        </svg>
+      <span className="timer-rail" aria-hidden="true">
+        <span className="timer-column">
+          <span className="timer-segments">
+            {Array.from({ length: TIMER_SEGMENTS }, (_, index) => (
+              <i key={index} className={TIMER_SEGMENTS - index <= litCount ? 'is-lit' : ''} />
+            ))}
+          </span>
+        </span>
+        <span className="timer-gem" />
       </span>
       <strong className="timer-number">{seconds}</strong>
       <span className="timer-unit">{t(seconds <= 10 ? 'Hurry' : 'seconds')}</span>
-      <span className="timer-track" aria-hidden="true">
-        <span className="timer-fill" />
-        <span className="timer-ticks" />
-      </span>
     </div>
   );
 }

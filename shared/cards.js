@@ -241,6 +241,24 @@ def({
   onEnter: [{ do: 'targetDiscard', chooser: 'owner', optional: true }],
 });
 
+def({
+  id: 'm_chronodrake', name: 'Chronodrake', type: 'magical', qty: 1, color: '#1f8f91',
+  text: 'When this card enters your stable, reverse the direction of play.',
+  onEnter: [{ do: 'reverseTurnOrder' }],
+});
+
+def({
+  id: 'm_mirrorwing', name: 'Mirrorwing Dragon', type: 'magical', qty: 1, color: '#9b8fc8',
+  text: 'When this card enters your stable, you may copy the entrance ability of another Magical Dragon in any stable.',
+  onEnter: [{ do: 'copyEntrance', optional: true }],
+});
+
+def({
+  id: 'm_riftcoil', name: 'Riftcoil Dragon', type: 'magical', qty: 1, color: '#7048bd',
+  text: 'When this card enters your stable, you may swap it with a Dragon in another player’s stable.',
+  onEnter: [{ do: 'swapDragon', optional: true }],
+});
+
 /* ------------------------------------------------------------------ */
 /* Upgrades                                                            */
 /* ------------------------------------------------------------------ */

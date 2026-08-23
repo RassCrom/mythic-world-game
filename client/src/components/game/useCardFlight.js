@@ -6,39 +6,39 @@ function reducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
-export function triggerStableLandingEffect(element, options = {}) {
-  if (!element) return;
-  if (reducedMotion()) return;
+function getCardZone(element) {
+  const panel = element.closest('.player-panel');
+  if (panel) {
+    return panel.classList.contains('is-me') ? 'stable:me' : `stable:${panel.querySelector('.player-name')?.textContent || 'opp'}`;
+  }
+  if (element.closest('.hand')) return 'hand';
+  if (element.closest('.chain')) return 'chain';
+  if (element.closest('[data-zone="deck"]')) return 'deck';
+  if (element.closest('.pile-nest')) return 'nest';
+  if (element.closest('.pile')) return 'pile';
+  return 'other';
+}
 
-  // Add landing impact slam animation
+export function triggerStableLandingEffect(element, options = {}) {
+  if (!element || reducedMotion()) return;
+
   element.classList.remove('card-landing-impact');
   void element.offsetWidth;
   element.classList.add('card-landing-impact');
 
-  // Trigger summon sound
   if (!options.silent) {
     sfx.summonLanding();
   }
 
-  // Trigger impact recoil on parent player panel if present
-  const panel = element.closest('.player-panel');
-  if (panel) {
-    panel.classList.remove('stable-impact-bump');
-    void panel.offsetWidth;
-    panel.classList.add('stable-impact-bump');
-    setTimeout(() => {
-      panel.classList.remove('stable-impact-bump');
-    }, 450);
-  }
-
   setTimeout(() => {
     element.classList.remove('card-landing-impact');
-  }, 650);
+  }, 400);
 }
 
-// FLIP animation pass: cards glide from their previous zone to their next one with arc physics.
+// FLIP animation pass: ONLY cards changing zones glide to their destination.
 export function useCardFlight(view) {
   const prevRects = useRef(new Map());
+  const prevZones = useRef(new Map());
 
   useLayoutEffect(() => {
     const elements = [...document.querySelectorAll('[data-iid]')]
@@ -57,6 +57,7 @@ export function useCardFlight(view) {
 
     const deckRect = document.querySelector('[data-zone="deck"]')?.getBoundingClientRect() || null;
     const nextRects = new Map();
+    const nextZones = new Map();
     const skipAnimation = reducedMotion();
     const firstPass = prevRects.current.size === 0;
 
@@ -64,28 +65,42 @@ export function useCardFlight(view) {
       const iid = element.dataset.iid;
       const rect = element.getBoundingClientRect();
       if (!rect.width) continue;
+
+      const currentZone = getCardZone(element);
       nextRects.set(iid, rect);
+      nextZones.set(iid, currentZone);
+
       if (skipAnimation) continue;
 
       let from = prevRects.current.get(iid);
-      if (!from && !firstPass && deckRect && element.closest('.hand, .stable')) from = deckRect;
+      const prevZone = prevZones.current.get(iid);
+
+      // If a card was already sitting in this same zone (e.g. existing cards in stable),
+      // DO NOT animate or bump it when other cards enter/leave.
+      if (prevZone && prevZone === currentZone) {
+        continue;
+      }
+
+      if (!from && !firstPass && deckRect && element.closest('.hand, .stable')) {
+        from = deckRect;
+      }
       if (!from) continue;
 
       const dx = from.left - rect.left;
       const dy = from.top - rect.top;
       if (Math.abs(dx) < 6 && Math.abs(dy) < 6) continue;
 
+      const isEnteringStable = currentZone.startsWith('stable:');
       const scale = from.width && rect.width ? from.width / rect.width : 1;
-      const toStable = Boolean(element.closest('.stable'));
-      const tilt = Math.max(-14, Math.min(14, (dx / 24)));
 
       element.dataset.flying = '1';
-      if (toStable) element.dataset.flyingToStable = '1';
+      if (isEnteringStable) element.dataset.flyingToStable = '1';
+
       element.style.transition = 'none';
-      element.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${scale * (toStable ? 1.08 : 1)}) rotate(${toStable ? tilt : 0}deg)`;
-      element.style.zIndex = toStable ? '90' : '60';
+      element.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${scale})`;
+      element.style.zIndex = isEnteringStable ? '80' : '60';
       void element.offsetWidth;
-      element.style.transition = `transform ${FLIGHT_MS}ms cubic-bezier(0.18, 0.9, 0.28, 1), filter ${FLIGHT_MS}ms ease-out`;
+      element.style.transition = `transform ${FLIGHT_MS}ms cubic-bezier(0.2, 0.85, 0.25, 1)`;
       element.style.transform = '';
 
       setTimeout(() => {
@@ -99,10 +114,11 @@ export function useCardFlight(view) {
             triggerStableLandingEffect(element);
           }
         }
-      }, FLIGHT_MS + 40);
+      }, FLIGHT_MS + 30);
     }
 
     prevRects.current = nextRects;
+    prevZones.current = nextZones;
   }, [view]);
 }
 

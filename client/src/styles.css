@@ -4478,46 +4478,26 @@ html[data-effects='reduced'] :is(.card, .btn, .medallion, .battlefield-choice) {
    Card Play to Stable Animation & Physics
    ================================================================== */
 .card[data-flying-to-stable] {
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.7), 0 0 24px color-mix(in srgb, var(--card-color, #f59e42) 55%, transparent);
-  filter: brightness(1.15);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 18px color-mix(in srgb, var(--card-color, #f59e42) 40%, transparent);
 }
 
-/* Landing impact slam on stable arrival */
+/* Gentle landing settle on stable arrival */
 .card.card-landing-impact {
-  animation: stableCardImpact 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  z-index: 50 !important;
+  animation: stableCardImpact 0.38s ease-out forwards;
 }
 
 @keyframes stableCardImpact {
   0% {
-    transform: scale(1.16) translateY(-8px) rotate(-1deg);
-    filter: brightness(1.4) drop-shadow(0 0 20px var(--card-color, #f59e42));
-    box-shadow: 0 0 26px var(--card-color, #f59e42);
+    transform: translateY(-6px);
+    box-shadow: 0 0 16px var(--card-color, #f59e42);
   }
-  35% {
-    transform: scale(0.94) translateY(3px) rotate(0.5deg);
-    filter: brightness(1.2) drop-shadow(0 0 12px var(--card-color, #f59e42));
-  }
-  65% {
-    transform: scale(1.03) translateY(-1px);
-    filter: brightness(1.08) drop-shadow(0 0 6px var(--card-color, #f59e42));
+  60% {
+    transform: translateY(1px);
   }
   100% {
-    transform: scale(1) translateY(0) rotate(0deg);
-    filter: none;
+    transform: translateY(0);
     box-shadow: var(--shadow-1);
   }
-}
-
-/* Tactile player-panel recoil when a card slams into their stable */
-.player-panel.stable-impact-bump {
-  animation: panelStableBump 0.45s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-}
-@keyframes panelStableBump {
-  0% { transform: scale(1); }
-  25% { transform: scale(1.02) translateY(2px); box-shadow: 0 0 20px rgba(245, 158, 66, 0.35), var(--shadow-2); }
-  60% { transform: scale(0.995); }
-  100% { transform: scale(1); }
 }
 
 /* Codex Animation Tester Controls */

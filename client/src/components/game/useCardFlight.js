@@ -20,24 +20,6 @@ export function triggerStableLandingEffect(element, options = {}) {
     sfx.summonLanding();
   }
 
-  // Create summoning shockwave ring burst
-  const existingBurst = element.querySelector('.stable-summon-burst');
-  if (existingBurst) existingBurst.remove();
-
-  const burst = document.createElement('div');
-  burst.className = 'stable-summon-burst';
-  const cardColor = element.style.getPropertyValue('--card-color') || '#f59e42';
-  burst.style.setProperty('--burst-color', cardColor);
-  burst.innerHTML = `
-    <div class="summon-ring ring-outer"></div>
-    <div class="summon-ring ring-inner"></div>
-    <div class="summon-spark s-1"></div>
-    <div class="summon-spark s-2"></div>
-    <div class="summon-spark s-3"></div>
-    <div class="summon-spark s-4"></div>
-  `;
-  element.appendChild(burst);
-
   // Trigger impact recoil on parent player panel if present
   const panel = element.closest('.player-panel');
   if (panel) {
@@ -51,8 +33,7 @@ export function triggerStableLandingEffect(element, options = {}) {
 
   setTimeout(() => {
     element.classList.remove('card-landing-impact');
-    burst.remove();
-  }, 750);
+  }, 650);
 }
 
 // FLIP animation pass: cards glide from their previous zone to their next one with arc physics.

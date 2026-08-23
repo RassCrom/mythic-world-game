@@ -22,7 +22,6 @@ export function CodexIcon() {
 export function CardDetails({ defId, compact = false }) {
   const { t, card } = useI18n();
   const [animating, setAnimating] = useState(false);
-  const [testFoil, setTestFoil] = useState(false);
   const previewRef = useRef(null);
   const def = card(defId);
   if (!def) return null;
@@ -36,13 +35,13 @@ export function CardDetails({ defId, compact = false }) {
     }
     setTimeout(() => {
       setAnimating(false);
-    }, 900);
+    }, 700);
   };
 
   return (
     <div className={`card-details ${compact ? 'is-compact' : ''}`}>
       <div className="card-details-preview" ref={previewRef}>
-        <CardView defId={defId} small={compact} foil={testFoil} />
+        <CardView defId={defId} small={compact} />
       </div>
       <div className="card-details-copy">
         <span className={`type-pill type-${def.type}`}><TypeGlyph type={def.type} /> {t(TYPE_LABEL[def.type])}</span>
@@ -66,14 +65,6 @@ export function CardDetails({ defId, compact = false }) {
                 <path d="M5 3l14 9-14 9V3z" fill="currentColor" />
               </svg>
               {t('Test Play to Stable')}
-            </button>
-            <button
-              type="button"
-              className={`btn btn-sm ${testFoil ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => setTestFoil((v) => !v)}
-              title={t('Foil Effect')}
-            >
-              ✨ {t('Foil Effect')}
             </button>
           </div>
         )}

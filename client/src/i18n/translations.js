@@ -134,7 +134,6 @@ export const RU = {
   'Your claws are empty.': 'В ваших когтях ни одной карты.',
   'Play {card} on which stable?': 'В какое логово сыграть карту «{card}»?',
   'Test Play to Stable': 'Тест розыгрыша в логово',
-  'Foil Effect': 'Фольгирование',
   ' — not allowed': ' — недоступно',
   'Yes': 'Да',
   'No': 'Нет',

@@ -124,7 +124,7 @@ export function TypeGlyph({ type }) {
 
 export default function CardView({
   defId, faceDown, onClick, onInspect, onInspectEnd, actionLabel, glow, selected, dimmed, small, mini,
-  suppressed, toad, stopped, count, title, iid, style, touchInspectFirst, foil,
+  suppressed, toad, stopped, count, title, iid, style, touchInspectFirst,
 }) {
   const { t, card } = useI18n();
   const [imgOk, setImgOk] = useState(true);
@@ -132,14 +132,11 @@ export default function CardView({
 
   useEffect(() => setImgOk(true), [defId]);
 
-  const isFoil = foil || (def && (def.type === 'magical' || def.type === 'baby'));
-
   const cls = [
     'card',
     small ? 'card-sm' : '',
     mini ? 'card-mini' : '',
     faceDown ? 'card-back' : `card-${def?.type}`,
-    isFoil ? 'card-is-foil' : '',
     glow ? `glow-${glow}` : '',
     selected ? 'card-selected' : '',
     dimmed ? 'card-dimmed' : '',
@@ -205,7 +202,6 @@ export default function CardView({
       title={title || (!onInspect ? `${def.name} — ${def.text}` : undefined)}
     >
       <div className="card-ornament" aria-hidden="true" />
-      <div className="card-foil-layer" aria-hidden="true" />
       <div className="card-holo-glare" aria-hidden="true" />
       <span className="card-corner corner-tl" aria-hidden="true" />
       <span className="card-corner corner-tr" aria-hidden="true" />

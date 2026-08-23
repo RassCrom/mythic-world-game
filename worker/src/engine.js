@@ -14,6 +14,10 @@ export const START_HAND = 5;
 export const MAX_PLAYERS = 8;
 export const MIN_PLAYERS = 2;
 export const TURN_TIME_MS = 60_000;
+// A stable past this many cards forces a sacrifice — a structural cap, not a
+// card effect, so it applies to every stable and every card type (matches the
+// table's own card-frame capacity before it starts scrolling).
+export const STABLE_CAP = 15;
 
 /* ================================================================== */
 /* Construction                                                        */
@@ -329,6 +333,16 @@ function enterStable(g, iid, pid, opts = {}) {
   const d = defOf(g, iid);
   p.stable.push(iid);
   if (!opts.quiet) addLog(g, `${d.name} entered ${p.name}'s stable.`, 'enter');
+
+  // Overcrowded Stable: applies to every card type and every stable, so it's
+  // pushed before (and therefore resolves after) the dragon-specific effects
+  // below — a backstop, not something a card triggers.
+  if (p.stable.length > STABLE_CAP) {
+    pushFrame(g, {
+      owner: pid, source: iid,
+      steps: [{ do: 'sacrifice', who: 'owner', filter: { kind: 'any' }, optional: false, reasonText: 'Overcrowded Stable' }],
+    });
+  }
 
   if (isDragonType(d.type)) {
     // Cramped Cave: over 5 dragons forces a sacrifice.

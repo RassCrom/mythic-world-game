@@ -92,6 +92,8 @@ export default function Game({ view, send, onLeave }) {
     return () => clearTimeout(timer);
   }, [view.lastPlayed?.n]);
 
+  // Only the anchor point travels with the preview; the popup measures itself
+  // and picks a side, so a touch on a phone reads beside the card it came from.
   const showCardPreview = useCallback((defId, event) => {
     if (!defId || !DEFS[defId]) return;
     clearTimeout(previewTimerRef.current);
@@ -100,17 +102,13 @@ export default function Game({ view, send, onLeave }) {
       ? event.clientX : (rect ? rect.right : window.innerWidth / 2);
     const cursorY = Number.isFinite(event?.clientY) && event.clientY > 0
       ? event.clientY : (rect ? rect.top : window.innerHeight / 2);
-    const width = Math.min(350, window.innerWidth - 24);
-    const height = Math.min(250, window.innerHeight - 24);
-    const gap = 16;
-    const preferredX = cursorX + gap + width <= window.innerWidth
-      ? cursorX + gap : cursorX - width - gap;
-    const preferredY = cursorY + gap + height <= window.innerHeight
-      ? cursorY + gap : cursorY - height - gap;
     setCardPreview({
       defId,
-      x: Math.max(12, Math.min(preferredX, window.innerWidth - width - 12)),
-      y: Math.max(12, Math.min(preferredY, window.innerHeight - height - 12)),
+      x: cursorX,
+      y: cursorY,
+      anchor: rect
+        ? { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }
+        : null,
     });
     if (event?.type === 'click') {
       previewTimerRef.current = setTimeout(() => setCardPreview(null), 4_500);
@@ -216,6 +214,9 @@ export default function Game({ view, send, onLeave }) {
   /* ---------- render ---------- */
 
   const yourTurnLive = Boolean(isMyTurn && !view.winner && view.status === 'playing');
+  // With nothing to answer, the hand sinks further into the bottom edge so the
+  // battlefield owns the screen while someone else is thinking.
+  const handIdle = !yourTurnLive && !view.window?.canRespond && !myPrompt;
 
   return (
     <main className={`game ${yourTurnLive ? 'is-my-turn' : ''} ${view.window?.canRespond ? 'is-my-response' : ''}`}>
@@ -360,7 +361,7 @@ export default function Game({ view, send, onLeave }) {
 
       {/* action bar + hand */}
       <section
-        className={`hand-area ${(view.playable || []).length ? 'is-ready' : ''} ${view.window?.canRespond ? 'is-roar' : ''}`}
+        className={`hand-area ${(view.playable || []).length ? 'is-ready' : ''} ${view.window?.canRespond ? 'is-roar' : ''} ${handIdle ? 'is-idle' : ''}`}
         aria-label={t('Your hand')}
       >
         <div

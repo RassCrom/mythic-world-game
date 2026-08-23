@@ -218,3 +218,52 @@ test('every effect action referenced by the card database is implemented by the 
   const unsupported = [...referenced].filter((action) => !implemented.has(action));
   assert.deepEqual(unsupported, []);
 });
+
+test('a stable past the 15-card cap forces a sacrifice, independent of card type', () => {
+  const { game, first } = startedGame();
+  const player = game.players.find((p) => p.id === first);
+  player.stable = []; // setup deals a starting Baby Dragon; start from a clean stable.
+
+  // Pad the stable with 15 non-dragon cards (fabricated instance ids) so the
+  // cap is reached without also tripping the dragon-count win condition.
+  for (let i = 0; i < 15; i++) {
+    const iid = `pad${i}`;
+    game.inst[iid] = 'u_armor';
+    player.stable.push(iid);
+  }
+  assert.equal(player.stable.length, 15);
+
+  const dragon = putInActiveHand(game, 'basic_crimson');
+  assert.deepEqual(playCard(game, first, dragon), {});
+  passAllResponses(game);
+
+  assert.equal(player.stable.length, 16, 'the 16th card still enters before the cap resolves');
+  assert.ok(game.prompt, 'a sacrifice prompt should be pending');
+  assert.equal(game.prompt.playerId, first);
+  assert.equal(game.prompt.kind, 'pickCard');
+  assert.match(game.prompt.title, /Overcrowded Stable/);
+  assert.equal(game.prompt.candidates.length, 16, 'any of the 16 cards may be sacrificed');
+
+  assert.deepEqual(choose(game, first, dragon), {});
+  assert.equal(player.stable.length, 15, 'the stable is back at the cap after the sacrifice');
+  assert.ok(!player.stable.includes(dragon));
+  assert.ok(game.discard.includes(dragon));
+});
+
+test('the overcrowded-stable sacrifice does not fire below the cap', () => {
+  const { game, first } = startedGame();
+  const player = game.players.find((p) => p.id === first);
+  player.stable = []; // setup deals a starting Baby Dragon; start from a clean stable.
+  for (let i = 0; i < 14; i++) {
+    const iid = `pad${i}`;
+    game.inst[iid] = 'u_armor';
+    player.stable.push(iid);
+  }
+
+  const dragon = putInActiveHand(game, 'basic_crimson');
+  assert.deepEqual(playCard(game, first, dragon), {});
+  passAllResponses(game);
+
+  assert.equal(player.stable.length, 15);
+  assert.equal(game.prompt, null);
+});

@@ -8,6 +8,10 @@ export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCa
   const isTurn = view.turn?.playerId === player.id;
   const compactStable = !isMe && view.players.length > 3;
   const activeMods = player.mods.filter((mod) => MOD_BADGES[mod]);
+  // Scrying Orb (mods: handVisible) puts this hand in every viewer's `view.hands`,
+  // keyed by owner id — including our own. Only opponents need the extra row;
+  // our own hand already renders in the main hand tray.
+  const revealedHand = !isMe ? view.hands?.[player.id] : null;
 
   return (
     <div
@@ -74,6 +78,25 @@ export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCa
           {player.stable.length === 0 && <span className="stable-empty">{t('Empty stable')}</span>}
         </div>
       </div>
+
+      {revealedHand && revealedHand.length > 0 && (
+        <div
+          className="revealed-hand"
+          aria-label={t('Hand revealed by Scrying Orb')}
+          title={t('Hand revealed by Scrying Orb')}
+        >
+          {revealedHand.map((c) => (
+            <CardView
+              key={c.iid}
+              iid={c.iid}
+              defId={c.defId}
+              mini
+              onInspect={onInspect}
+              onInspectEnd={onInspectEnd}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

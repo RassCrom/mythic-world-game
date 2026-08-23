@@ -315,7 +315,7 @@ def({
 /* ------------------------------------------------------------------ */
 
 def({
-  id: 'd_cage', name: 'Thorned Cage', type: 'downgrade', qty: 2, color: '#6e2c00',
+  id: 'd_cage', name: 'Thorned Cage', type: 'downgrade', qty: 1, color: '#6e2c00',
   text: 'Each time a Dragon enters or leaves this stable, its owner must DISCARD a card.',
   mods: ['barbedWire'],
 });
@@ -327,7 +327,7 @@ def({
 });
 
 def({
-  id: 'd_lair', name: 'Ruined Lair', type: 'downgrade', qty: 2, color: '#4d5656',
+  id: 'd_lair', name: 'Ruined Lair', type: 'downgrade', qty: 1, color: '#4d5656',
   text: 'This stable’s owner cannot play Upgrade cards.',
   mods: ['noUpgrades'],
 });
@@ -345,7 +345,7 @@ def({
 });
 
 def({
-  id: 'd_tithe', name: 'Blood Tithe', type: 'downgrade', qty: 2, color: '#78281f',
+  id: 'd_tithe', name: 'Blood Tithe', type: 'downgrade', qty: 1, color: '#78281f',
   text: 'At the start of your turn, SACRIFICE a Dragon. If you do, DRAW a card.',
   onTurnStart: {
     steps: [
@@ -356,7 +356,7 @@ def({
 });
 
 def({
-  id: 'd_chains', name: 'Heavy Chains', type: 'downgrade', qty: 2, color: '#515a5a',
+  id: 'd_chains', name: 'Heavy Chains', type: 'downgrade', qty: 1, color: '#515a5a',
   text: 'This stable’s owner cannot play Instant cards.',
   mods: ['noInstants'],
 });

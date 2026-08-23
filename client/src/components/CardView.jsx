@@ -209,7 +209,6 @@ export default function CardView({
       <span className="card-corner corner-br" aria-hidden="true" />
 
       <header className="card-head">
-        <span className="card-head-glyph" aria-hidden="true"><TypeGlyph type={def.type} /></span>
         <span className="card-name">{def.name}</span>
       </header>
       <div className="card-art">

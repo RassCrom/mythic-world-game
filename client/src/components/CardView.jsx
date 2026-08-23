@@ -124,7 +124,7 @@ export function TypeGlyph({ type }) {
 
 export default function CardView({
   defId, faceDown, onClick, onInspect, onInspectEnd, actionLabel, glow, selected, dimmed, small, mini,
-  suppressed, toad, stopped, count, title, iid, style, touchInspectFirst,
+  suppressed, toad, stopped, count, title, iid, style, touchInspectFirst, foil,
 }) {
   const { t, card } = useI18n();
   const [imgOk, setImgOk] = useState(true);
@@ -132,11 +132,14 @@ export default function CardView({
 
   useEffect(() => setImgOk(true), [defId]);
 
+  const isFoil = foil || (def && (def.type === 'magical' || def.type === 'baby'));
+
   const cls = [
     'card',
     small ? 'card-sm' : '',
     mini ? 'card-mini' : '',
     faceDown ? 'card-back' : `card-${def?.type}`,
+    isFoil ? 'card-is-foil' : '',
     glow ? `glow-${glow}` : '',
     selected ? 'card-selected' : '',
     dimmed ? 'card-dimmed' : '',
@@ -162,22 +165,55 @@ export default function CardView({
   const inspect = (event) => onInspect?.(defId, event);
   const primaryAction = onClick || (onInspect ? inspect : null);
 
+  const handleMouseMove = (event) => {
+    if (mini) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const px = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    const py = Math.max(0, Math.min(100, (y / rect.height) * 100));
+    const rx = ((y - rect.height / 2) / (rect.height / 2)) * -8;
+    const ry = ((x - rect.width / 2) / (rect.width / 2)) * 8;
+    event.currentTarget.style.setProperty('--tilt-x', `${rx.toFixed(2)}deg`);
+    event.currentTarget.style.setProperty('--tilt-y', `${ry.toFixed(2)}deg`);
+    event.currentTarget.style.setProperty('--glare-x', `${px.toFixed(1)}%`);
+    event.currentTarget.style.setProperty('--glare-y', `${py.toFixed(1)}%`);
+    event.currentTarget.style.setProperty('--glare-opacity', '1');
+  };
+
+  const handleMouseLeave = (event) => {
+    event.currentTarget.style.setProperty('--tilt-x', '0deg');
+    event.currentTarget.style.setProperty('--tilt-y', '0deg');
+    event.currentTarget.style.setProperty('--glare-opacity', '0');
+    onInspectEnd?.(defId);
+  };
+
   return (
     <article
       className={cls}
       data-iid={iid}
       style={{ '--card-color': def.color, ...style }}
+      onMouseMove={handleMouseMove}
       onMouseEnter={inspect}
-      onMouseLeave={() => onInspectEnd?.(defId)}
+      onMouseLeave={handleMouseLeave}
       onFocusCapture={inspect}
       onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) onInspectEnd?.(defId);
+        if (!event.currentTarget.contains(event.relatedTarget)) handleMouseLeave(event);
       }}
       aria-label={`${def.name}, ${t(TYPE_LABEL[def.type])}`}
       title={title || (!onInspect ? `${def.name} — ${def.text}` : undefined)}
     >
       <div className="card-ornament" aria-hidden="true" />
+      <div className="card-foil-layer" aria-hidden="true" />
+      <div className="card-holo-glare" aria-hidden="true" />
+      <span className="card-corner corner-tl" aria-hidden="true" />
+      <span className="card-corner corner-tr" aria-hidden="true" />
+      <span className="card-corner corner-bl" aria-hidden="true" />
+      <span className="card-corner corner-br" aria-hidden="true" />
+
       <header className="card-head">
+        <span className="card-head-glyph" aria-hidden="true"><TypeGlyph type={def.type} /></span>
         <span className="card-name">{def.name}</span>
       </header>
       <div className="card-art">

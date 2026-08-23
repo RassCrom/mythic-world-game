@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFS, buildDeckList } from '../../../shared/cards.js';
 import CardView, { TYPE_LABEL, TypeGlyph } from './CardView.jsx';
 import { useI18n } from '../i18n/index.jsx';
+import { triggerStableLandingEffect } from './game/useCardFlight.js';
 
 const TYPE_ORDER = ['all', 'baby', 'basic', 'magical', 'upgrade', 'downgrade', 'magic', 'instant'];
 const ALL_CARDS = Object.values(DEFS).sort((a, b) => {
@@ -20,11 +21,29 @@ export function CodexIcon() {
 
 export function CardDetails({ defId, compact = false }) {
   const { t, card } = useI18n();
+  const [animating, setAnimating] = useState(false);
+  const [testFoil, setTestFoil] = useState(false);
+  const previewRef = useRef(null);
   const def = card(defId);
   if (!def) return null;
+
+  const handleTestPlay = () => {
+    if (animating) return;
+    setAnimating(true);
+    const cardEl = previewRef.current?.querySelector('.card');
+    if (cardEl) {
+      triggerStableLandingEffect(cardEl);
+    }
+    setTimeout(() => {
+      setAnimating(false);
+    }, 900);
+  };
+
   return (
     <div className={`card-details ${compact ? 'is-compact' : ''}`}>
-      <div className="card-details-preview"><CardView defId={defId} small={compact} /></div>
+      <div className="card-details-preview" ref={previewRef}>
+        <CardView defId={defId} small={compact} foil={testFoil} />
+      </div>
       <div className="card-details-copy">
         <span className={`type-pill type-${def.type}`}><TypeGlyph type={def.type} /> {t(TYPE_LABEL[def.type])}</span>
         <h2>{def.name}</h2>
@@ -34,6 +53,30 @@ export function CardDetails({ defId, compact = false }) {
           <div><dt>{t('Copies')}</dt><dd>{def.qty}</dd></div>
           <div><dt>{t('Zone')}</dt><dd>{t(def.type === 'magic' || def.type === 'instant' ? 'Discard after use' : def.type === 'baby' ? 'Nest / Stable' : 'Deck')}</dd></div>
         </dl>
+        {!compact && (
+          <div className="card-animation-tester">
+            <button
+              type="button"
+              className="btn btn-sm btn-primary test-play-btn"
+              onClick={handleTestPlay}
+              disabled={animating}
+              title={t('Test Play to Stable')}
+            >
+              <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true" style={{ width: 16, height: 16 }}>
+                <path d="M5 3l14 9-14 9V3z" fill="currentColor" />
+              </svg>
+              {t('Test Play to Stable')}
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${testFoil ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setTestFoil((v) => !v)}
+              title={t('Foil Effect')}
+            >
+              ✨ {t('Foil Effect')}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

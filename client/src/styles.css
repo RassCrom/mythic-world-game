@@ -4411,3 +4411,231 @@ html[data-effects='reduced'] :is(.card, .btn, .medallion, .battlefield-choice) {
   .hand-area.is-roar,
   .hand { transition: none; }
 }
+
+/* ==================================================================
+   Advanced Card Designs & 3D Interactive Materials
+   ================================================================== */
+.card {
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  --glare-x: 50%;
+  --glare-y: 50%;
+  --glare-opacity: 0;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  will-change: transform;
+}
+
+.card:not([data-flying]):not(.card-landing-impact) {
+  transform: perspective(800px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+}
+
+.card-head-glyph {
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  color: var(--card-color, var(--text));
+}
+.card-head-glyph .glyph {
+  width: 100%;
+  height: 100%;
+}
+
+/* Card corner filigree runes */
+.card-corner {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0.45;
+  transition: opacity 0.2s ease;
+}
+.card:hover .card-corner { opacity: 0.85; }
+.corner-tl { top: 3px; left: 3px; border-top: 1.5px solid var(--gold); border-left: 1.5px solid var(--gold); }
+.corner-tr { top: 3px; right: 3px; border-top: 1.5px solid var(--gold); border-right: 1.5px solid var(--gold); }
+.corner-bl { bottom: 3px; left: 3px; border-bottom: 1.5px solid var(--gold); border-left: 1.5px solid var(--gold); }
+.corner-br { bottom: 3px; right: 3px; border-bottom: 1.5px solid var(--gold); border-right: 1.5px solid var(--gold); }
+
+/* Holographic dynamic glare overlay */
+.card-holo-glare {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+  border-radius: inherit;
+  background: radial-gradient(circle 130px at var(--glare-x) var(--glare-y), rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.08) 40%, transparent 80%);
+  opacity: var(--glare-opacity);
+  mix-blend-mode: overlay;
+  transition: opacity 0.22s ease-out;
+}
+
+/* Prismatic foil layer for rare / magical / baby dragons */
+.card-is-foil .card-foil-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  border-radius: inherit;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 0, 128, 0.16) 18%,
+    rgba(0, 255, 255, 0.22) 38%,
+    rgba(255, 230, 0, 0.22) 58%,
+    rgba(0, 255, 128, 0.16) 78%,
+    transparent 100%
+  );
+  background-size: 250% 250%;
+  mix-blend-mode: color-dodge;
+  opacity: 0.68;
+  animation: holo-foil-shimmer 4.5s ease-in-out infinite alternate;
+}
+
+@keyframes holo-foil-shimmer {
+  0% { background-position: 0% 0%; filter: hue-rotate(0deg); }
+  50% { background-position: 100% 100%; filter: hue-rotate(90deg); }
+  100% { background-position: 0% 100%; filter: hue-rotate(180deg); }
+}
+
+/* ==================================================================
+   Card Play to Stable Animation & Physics
+   ================================================================== */
+.card[data-flying-to-stable] {
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.7), 0 0 28px color-mix(in srgb, var(--card-color, #f59e42) 65%, transparent);
+  filter: brightness(1.2) drop-shadow(0 0 14px var(--card-color, #f59e42));
+}
+
+/* Landing impact slam on stable arrival */
+.card.card-landing-impact {
+  animation: stableCardImpact 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  z-index: 50 !important;
+}
+
+@keyframes stableCardImpact {
+  0% {
+    transform: scale(1.18) translateY(-10px) rotate(-1deg);
+    filter: brightness(1.5) drop-shadow(0 0 26px var(--card-color, #f59e42));
+    box-shadow: 0 0 32px var(--card-color, #f59e42);
+  }
+  35% {
+    transform: scale(0.93) translateY(4px) rotate(0.5deg);
+    filter: brightness(1.25) drop-shadow(0 0 16px var(--card-color, #f59e42));
+  }
+  65% {
+    transform: scale(1.04) translateY(-2px);
+    filter: brightness(1.1) drop-shadow(0 0 8px var(--card-color, #f59e42));
+  }
+  100% {
+    transform: scale(1) translateY(0) rotate(0deg);
+    filter: none;
+    box-shadow: var(--shadow-1);
+  }
+}
+
+/* Tactile player-panel recoil when a card slams into their stable */
+.player-panel.stable-impact-bump {
+  animation: panelStableBump 0.45s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+@keyframes panelStableBump {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.02) translateY(2px); box-shadow: 0 0 24px rgba(245, 158, 66, 0.45), var(--shadow-2); }
+  60% { transform: scale(0.995); }
+  100% { transform: scale(1); }
+}
+
+/* Summoning shockwave burst */
+.stable-summon-burst {
+  position: absolute;
+  inset: -22px;
+  pointer-events: none;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.summon-ring {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.ring-outer {
+  width: 64px;
+  height: 64px;
+  border: 2.5px solid var(--burst-color, var(--ember));
+  box-shadow: 0 0 18px var(--burst-color, var(--ember)), inset 0 0 14px var(--burst-color, var(--ember));
+  animation: summonRingBurstOuter 0.65s cubic-bezier(0.1, 0.8, 0.25, 1) forwards;
+}
+
+.ring-inner {
+  width: 44px;
+  height: 44px;
+  border: 2px dashed rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 14px #fff;
+  animation: summonRingBurstInner 0.55s cubic-bezier(0.1, 0.8, 0.25, 1) forwards;
+}
+
+@keyframes summonRingBurstOuter {
+  0% {
+    transform: scale(0.3) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.9) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+@keyframes summonRingBurstInner {
+  0% {
+    transform: scale(0.4) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2.3) rotate(-90deg);
+    opacity: 0;
+  }
+}
+
+/* Spark particles */
+.summon-spark {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, var(--burst-color, var(--ember)) 70%);
+  box-shadow: 0 0 8px var(--burst-color, var(--ember));
+  pointer-events: none;
+}
+
+.summon-spark.s-1 { animation: sparkFly1 0.6s ease-out forwards; }
+.summon-spark.s-2 { animation: sparkFly2 0.6s ease-out forwards; }
+.summon-spark.s-3 { animation: sparkFly3 0.6s ease-out forwards; }
+.summon-spark.s-4 { animation: sparkFly4 0.6s ease-out forwards; }
+
+@keyframes sparkFly1 { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(-42px, -45px) scale(0.2); opacity: 0; } }
+@keyframes sparkFly2 { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(42px, -38px) scale(0.2); opacity: 0; } }
+@keyframes sparkFly3 { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(-38px, 42px) scale(0.2); opacity: 0; } }
+@keyframes sparkFly4 { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(44px, 38px) scale(0.2); opacity: 0; } }
+
+/* Codex Animation Tester Controls */
+.card-animation-tester {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.test-play-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+

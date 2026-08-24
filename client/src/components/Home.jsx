@@ -4,7 +4,7 @@ import { LanguageSwitcher, useI18n } from '../i18n/index.jsx';
 import { findAnimal, loadAnimal } from './home/animals.js';
 import BattlefieldSettings from './home/BattlefieldSettings.jsx';
 
-export default function Home({ onCreate, onJoin, busy }) {
+export default function Home({ onCreate, onJoin, busy, onOpenStudio }) {
   const { t } = useI18n();
   const [name, setName] = useState(localStorage.getItem('ud_name') || '');
   const [code, setCode] = useState('');
@@ -81,6 +81,18 @@ export default function Home({ onCreate, onJoin, busy }) {
         )}
 
         <BattlefieldSettings />
+
+        <button
+          type="button"
+          className="home-studio-btn"
+          onClick={() => {
+            sfx.click();
+            onOpenStudio?.();
+          }}
+          title="Open Developer Card & Faction Studio"
+        >
+          <span>🐉</span> {t('Card & Faction Studio (Dev)')}
+        </button>
 
         <p className="home-hint">{t('2–8 players · share the room code with the table')}</p>
       </div>

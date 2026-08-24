@@ -123,14 +123,14 @@ export function TypeGlyph({ type }) {
 }
 
 export default function CardView({
-  defId, faceDown, onClick, onInspect, onInspectEnd, actionLabel, glow, selected, dimmed, small, mini,
+  defId, cardDef, faceDown, onClick, onInspect, onInspectEnd, actionLabel, glow, selected, dimmed, small, mini,
   suppressed, toad, stopped, count, title, iid, style, touchInspectFirst,
 }) {
   const { t, card } = useI18n();
   const [imgOk, setImgOk] = useState(true);
-  const def = defId ? card(defId) : null;
+  const def = cardDef || (defId ? card(defId) : null);
 
-  useEffect(() => setImgOk(true), [defId]);
+  useEffect(() => setImgOk(true), [defId, cardDef]);
 
   const cls = [
     'card',

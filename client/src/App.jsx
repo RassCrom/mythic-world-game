@@ -3,14 +3,22 @@ import Home from './components/Home.jsx';
 import Lobby from './components/Lobby.jsx';
 import Game from './components/Game.jsx';
 import CardCodex, { CodexIcon } from './components/CardCodex.jsx';
+import CardStudio from './studio/CardStudio.jsx';
 import { Connection, createRoom, roomInfo, getToken } from './net.js';
 import { sfx } from './sound.js';
 import { useI18n } from './i18n/index.jsx';
 
 const EMBER_INDICES = Array.from({ length: 14 }, (_, index) => index);
 
+function checkStudioMode() {
+  if (typeof window === 'undefined') return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get('mode') === 'studio' || window.location.hash === '#studio';
+}
+
 export default function App() {
   const { t, text } = useI18n();
+  const [studioMode, setStudioMode] = useState(checkStudioMode);
   const [view, setView] = useState(null); // authoritative state from the server
   const [status, setStatus] = useState('idle'); // idle|connecting|reconnecting|open|closed
   const [toast, setToast] = useState(null);
@@ -94,11 +102,54 @@ export default function App() {
     connRef.current?.close();
   }, []);
 
+  useEffect(() => {
+    const handlePopState = () => {
+      setStudioMode(checkStudioMode());
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, []);
+
+  const openStudio = useCallback(() => {
+    window.location.hash = 'studio';
+    setStudioMode(true);
+  }, []);
+
+  const closeStudio = useCallback(() => {
+    // Clean hash
+    if (window.location.hash === '#studio') {
+      window.location.hash = '';
+    }
+    // Clean query param
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('mode')) {
+      params.delete('mode');
+      const qs = params.toString();
+      window.history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
+    }
+    setStudioMode(false);
+  }, []);
+
   const send = useCallback((msg) => connRef.current?.send(msg), []);
+
+  if (studioMode) {
+    return <CardStudio onExitToGame={closeStudio} />;
+  }
 
   let screen;
   if (!view) {
-    screen = <Home onCreate={create} onJoin={joinRoom} busy={busy || status === 'connecting'} />;
+    screen = (
+      <Home
+        onCreate={create}
+        onJoin={joinRoom}
+        busy={busy || status === 'connecting'}
+        onOpenStudio={openStudio}
+      />
+    );
   } else if (view.status === 'lobby') {
     screen = <Lobby view={view} send={send} onLeave={leave} showToast={showToast} />;
   } else {

@@ -135,6 +135,13 @@ export const sfx = {
     tone(392, { type: 'triangle', d: 0.25, peak: 0.1 });
     tone(587, { type: 'triangle', d: 0.3, peak: 0.08, delay: 0.08 });
   },
+  summonLanding() {
+    tone(196, { type: 'triangle', d: 0.18, peak: 0.14 });
+    tone(392, { type: 'sine', d: 0.28, peak: 0.12, delay: 0.03 });
+    tone(587, { type: 'triangle', d: 0.35, peak: 0.1, delay: 0.08 });
+    tone(880, { type: 'sine', d: 0.4, peak: 0.07, delay: 0.14 });
+    noiseBurst({ freq: 650, q: 1.5, d: 0.12, peak: 0.1 });
+  },
   roar() {
     // A growl: low sawtooth sweeping down + rumble.
     tone(140, { type: 'sawtooth', a: 0.02, d: 0.5, peak: 0.22, slide: -70 });

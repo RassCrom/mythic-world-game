@@ -259,6 +259,18 @@ def({
   onEnter: [{ do: 'swapDragon', optional: true }],
 });
 
+def({
+  id: 'm_hydra', name: 'Hydra Dragon', sub: 'hydra', type: 'magical', qty: 1, color: '#0e6655',
+  text: 'If this card is sacrificed or destroyed, you may bring up to 2 Baby Dragons from the Nest into your stable.',
+  onLeave: [{ do: 'babyFromNest', who: 'owner', n: 2, optional: true }],
+});
+
+def({
+  id: 'm_volcanic', name: 'Volcanic Wyrm', type: 'magical', sub: 'wyvern', qty: 1, color: '#c0392b',
+  text: 'When this card enters your stable, you may SACRIFICE all other Dragons in your stable. If you do, DESTROY 2 cards for each Dragon sacrificed this way.',
+  onEnter: [{ do: 'volcanicPurge' }],
+});
+
 /* ------------------------------------------------------------------ */
 /* Upgrades                                                            */
 /* ------------------------------------------------------------------ */

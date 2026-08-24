@@ -185,6 +185,98 @@ test('Riftcoil swaps itself with an opposing Dragon without retriggering either 
   assert.ok(!secondPlayer.stable.includes(target));
 });
 
+test('Hydra Dragon lets its owner bring up to two Baby Dragons from the Nest when destroyed', () => {
+  const { game, first } = startedGame();
+  const player = game.players.find((candidate) => candidate.id === first);
+  const hydra = game.deck.find((iid) => game.inst[iid] === 'm_hydra');
+  game.deck = game.deck.filter((iid) => iid !== hydra);
+  player.stable.push(hydra);
+  const nestBefore = game.nest.length;
+  const babiesBefore = player.stable.filter((iid) => game.inst[iid] === 'baby_dragon').length;
+
+  const venom = putInActiveHand(game, 's_venom');
+  assert.deepEqual(playCard(game, first, venom), {});
+  passAllResponses(game);
+
+  assert.equal(game.prompt?.kind, 'pickCard');
+  assert.ok(game.prompt.candidates.includes(hydra));
+  assert.deepEqual(choose(game, first, hydra), {});
+
+  assert.equal(game.prompt?.kind, 'yesno');
+  assert.deepEqual(choose(game, first, true), {});
+  assert.equal(game.prompt?.kind, 'yesno', 'Hydra Dragon offers a second Baby Dragon');
+  assert.deepEqual(choose(game, first, true), {});
+
+  const babies = player.stable.filter((iid) => game.inst[iid] === 'baby_dragon');
+  assert.equal(babies.length, babiesBefore + 2, 'both Baby Dragons entered the stable');
+  assert.equal(game.nest.length, nestBefore - 2);
+  assert.equal(game.prompt, null);
+});
+
+test('declining Hydra Dragon\'s second Baby Dragon keeps just the first', () => {
+  const { game, first } = startedGame();
+  const player = game.players.find((candidate) => candidate.id === first);
+  const hydra = game.deck.find((iid) => game.inst[iid] === 'm_hydra');
+  game.deck = game.deck.filter((iid) => iid !== hydra);
+  player.stable.push(hydra);
+  const babiesBefore = player.stable.filter((iid) => game.inst[iid] === 'baby_dragon').length;
+
+  const venom = putInActiveHand(game, 's_venom');
+  assert.deepEqual(playCard(game, first, venom), {});
+  passAllResponses(game);
+  assert.deepEqual(choose(game, first, hydra), {});
+
+  assert.deepEqual(choose(game, first, true), {}); // take the first Baby Dragon
+  assert.deepEqual(choose(game, first, false), {}); // decline the second
+
+  const babies = player.stable.filter((iid) => game.inst[iid] === 'baby_dragon');
+  assert.equal(babies.length, babiesBefore + 1);
+});
+
+test('Volcanic Wyrm may sacrifice its stablemates to fuel two destroys per Dragon lost', () => {
+  const { game, first, second } = startedGame();
+  const player = game.players.find((candidate) => candidate.id === first);
+  const opponent = game.players.find((candidate) => candidate.id === second);
+  const opponentBaby = opponent.stable[0];
+  const nestBefore = game.nest.length;
+
+  const wyrm = putInActiveHand(game, 'm_volcanic');
+  assert.deepEqual(playCard(game, first, wyrm), {});
+  passAllResponses(game);
+
+  assert.equal(game.prompt?.kind, 'yesno');
+  assert.deepEqual(choose(game, first, true), {});
+
+  assert.ok(!player.stable.some((iid) => game.inst[iid] === 'baby_dragon'), 'the lone stablemate Baby Dragon was sacrificed');
+  assert.equal(game.nest.length, nestBefore + 1, 'the sacrificed Baby Dragon returned to the Nest');
+
+  // One Dragon sacrificed -> two forced destroys follow.
+  assert.equal(game.prompt?.kind, 'pickCard');
+  assert.ok(game.prompt.candidates.includes(opponentBaby));
+  assert.deepEqual(choose(game, first, opponentBaby), {});
+  assert.ok(!opponent.stable.includes(opponentBaby));
+
+  assert.equal(game.prompt?.kind, 'pickCard');
+  assert.deepEqual(game.prompt.candidates, [wyrm], 'only the Wyrm itself remains as a legal target');
+  assert.deepEqual(choose(game, first, wyrm), {});
+
+  assert.equal(player.stable.length, 0);
+  assert.equal(game.prompt, null, 'no further forced destroys once both were spent');
+});
+
+test('Volcanic Wyrm does nothing when it has no other Dragons to sacrifice', () => {
+  const { game, first } = startedGame();
+  const player = game.players.find((candidate) => candidate.id === first);
+  player.stable = []; // no stablemates to offer up
+
+  const wyrm = putInActiveHand(game, 'm_volcanic');
+  assert.deepEqual(playCard(game, first, wyrm), {});
+  passAllResponses(game);
+
+  assert.equal(game.prompt, null);
+  assert.deepEqual(player.stable, [wyrm]);
+});
+
 test('playing a card publishes a synchronized spotlight event', () => {
   const { game, first } = startedGame();
   const hoardwing = putInActiveHand(game, 'm_hoardwing');
@@ -207,6 +299,7 @@ test('every effect action referenced by the card database is implemented by the 
     'shuffleDiscardIntoDeck', 'moltHand', 'moveUpDown', 'destroyUpOrSacDown',
     'costDiscardThen', 'costSacrificeSelfThen', 'babyFromNest', 'ask', 'ifVar',
     'skipToEnd', 'extraAction', 'reverseTurnOrder', 'copyEntrance', 'swapDragon',
+    'volcanicPurge',
   ]);
   const referenced = new Set();
   const visit = (value) => {

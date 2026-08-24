@@ -953,14 +953,24 @@ function execStep(g, frame, step, choice) {
 
     case 'babyFromNest': {
       const pid = resolveWho(g, frame, step.who);
-      if (!g.nest.length) return 'done';
+      const max = step.n || 1;
+      const stage = frame.vars[vkey] || { taken: 0 };
+      if (!g.nest.length || stage.taken >= max) return 'done';
       if (step.optional && choice === undefined) {
-        setPrompt(g, { playerId: pid, kind: 'yesno', title: 'Bring a Baby Dragon from the Nest into your stable?' });
+        setPrompt(g, {
+          playerId: pid, kind: 'yesno',
+          title: max > 1
+            ? `Bring a Baby Dragon from the Nest into your stable? (${stage.taken}/${max} taken)`
+            : 'Bring a Baby Dragon from the Nest into your stable?',
+        });
         return 'wait';
       }
       if (step.optional && !choice) return 'done';
       const iid = g.nest.pop();
       enterStable(g, iid, pid);
+      const taken = stage.taken + 1;
+      frame.vars[vkey] = { taken };
+      if (taken < max && g.nest.length) return execStep(g, frame, step, undefined);
       return 'done';
     }
 
@@ -977,6 +987,37 @@ function execStep(g, frame, step, choice) {
       const branch = frame.vars[step.var] ? step.then : step.else;
       if (branch && branch.length) {
         pushFrame(g, { owner: frame.owner, source: frame.source, vars: frame.vars, steps: branch });
+      }
+      return 'done';
+    }
+
+    case 'volcanicPurge': {
+      const pid = frame.owner;
+      const src = frame.source;
+      const stage = frame.vars[vkey];
+      if (!stage) {
+        const cands = legalStableTargets(g, { kind: 'dragon', zone: 'own' }, { chooser: pid, forSacrifice: true })
+          .filter((iid) => iid !== src);
+        if (!cands.length) return 'done';
+        setPrompt(g, {
+          playerId: pid, kind: 'yesno',
+          title: 'Sacrifice all other Dragons in your stable? Destroy 2 cards for each one sacrificed.',
+        });
+        frame.vars[vkey] = { cands };
+        return 'wait';
+      }
+      if (!choice) return 'done';
+      const cands = stage.cands;
+      // Push destroys first (bottom of stack, resolve last), then the
+      // sacrifices (top of stack, resolve first) so the count is locked in.
+      for (let i = 0; i < cands.length * 2; i++) {
+        pushFrame(g, {
+          owner: pid, source: src,
+          steps: [{ do: 'destroy', chooser: 'owner', filter: { kind: 'any', zone: 'any' }, optional: false }],
+        });
+      }
+      for (const iid of [...cands].reverse()) {
+        pushFrame(g, { owner: pid, source: src, steps: [{ do: '_resolveSacrifice', target: iid }] });
       }
       return 'done';
     }

@@ -1,15 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFS } from '../../shared/cards.js';
+import { DEFS, buildDeckList } from '../../shared/cards.js';
 import {
   addPlayer,
   choose,
   createGame,
+  dragonCount,
   drawAction,
   expireTurn,
   passWindow,
   playCard,
   startGame,
+  setPlayerFaction,
 } from './engine.js';
 
 function startedGame() {
@@ -37,14 +39,20 @@ function activePlayer(game) {
   return game.players[game.turn.idx];
 }
 
+function pileFor(game, pid) {
+  const player = game.players.find((candidate) => candidate.id === pid);
+  return game.piles[player.factionId];
+}
+
 function putInActiveHand(game, defId) {
   const player = activePlayer(game);
-  const iid = game.deck.find((candidate) => game.inst[candidate] === defId);
+  const pile = pileFor(game, player.id);
+  const iid = pile.deck.find((candidate) => game.inst[candidate] === defId);
   assert.ok(iid, `${defId} should exist in the deck`);
   const replaced = player.hand[0];
-  game.deck = game.deck.filter((candidate) => candidate !== iid);
+  pile.deck = pile.deck.filter((candidate) => candidate !== iid);
   player.hand[0] = iid;
-  game.deck.push(replaced);
+  pile.deck.push(replaced);
   return iid;
 }
 
@@ -69,7 +77,7 @@ test('setup gives every player five cards and a Baby Dragon before the first man
     assert.equal(player.stable.length, 1);
     assert.equal(game.inst[player.stable[0]], 'baby_dragon');
   }
-  assert.equal(game.nest.length, 11);
+  assert.equal(pileFor(game, first).nest.length, 11);
 });
 
 test('drawing in the action phase draws once and immediately ends the turn', () => {
@@ -104,7 +112,7 @@ test('a Magic card moves to discard before its effect and resolves its full desc
   assert.deepEqual(playCard(game, first, luckyFind), {});
   passAllResponses(game);
 
-  assert.ok(game.discard.includes(luckyFind));
+  assert.ok(pileFor(game, first).discard.includes(luckyFind));
   assert.equal(game.prompt?.kind, 'pickHand');
   assert.equal(game.prompt?.n, 1, 'Lucky Find draws three, then asks for one discard');
   const discardChoice = game.prompt.candidates[0];
@@ -150,8 +158,9 @@ test('Chronodrake reverses the next-player direction', () => {
 test('Mirrorwing copies another Magical Dragon entrance ability', () => {
   const { game, first } = startedGame();
   const player = game.players.find((candidate) => candidate.id === first);
-  const hoardwing = game.deck.find((iid) => game.inst[iid] === 'm_hoardwing');
-  game.deck = game.deck.filter((iid) => iid !== hoardwing);
+  const pile = pileFor(game, first);
+  const hoardwing = pile.deck.find((iid) => game.inst[iid] === 'm_hoardwing');
+  pile.deck = pile.deck.filter((iid) => iid !== hoardwing);
   player.stable.push(hoardwing);
   const mirrorwing = putInActiveHand(game, 'm_mirrorwing');
 
@@ -168,8 +177,9 @@ test('Riftcoil swaps itself with an opposing Dragon without retriggering either 
   const { game, first, second } = startedGame();
   const firstPlayer = game.players.find((candidate) => candidate.id === first);
   const secondPlayer = game.players.find((candidate) => candidate.id === second);
-  const target = game.deck.find((iid) => game.inst[iid] === 'basic_verdant');
-  game.deck = game.deck.filter((iid) => iid !== target);
+  const pile = pileFor(game, first);
+  const target = pile.deck.find((iid) => game.inst[iid] === 'basic_verdant');
+  pile.deck = pile.deck.filter((iid) => iid !== target);
   secondPlayer.stable.push(target);
   const riftcoil = putInActiveHand(game, 'm_riftcoil');
 
@@ -188,10 +198,11 @@ test('Riftcoil swaps itself with an opposing Dragon without retriggering either 
 test('Hydra Dragon lets its owner bring up to two Baby Dragons from the Nest when destroyed', () => {
   const { game, first } = startedGame();
   const player = game.players.find((candidate) => candidate.id === first);
-  const hydra = game.deck.find((iid) => game.inst[iid] === 'm_hydra');
-  game.deck = game.deck.filter((iid) => iid !== hydra);
+  const pile = pileFor(game, first);
+  const hydra = pile.deck.find((iid) => game.inst[iid] === 'm_hydra');
+  pile.deck = pile.deck.filter((iid) => iid !== hydra);
   player.stable.push(hydra);
-  const nestBefore = game.nest.length;
+  const nestBefore = pile.nest.length;
   const babiesBefore = player.stable.filter((iid) => game.inst[iid] === 'baby_dragon').length;
 
   const venom = putInActiveHand(game, 's_venom');
@@ -209,15 +220,16 @@ test('Hydra Dragon lets its owner bring up to two Baby Dragons from the Nest whe
 
   const babies = player.stable.filter((iid) => game.inst[iid] === 'baby_dragon');
   assert.equal(babies.length, babiesBefore + 2, 'both Baby Dragons entered the stable');
-  assert.equal(game.nest.length, nestBefore - 2);
+  assert.equal(pile.nest.length, nestBefore - 2);
   assert.equal(game.prompt, null);
 });
 
 test('declining Hydra Dragon\'s second Baby Dragon keeps just the first', () => {
   const { game, first } = startedGame();
   const player = game.players.find((candidate) => candidate.id === first);
-  const hydra = game.deck.find((iid) => game.inst[iid] === 'm_hydra');
-  game.deck = game.deck.filter((iid) => iid !== hydra);
+  const pile = pileFor(game, first);
+  const hydra = pile.deck.find((iid) => game.inst[iid] === 'm_hydra');
+  pile.deck = pile.deck.filter((iid) => iid !== hydra);
   player.stable.push(hydra);
   const babiesBefore = player.stable.filter((iid) => game.inst[iid] === 'baby_dragon').length;
 
@@ -238,7 +250,7 @@ test('Volcanic Wyrm may sacrifice its stablemates to fuel two destroys per Drago
   const player = game.players.find((candidate) => candidate.id === first);
   const opponent = game.players.find((candidate) => candidate.id === second);
   const opponentBaby = opponent.stable[0];
-  const nestBefore = game.nest.length;
+  const nestBefore = pileFor(game, first).nest.length;
 
   const wyrm = putInActiveHand(game, 'm_volcanic');
   assert.deepEqual(playCard(game, first, wyrm), {});
@@ -248,7 +260,7 @@ test('Volcanic Wyrm may sacrifice its stablemates to fuel two destroys per Drago
   assert.deepEqual(choose(game, first, true), {});
 
   assert.ok(!player.stable.some((iid) => game.inst[iid] === 'baby_dragon'), 'the lone stablemate Baby Dragon was sacrificed');
-  assert.equal(game.nest.length, nestBefore + 1, 'the sacrificed Baby Dragon returned to the Nest');
+  assert.equal(pileFor(game, first).nest.length, nestBefore + 1, 'the sacrificed Baby Dragon returned to the Nest');
 
   // One Dragon sacrificed -> two forced destroys follow.
   assert.equal(game.prompt?.kind, 'pickCard');
@@ -299,7 +311,7 @@ test('every effect action referenced by the card database is implemented by the 
     'shuffleDiscardIntoDeck', 'moltHand', 'moveUpDown', 'destroyUpOrSacDown',
     'costDiscardThen', 'costSacrificeSelfThen', 'babyFromNest', 'ask', 'ifVar',
     'skipToEnd', 'extraAction', 'reverseTurnOrder', 'copyEntrance', 'swapDragon',
-    'volcanicPurge',
+    'volcanicPurge', 'purify', 'harmonyDraw',
   ]);
   const referenced = new Set();
   const visit = (value) => {
@@ -310,6 +322,90 @@ test('every effect action referenced by the card database is implemented by the 
   for (const definition of Object.values(DEFS)) visit(definition);
   const unsupported = [...referenced].filter((action) => !implemented.has(action));
   assert.deepEqual(unsupported, []);
+});
+
+test('both faction decks contain exactly eleven Basic creature cards', () => {
+  for (const factionId of ['dragons', 'unicorns']) {
+    const deck = buildDeckList(factionId);
+    assert.equal(deck.filter((id) => DEFS[id].type === 'basic').length, 11, `${factionId} Basics`);
+  }
+  assert.ok(new Set(buildDeckList('unicorns')).size > 45, 'the Unicorn roster was expanded');
+});
+
+test('each player can bring an independent faction deck into the same game', () => {
+  const game = createGame('HERD');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
+  const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId;
+
+  assert.deepEqual(setPlayerFaction(game, first, 'unicorns'), {});
+  assert.deepEqual(startGame(game, first), {});
+
+  assert.equal(game.inst[game.players.find((p) => p.id === first).stable[0]], 'baby_unicorn');
+  assert.equal(game.inst[game.players.find((p) => p.id === second).stable[0]], 'baby_dragon');
+  assert.equal(pileFor(game, first).nest.length, 12);
+  assert.equal(pileFor(game, second).nest.length, 12);
+  assert.ok(pileFor(game, first).deck.every((iid) => DEFS[game.inst[iid]].faction === 'unicorns'));
+  assert.ok(pileFor(game, second).deck.every((iid) => !DEFS[game.inst[iid]].faction));
+});
+
+test('players may choose only their own deck, and only while waiting in the lobby', () => {
+  const game = createGame('HERD');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
+  const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId;
+
+  assert.deepEqual(setPlayerFaction(game, second, 'unicorns'), {});
+  assert.equal(game.players.find((p) => p.id === first).factionId, 'dragons');
+  assert.equal(game.players.find((p) => p.id === second).factionId, 'unicorns');
+  assert.deepEqual(startGame(game, first), {});
+  assert.match(setPlayerFaction(game, first, 'unicorns').error, /lobby/i);
+});
+
+test('Kindred Chorus gains its Unicorn-only Harmony bonus beside another Unicorn', () => {
+  const game = createGame('HARMONY', 'unicorns');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
+  addPlayer(game, { token: 'second', name: 'Bramble' });
+  assert.deepEqual(startGame(game, first), {});
+  const player = game.players.find((candidate) => candidate.id === first);
+  const chorus = Object.keys(game.inst).find((iid) => game.inst[iid] === 'uni_m_harmonist');
+  pileFor(game, first).deck = pileFor(game, first).deck.filter((iid) => iid !== chorus);
+  for (const candidate of game.players) candidate.hand = candidate.hand.filter((iid) => iid !== chorus);
+  player.stable.push(chorus);
+
+  assert.equal(dragonCount(game, first), 3, 'Baby Unicorn plus a Harmonized Chorus count as three');
+
+  const lonely = Object.keys(game.inst).find((iid) => game.inst[iid] === 'uni_down_lonely');
+  pileFor(game, first).deck = pileFor(game, first).deck.filter((iid) => iid !== lonely);
+  for (const candidate of game.players) candidate.hand = candidate.hand.filter((iid) => iid !== lonely);
+  player.stable.push(lonely);
+  assert.equal(dragonCount(game, first), 2, 'Lonely Paddock switches Harmony off');
+});
+
+test('Purifying Beam uses the Unicorn-only purification action', () => {
+  const game = createGame('PURIFY', 'unicorns');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
+  addPlayer(game, { token: 'second', name: 'Bramble' });
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try { assert.deepEqual(startGame(game, first), {}); } finally { Math.random = originalRandom; }
+
+  const player = game.players.find((candidate) => candidate.id === first);
+  const beam = Object.keys(game.inst).find((iid) => game.inst[iid] === 'uni_s_purify');
+  const graySkies = Object.keys(game.inst).find((iid) => game.inst[iid] === 'uni_down_gray');
+  for (const candidate of game.players) {
+    candidate.hand = candidate.hand.filter((iid) => iid !== beam && iid !== graySkies);
+  }
+  pileFor(game, first).deck = pileFor(game, first).deck.filter((iid) => iid !== beam && iid !== graySkies);
+  player.hand.push(beam);
+  player.stable.push(graySkies);
+
+  assert.deepEqual(playCard(game, first, beam), {});
+  passAllResponses(game);
+  assert.equal(game.prompt?.kind, 'pickCard');
+  assert.ok(game.prompt.candidates.includes(graySkies));
+  assert.deepEqual(choose(game, first, graySkies), {});
+  assert.ok(!player.stable.includes(graySkies));
+  assert.ok(pileFor(game, first).discard.includes(graySkies));
+  assert.ok(game.log.some((entry) => /restored a little sparkle/i.test(entry.msg)));
 });
 
 test('a stable past the 15-card cap forces a sacrifice, independent of card type', () => {
@@ -340,7 +436,7 @@ test('a stable past the 15-card cap forces a sacrifice, independent of card type
   assert.deepEqual(choose(game, first, dragon), {});
   assert.equal(player.stable.length, 15, 'the stable is back at the cap after the sacrifice');
   assert.ok(!player.stable.includes(dragon));
-  assert.ok(game.discard.includes(dragon));
+  assert.ok(pileFor(game, first).discard.includes(dragon));
 });
 
 test('the overcrowded-stable sacrifice does not fire below the cap', () => {

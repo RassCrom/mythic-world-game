@@ -82,9 +82,9 @@ export default function App() {
     runBusy(() => connectToRoom(code, name), 'Connection failed.')
   ), [connectToRoom, runBusy]);
 
-  const create = useCallback((name) => (
+  const create = useCallback((name, factionId) => (
     runBusy(async () => {
-      const { code } = await createRoom();
+      const { code } = await createRoom(factionId);
       return connectToRoom(code, name);
     }, 'Could not create a room.')
   ), [connectToRoom, runBusy]);

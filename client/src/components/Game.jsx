@@ -299,10 +299,14 @@ export default function Game({ view, send, onLeave }) {
             <span className="pile-label">{t('Discard')} · {view.discard.length}</span>
           </div>
 
-          <div className="pile pile-nest" title={t('The Nest — {count} Baby Dragons', { count: view.nestCount })}>
-            <CardView defId="baby_dragon" small onInspect={showCardPreview} onInspectEnd={hideCardPreview} />
+          <div className="pile pile-nest" title={t('{place} — {count} {starters}', {
+            place: view.factionId === 'unicorns' ? 'The Meadow' : 'The Nest',
+            count: view.nestCount,
+            starters: view.faction?.starterPlural,
+          })}>
+            <CardView defId={view.starterDefId} small onInspect={showCardPreview} onInspectEnd={hideCardPreview} />
             <span className="nest-count">{view.nestCount}</span>
-            <span className="pile-label">{t('The Nest')}</span>
+            <span className="pile-label">{t(view.factionId === 'unicorns' ? 'The Meadow' : 'The Nest')}</span>
           </div>
         </div>
 

@@ -335,6 +335,10 @@ html[lang='ru'] .title-un { letter-spacing: 0.18em; }
   min-height: 46px;
 }
 .lobby-player-name { font-weight: 700; }
+.badge-faction { margin-left: auto; }
+.badge-faction-dragons { color: #ffd8b5; border-color: rgba(232, 144, 90, .52); background: rgba(126, 53, 30, .28); }
+.badge-faction-unicorns { color: #ffd7ea; border-color: rgba(217, 111, 152, .58); background: rgba(122, 48, 86, .28); }
+.lobby-deck-note { display: block; color: var(--text-dim); line-height: 1.45; text-align: left; }
 .lobby-players .player-away { opacity: 0.55; }
 .player-empty { color: var(--text-faint); font-style: italic; justify-content: center; border-style: dashed; }
 .lobby-wait { color: var(--text-dim); }
@@ -4500,4 +4504,160 @@ html[data-effects='reduced'] :is(.card, .btn, .medallion, .battlefield-choice) {
   gap: 6px;
 }
 
+/* ==================================================================
+   Playable factions
+   ================================================================== */
 
+.home { overflow-y: auto; }
+.home-card { width: min(560px, 100%); }
+
+.faction-picker,
+.lobby-faction-picker {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  text-align: left;
+}
+
+.faction-picker legend,
+.lobby-faction-picker legend {
+  margin-bottom: 8px;
+  color: var(--text-dim);
+  font-size: .78rem;
+  font-weight: 850;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.faction-options,
+.lobby-faction-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.faction-option,
+.lobby-faction-option { position: relative; min-width: 0; cursor: pointer; }
+
+.faction-option input,
+.lobby-faction-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.faction-option-card {
+  min-height: 78px;
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px 7px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: rgba(5, 13, 9, .72);
+  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+
+.faction-option-art {
+  width: 62px;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background-position: center 38%;
+  background-size: cover;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.16);
+}
+
+.faction-option-copy,
+.lobby-faction-option > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.faction-option-copy strong,
+.lobby-faction-option strong { color: var(--text); font-size: .9rem; }
+.faction-option-copy small,
+.lobby-faction-option small { color: var(--text-faint); font-size: .66rem; line-height: 1.25; }
+
+.faction-check {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: #130c08;
+  background: transparent;
+}
+.faction-check svg { width: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; opacity: 0; }
+
+.faction-option:hover .faction-option-card { border-color: color-mix(in srgb, var(--option-accent) 65%, white); }
+.faction-option input:checked + .faction-option-card {
+  border-color: color-mix(in srgb, var(--option-accent) 78%, white);
+  background: color-mix(in srgb, var(--option-accent) 16%, rgba(5, 13, 9, .82));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--option-accent) 25%, transparent), 0 8px 22px rgba(0,0,0,.22);
+}
+.faction-option input:checked + .faction-option-card .faction-check { background: var(--option-accent); border-color: color-mix(in srgb, var(--option-accent) 70%, white); }
+.faction-option input:checked + .faction-option-card .faction-check svg { opacity: 1; }
+.faction-option input:focus-visible + .faction-option-card,
+.lobby-faction-option input:focus-visible + span { outline: 3px solid var(--teal); outline-offset: 2px; }
+
+.lobby-faction-picker { padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: rgba(5,13,9,.44); }
+.lobby-faction-option > span {
+  min-height: 52px;
+  justify-content: center;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(5,13,9,.62);
+}
+.lobby-faction-option input:checked + span {
+  border-color: color-mix(in srgb, var(--option-accent) 78%, white);
+  background: color-mix(in srgb, var(--option-accent) 18%, rgba(5,13,9,.8));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--option-accent) 25%, transparent);
+}
+.lobby-faction-option input:disabled + span { cursor: default; }
+
+.home-faction-unicorns .title-dragons {
+  background: linear-gradient(180deg, #fff2d5, #e69bb6 52%, #a84773);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.home-faction-unicorns .btn-primary,
+.lobby-faction-unicorns .btn-primary {
+  color: #241017;
+  border-color: rgba(241, 176, 204, .58);
+  background: linear-gradient(160deg, #ef9fbd, #bd5d87);
+}
+.home-faction-unicorns::before,
+.lobby-faction-unicorns::before {
+  background-image:
+    linear-gradient(90deg, rgba(11, 7, 18, .9) 0%, rgba(28, 14, 26, .55) 48%, rgba(20, 10, 24, .62) 100%),
+    linear-gradient(0deg, rgba(14, 7, 18, .84), transparent 55%),
+    var(--home-hero);
+}
+
+.faction-filters { display: flex; gap: 6px; flex: none; }
+.faction-filters button {
+  min-height: 38px;
+  padding: 7px 11px;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text-dim);
+  background: rgba(29,43,33,.72);
+  font-size: .72rem;
+  font-weight: 800;
+}
+.faction-filters button.is-active { color: #241507; border-color: #e9a8c2; background: linear-gradient(#ffe2ed, #d77ca2); }
+.faction-filters button:focus-visible { outline: 3px solid var(--teal); outline-offset: 1px; }
+
+@media (max-width: 760px) {
+  .faction-options { grid-template-columns: 1fr; }
+  .faction-option-card { min-height: 68px; grid-template-columns: 52px minmax(0, 1fr) 22px; }
+  .faction-option-art { width: 52px; }
+  .codex-tools { flex-wrap: wrap; }
+  .faction-filters { width: 100%; overflow-x: auto; }
+}

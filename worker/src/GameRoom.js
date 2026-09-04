@@ -8,7 +8,7 @@ import {
   createGame, addPlayer, markDisconnected, markConnected,
   startGame, restartGame, playCard, drawAction, passWindow, choose,
   forceChoice, forcePass, forceEndTurn, expireTurn, viewFor, addLog,
-  addBotPlayer, removeBotPlayer, botWaitingId,
+  addBotPlayer, removeBotPlayer, botWaitingId, setPlayerFaction,
 } from './engine.js';
 import { decideBotAction } from './bot.js';
 
@@ -49,8 +49,8 @@ export class GameRoom {
     if (url.pathname === '/init' && request.method === 'POST') {
       const existing = await this.loadGame();
       if (existing) return new Response('exists', { status: 409 });
-      const { code } = await request.json();
-      this.game = createGame(code);
+      const { code, factionId } = await request.json();
+      this.game = createGame(code, factionId);
       await this.saveGame();
       return Response.json({ ok: true });
     }
@@ -150,6 +150,7 @@ export class GameRoom {
       case 'choose': return choose(g, pid, msg.value === null ? null : msg.value);
       case 'addBot': return addBotPlayer(g, pid, String(msg.difficulty || 'medium'));
       case 'removeBot': return removeBotPlayer(g, pid, String(msg.playerId));
+      case 'setPlayerFaction': return setPlayerFaction(g, pid, String(msg.factionId));
       case 'forceChoice': return forceChoice(g, pid);
       case 'forcePass': return forcePass(g, pid);
       case 'forceEndTurn': return forceEndTurn(g, pid);

@@ -17,6 +17,41 @@
 export const BABY_ID = 'baby_dragon';
 export const BABY_COUNT = 13;
 
+export const DEFAULT_FACTION_ID = 'dragons';
+
+export const FACTIONS = {
+  dragons: {
+    id: 'dragons',
+    name: 'Dragons',
+    title: 'Unstable Dragons',
+    description: 'Fire, treasure, and glorious chaos. The original high-conflict deck.',
+    playstyle: 'Destruction · stealing · wild combos',
+    color: '#e8905a',
+    hero: '/hero-image-menu.png',
+    starterId: BABY_ID,
+    creatureSingular: 'Dragon',
+    creaturePlural: 'Dragons',
+    starterPlural: 'Baby Dragons',
+  },
+  unicorns: {
+    id: 'unicorns',
+    name: 'Unicorns',
+    title: 'Unstable Unicorns',
+    description: 'A complete prismatic pack built around Harmony, purification, and rainbow wards.',
+    playstyle: 'Harmony · protection · clever recovery',
+    color: '#d96f98',
+    hero: '/heroes/hero-unicorn-cinematic.png',
+    starterId: 'baby_unicorn',
+    creatureSingular: 'Unicorn',
+    creaturePlural: 'Unicorns',
+    starterPlural: 'Baby Unicorns',
+  },
+};
+
+export function getFaction(factionId = DEFAULT_FACTION_ID) {
+  return FACTIONS[factionId] || FACTIONS[DEFAULT_FACTION_ID];
+}
+
 const D = {};
 
 function def(card) {
@@ -49,7 +84,9 @@ const BASICS = [
   ['basic_ivory', 'Ivory Drake', '#aab7c4', 'Suspiciously polite for a fire hazard.'],
 ];
 for (const [id, name, color, flavor] of BASICS) {
-  def({ id, name, type: 'basic', qty: 4, color, text: 'A Basic Dragon. No ability — just ambition.', flavor });
+  // Eleven Basics keeps the deck moving without crowding out the exciting cards.
+  const qty = id === 'basic_ivory' ? 1 : 2;
+  def({ id, name, type: 'basic', qty, color, text: 'A Basic Dragon. No ability — just ambition.', flavor });
 }
 
 /* ------------------------------------------------------------------ */
@@ -491,6 +528,248 @@ def({
 });
 
 /* ------------------------------------------------------------------ */
+/* Unicorn Herd — complete faction pack                               */
+/* ------------------------------------------------------------------ */
+
+function unicorn(card) {
+  def({ faction: 'unicorns', color: '#d96f98', ...card });
+}
+
+unicorn({
+  id: 'baby_unicorn', name: 'Baby Unicorn', type: 'baby', qty: BABY_COUNT, kindLabel: 'Baby Unicorn',
+  text: 'Fresh from a pearly egg. If this card would leave your stable, return it to the Meadow instead.',
+});
+
+const UNICORN_BASICS = [
+  ['uni_basic_pearl', 'Pearl Unicorn', '#e9d7bd', 'Collects moonlight in tiny jars.'],
+  ['uni_basic_rose', 'Rose Unicorn', '#cf7186', 'Always stops to smell every flower.'],
+  ['uni_basic_brook', 'Brook Unicorn', '#6da9bc', 'Its hoofprints fill with clear water.'],
+  ['uni_basic_meadow', 'Meadow Unicorn', '#7b9b70', 'Knows the name of every blade of grass.'],
+  ['uni_basic_dusk', 'Dusk Unicorn', '#817499', 'Arrives exactly when the fireflies do.'],
+  ['uni_basic_sunbeam', 'Sunbeam Unicorn', '#d2a94e', 'Brighter than breakfast and twice as cheerful.'],
+];
+for (const [id, name, color, flavor] of UNICORN_BASICS) {
+  // Match the Dragon pack: eleven Basics, with more room for magical Unicorns.
+  const qty = id === 'uni_basic_sunbeam' ? 1 : 2;
+  unicorn({ id, name, type: 'basic', qty, color, kindLabel: 'Basic Unicorn', text: 'A Basic Unicorn. No ability — pure sparkle.', flavor });
+}
+
+unicorn({
+  id: 'uni_m_dawnbloom', name: 'Dawnbloom Unicorn', type: 'magical', qty: 1, kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, DRAW a card.',
+  onEnter: [{ do: 'draw', who: 'owner', n: 1 }],
+});
+unicorn({
+  id: 'uni_m_moonwhisper', name: 'Moonwhisper Unicorn', type: 'magical', qty: 1, color: '#9586b7', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, DRAW 2 cards, then DISCARD a card.',
+  onEnter: [{ do: 'draw', who: 'owner', n: 2 }, { do: 'discard', who: 'owner', n: 1 }],
+});
+unicorn({
+  id: 'uni_m_purifier', name: 'Pureheart Unicorn', type: 'magical', qty: 1, color: '#e2bd67', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may PURIFY a Downgrade in your stable.',
+  onEnter: [{ do: 'purify', who: 'owner', filter: { kind: 'downgrade', zone: 'own' }, optional: true }],
+});
+unicorn({
+  id: 'uni_m_harmonist', name: 'Kindred Chorus', type: 'magical', qty: 1, color: '#c96f9a', kindLabel: 'Magical Unicorn',
+  text: 'HARMONY — This card counts as 2 Unicorns while another Unicorn is in your stable.',
+  harmonyBonus: true,
+});
+unicorn({
+  id: 'uni_m_guardian', name: 'Prismatic Guardian', type: 'magical', qty: 1, color: '#7e9fc5', kindLabel: 'Magical Unicorn',
+  text: 'While this card is in your stable, your Unicorns cannot be destroyed by Magic cards.',
+  mods: ['unicornMagicSafe'],
+});
+unicorn({
+  id: 'uni_m_wishweaver', name: 'Wishweaver Unicorn', type: 'magical', qty: 1, color: '#be8dc3', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may search the deck for a Magic card and add it to your hand.',
+  onEnter: [{ do: 'searchDeck', who: 'owner', filter: { types: ['magic'] }, optional: true }],
+});
+unicorn({
+  id: 'uni_m_starlight', name: 'Starlight Collector', type: 'magical', qty: 1, color: '#6f8fbc', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may take a Magic card from the discard pile into your hand.',
+  onEnter: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['magic'] }, to: 'hand', optional: true }],
+});
+unicorn({
+  id: 'uni_m_skydancer', name: 'Skydancer Unicorn', type: 'magical', qty: 1, color: '#74abc5', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may return a card in another player’s stable to their hand.',
+  onEnter: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'others' }, optional: true }],
+});
+unicorn({
+  id: 'uni_m_mirrorhorn', name: 'Mirrorhorn Unicorn', type: 'magical', qty: 1, color: '#aa8dbd', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may copy the entrance ability of another Magical Unicorn in any stable.',
+  onEnter: [{ do: 'copyEntrance', optional: true }],
+});
+unicorn({
+  id: 'uni_m_galloper', name: 'Golden Galloper', type: 'magical', qty: 1, color: '#d0a849', kindLabel: 'Magical Unicorn',
+  text: 'At the start of your turn, gain an extra action for this turn.',
+  onTurnStart: { steps: [{ do: 'extraAction' }] },
+});
+unicorn({
+  id: 'uni_m_gentleheart', name: 'Gentleheart Unicorn', type: 'magical', qty: 1, color: '#d6889b', kindLabel: 'Magical Unicorn',
+  text: 'If this card is sacrificed or destroyed, you may bring a Baby Unicorn from the Meadow into your stable.',
+  onLeave: [{ do: 'babyFromNest', who: 'owner', optional: true }],
+});
+unicorn({
+  id: 'uni_m_aurora', name: 'Aurora Chorus', type: 'magical', qty: 1, color: '#c07caa', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, gain an extra action this turn.',
+  onEnter: [{ do: 'extraAction' }],
+});
+unicorn({
+  id: 'uni_m_second_dawn', name: 'Second Dawn Unicorn', type: 'magical', qty: 1, color: '#e7a875', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may bring a Unicorn from the discard pile into your stable.',
+  onEnter: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['basic', 'magical'], faction: 'unicorns' }, to: 'stable', optional: true }],
+});
+unicorn({
+  id: 'uni_m_comet', name: 'Comet-Tail Unicorn', type: 'magical', qty: 1, color: '#7d83b2', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, reverse the direction of play.',
+  onEnter: [{ do: 'reverseTurnOrder' }],
+});
+unicorn({
+  id: 'uni_m_heartstring', name: 'Heartstring Unicorn', type: 'magical', qty: 1, color: '#cf6f8f', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may choose another player. That player DISCARDs a card; you DRAW a card.',
+  onEnter: [{ do: 'targetDiscard', chooser: 'owner', optional: true }, { do: 'draw', who: 'owner', n: 1 }],
+});
+unicorn({
+  id: 'uni_m_cloudkeeper', name: 'Cloudkeeper Unicorn', type: 'magical', qty: 1, color: '#91adbd', kindLabel: 'Magical Unicorn',
+  text: 'This card cannot be destroyed by Magic cards.',
+  noMagicDestroy: true,
+});
+unicorn({
+  id: 'uni_m_twilight', name: 'Twilight Courier', type: 'magical', qty: 1, color: '#725f91', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may take an Instant card from the discard pile into your hand.',
+  onEnter: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['instant'] }, to: 'hand', optional: true }],
+});
+unicorn({
+  id: 'uni_m_meadow_mender', name: 'Meadow Mender', type: 'magical', qty: 1, color: '#7ea47d', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may PURIFY a Downgrade in your stable.',
+  onEnter: [{ do: 'purify', who: 'owner', filter: { kind: 'downgrade', zone: 'own' }, optional: true }],
+});
+unicorn({
+  id: 'uni_m_lucky_star', name: 'Lucky Star Unicorn', type: 'magical', qty: 1, color: '#d0ae57', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, DRAW 2 cards, then DISCARD a card.',
+  onEnter: [{ do: 'draw', who: 'owner', n: 2 }, { do: 'discard', who: 'owner', n: 1 }],
+});
+unicorn({
+  id: 'uni_m_windrunner', name: 'Windrunner Unicorn', type: 'magical', qty: 1, color: '#75a7c5', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may return a card in another player’s stable to their hand.',
+  onEnter: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'others' }, optional: true }],
+});
+unicorn({
+  id: 'uni_m_moonstone', name: 'Moonstone Unicorn', type: 'magical', qty: 1, color: '#7d79ac', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may search the deck for an Upgrade card and add it to your hand.',
+  onEnter: [{ do: 'searchDeck', who: 'owner', filter: { types: ['upgrade'] }, optional: true }],
+});
+unicorn({
+  id: 'uni_m_hearthlight', name: 'Hearthlight Unicorn', type: 'magical', qty: 1, color: '#d58b7d', kindLabel: 'Magical Unicorn',
+  text: 'At the start of your turn, you may DRAW an extra card.',
+  onTurnStart: { steps: [{ do: 'ask', text: 'Draw an extra card with Hearthlight Unicorn?', saveDone: 'yes' }, { do: 'ifVar', var: 'yes', then: [{ do: 'draw', who: 'owner', n: 1 }] }] },
+});
+unicorn({
+  id: 'uni_m_trailblazer', name: 'Trailblazer Unicorn', type: 'magical', qty: 1, color: '#b47cae', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, gain an extra action this turn.',
+  onEnter: [{ do: 'extraAction' }],
+});
+unicorn({
+  id: 'uni_m_lullaby', name: 'Lullaby Unicorn', type: 'magical', qty: 1, color: '#a79dcb', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, each other player DISCARDs a card.',
+  onEnter: [{ do: 'eachPlayer', include: 'others', steps: [{ do: 'discard', who: 'each', n: 1 }] }],
+});
+unicorn({
+  id: 'uni_m_evergreen', name: 'Evergreen Unicorn', type: 'magical', qty: 1, color: '#609778', kindLabel: 'Magical Unicorn',
+  text: 'If this card would be sacrificed or destroyed, you may DISCARD a card instead.',
+  wouldLeave: 'discardInstead',
+});
+unicorn({
+  id: 'uni_m_bondkeeper', name: 'Bondkeeper Unicorn', type: 'magical', qty: 1, color: '#ca789b', kindLabel: 'Magical Unicorn',
+  text: 'HARMONY — This card counts as 2 Unicorns while another Unicorn is in your stable.',
+  harmonyBonus: true,
+});
+unicorn({
+  id: 'uni_m_foalfriend', name: 'Foalfriend Unicorn', type: 'magical', qty: 1, color: '#e8c49d', kindLabel: 'Magical Unicorn',
+  text: 'When this card enters your stable, you may bring a Baby Unicorn from the Meadow into your stable.',
+  onEnter: [{ do: 'babyFromNest', who: 'owner', optional: true }],
+});
+
+unicorn({
+  id: 'uni_up_rainbow_ward', name: 'Rainbow Sanctuary', type: 'upgrade', qty: 2, color: '#be83ad',
+  text: 'Unicorns in this stable cannot be destroyed by Magic cards.', mods: ['unicornMagicSafe'],
+});
+unicorn({
+  id: 'uni_up_friendship', name: 'Friendship Bracelet', type: 'upgrade', qty: 2, color: '#d9869e',
+  text: 'At the start of your turn, HARMONY — if you have at least 2 Unicorns, DRAW a card.',
+  onTurnStart: { steps: [{ do: 'harmonyDraw' }] },
+});
+unicorn({
+  id: 'uni_up_horseshoe', name: 'Golden Horseshoe', type: 'upgrade', qty: 2, color: '#d4aa4d',
+  text: 'At the start of your turn, you may DRAW an extra card.',
+  onTurnStart: { steps: [{ do: 'ask', text: 'Draw an extra card with Golden Horseshoe?', saveDone: 'yes' }, { do: 'ifVar', var: 'yes', then: [{ do: 'draw', who: 'owner', n: 1 }] }] },
+});
+unicorn({
+  id: 'uni_up_cloud_saddle', name: 'Cloud Saddle', type: 'upgrade', qty: 2, color: '#87a9bc',
+  text: 'At the start of your turn, gain an extra action for this turn.',
+  onTurnStart: { steps: [{ do: 'extraAction' }] },
+});
+unicorn({
+  id: 'uni_up_wishing_well', name: 'Wishing Well', type: 'upgrade', qty: 2, color: '#8a83b2',
+  text: 'At the start of your turn, you may search the deck for a Magic card and add it to your hand.',
+  onTurnStart: { steps: [{ do: 'searchDeck', who: 'owner', filter: { types: ['magic'] }, optional: true }] },
+});
+
+unicorn({ id: 'uni_down_lonely', name: 'Lonely Paddock', type: 'downgrade', qty: 1, color: '#786b7f', text: 'HARMONY abilities in this stable do not work.', mods: ['breakHarmony'] });
+unicorn({ id: 'uni_down_tangle', name: 'Tangled Mane', type: 'downgrade', qty: 1, color: '#725d75', text: 'All Magical Unicorns in this stable lose their abilities.', mods: ['suppress'] });
+unicorn({ id: 'uni_down_gray', name: 'Gray Skies', type: 'downgrade', qty: 1, color: '#69737d', text: 'This stable’s owner cannot play Instant cards.', mods: ['noInstants'] });
+unicorn({ id: 'uni_down_mud', name: 'Muddy Hoofprints', type: 'downgrade', qty: 1, color: '#79644e', text: 'This stable’s owner must keep their hand visible to all players.', mods: ['handVisible'] });
+unicorn({ id: 'uni_down_cramped', name: 'Cramped Pasture', type: 'downgrade', qty: 1, color: '#6f755f', text: 'If this stable ever holds more than 5 Unicorns, its owner must SACRIFICE a Unicorn.', mods: ['maxFive'] });
+
+unicorn({
+  id: 'uni_s_purify', name: 'Purifying Beam', type: 'magic', qty: 2, color: '#d9b65f',
+  text: 'PURIFY a Downgrade in any stable.', steps: [{ do: 'purify', who: 'owner', filter: { kind: 'downgrade', zone: 'any' }, optional: false }],
+});
+unicorn({
+  id: 'uni_s_bridge', name: 'Rainbow Bridge', type: 'magic', qty: 2, color: '#c57fa8',
+  text: 'Return a card in another player’s stable to their hand.', steps: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'others' }, optional: false }],
+});
+unicorn({
+  id: 'uni_s_wish', name: 'Wish Upon a Star', type: 'magic', qty: 2, color: '#8f83b6',
+  text: 'DRAW 3 cards, then DISCARD a card.', steps: [{ do: 'draw', who: 'owner', n: 3 }, { do: 'discard', who: 'owner', n: 1 }],
+});
+unicorn({
+  id: 'uni_s_group_hug', name: 'Group Hug', type: 'magic', qty: 2, color: '#d08194',
+  text: 'Every player DRAWs a card.', steps: [{ do: 'eachPlayer', include: 'all', steps: [{ do: 'draw', who: 'each', n: 1 }] }],
+});
+unicorn({
+  id: 'uni_s_second_chance', name: 'Second Chance', type: 'magic', qty: 2, color: '#e0a371',
+  text: 'Take a Unicorn from the discard pile into your hand.', steps: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['basic', 'magical'], faction: 'unicorns' }, to: 'hand', optional: false }],
+});
+unicorn({
+  id: 'uni_s_prismatic_shift', name: 'Prismatic Shift', type: 'magic', qty: 2, color: '#a579af',
+  text: 'Move an Upgrade or Downgrade from any stable to any other stable.', steps: [{ do: 'moveUpDown', chooser: 'owner' }],
+});
+unicorn({
+  id: 'uni_s_sparkle_storm', name: 'Sparkle Storm', type: 'magic', qty: 2, color: '#ad789f',
+  text: 'Choose another player. That player DISCARDs a card. Then DRAW a card.', steps: [{ do: 'targetDiscard', chooser: 'owner', optional: false }, { do: 'draw', who: 'owner', n: 1 }],
+});
+unicorn({
+  id: 'uni_s_moonlit_rescue', name: 'Moonlit Rescue', type: 'magic', qty: 2, color: '#7186ae',
+  text: 'Return a card in your stable to your hand, then DRAW 2 cards.', steps: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'own' }, optional: false }, { do: 'draw', who: 'owner', n: 2 }],
+});
+unicorn({
+  id: 'uni_s_sunshower', name: 'Sunshower', type: 'magic', qty: 2, color: '#d3a85e',
+  text: 'PURIFY a Downgrade in your stable, then DRAW a card.', steps: [{ do: 'purify', who: 'owner', filter: { kind: 'downgrade', zone: 'own' }, optional: false }, { do: 'draw', who: 'owner', n: 1 }],
+});
+unicorn({
+  id: 'uni_s_stargate', name: 'Stargate', type: 'magic', qty: 2, color: '#8f7eb7',
+  text: 'Search the deck for a Magical Unicorn and add it to your hand.', steps: [{ do: 'searchDeck', who: 'owner', filter: { types: ['magical'], faction: 'unicorns' }, optional: false }],
+});
+unicorn({
+  id: 'uni_s_soft_landing', name: 'Soft Landing', type: 'magic', qty: 2, color: '#8bb0c5',
+  text: 'Return a card in your stable to your hand. Then you may bring a Unicorn from the discard pile into your stable.', steps: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'own' }, optional: false }, { do: 'fromDiscard', who: 'owner', filter: { types: ['basic', 'magical'], faction: 'unicorns' }, to: 'stable', optional: true }],
+});
+
+unicorn({ id: 'uni_i_neigh', name: 'Neigh!', type: 'instant', qty: 13, color: '#c8658e', text: 'Play only when another card is being played. STOP that card and send it to the discard pile.' });
+unicorn({ id: 'uni_i_perfect_timing', name: 'Perfect Timing', type: 'instant', qty: 1, color: '#76558f', text: 'STOP a card being played. This card cannot be stopped.', uncounterable: true });
+
+/* ------------------------------------------------------------------ */
 
 export const DEFS = D;
 
@@ -499,10 +778,12 @@ export function isDragonType(type) {
 }
 
 // Expanded list of def ids that make up the draw deck (babies excluded).
-export function buildDeckList() {
+export function buildDeckList(factionId = DEFAULT_FACTION_ID) {
+  const faction = getFaction(factionId);
   const list = [];
   for (const card of Object.values(D)) {
     if (card.type === 'baby') continue;
+    if ((card.faction || DEFAULT_FACTION_ID) !== faction.id) continue;
     for (let i = 0; i < card.qty; i++) list.push(card.id);
   }
   return list;

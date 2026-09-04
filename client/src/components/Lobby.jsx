@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { sfx } from '../sound.js';
 import { useI18n } from '../i18n/index.jsx';
+import { FACTIONS } from '../../../shared/cards.js';
 
 export default function Lobby({ view, send, onLeave, showToast }) {
   const { t } = useI18n();
@@ -20,10 +21,29 @@ export default function Lobby({ view, send, onLeave, showToast }) {
   };
 
   return (
-    <main className="lobby">
+    <main className={`lobby lobby-faction-${view.factionId}`} style={{ '--home-hero': `url("${view.faction?.hero}")`, '--faction-accent': view.faction?.color }}>
       <div className="lobby-card">
         <h1 className="lobby-title">{t('The Roost')}</h1>
         <p className="lobby-sub">{t('Gather your players, then light the fire.')}</p>
+
+        <fieldset className="lobby-faction-picker">
+          <legend>{t('Choose your deck')}</legend>
+          <div className="lobby-faction-options">
+            {Object.values(FACTIONS).map((faction) => (
+              <label className="lobby-faction-option" key={faction.id} style={{ '--option-accent': faction.color }}>
+                <input
+                  type="radio"
+                  name="my-lobby-faction"
+                  value={faction.id}
+                  checked={view.factionId === faction.id}
+                  onChange={() => { sfx.click(); send({ type: 'setPlayerFaction', factionId: faction.id }); }}
+                />
+                <span><strong>{t(faction.name)}</strong><small>{t(faction.playstyle)}</small></span>
+              </label>
+            ))}
+          </div>
+          <small className="lobby-deck-note">{t('Each player draws from their own faction deck — Unicorns can face Dragons.')}</small>
+        </fieldset>
 
         <button className="room-code" onClick={copy} title={t('Copy room code')}>
           <span className="room-code-label">{t('Room code')}</span>
@@ -36,6 +56,7 @@ export default function Lobby({ view, send, onLeave, showToast }) {
             <li key={p.id} className={p.connected ? '' : 'player-away'}>
               <span className={`dot ${p.connected ? 'dot-on' : 'dot-off'}`} aria-hidden="true" />
               <span className="lobby-player-name">{p.name}{p.id === view.you ? t(' (you)') : ''}</span>
+              <span className={`badge badge-faction badge-faction-${p.factionId}`}>{t(p.factionName)}</span>
               {p.isHost && <span className="badge badge-host">{t('Host')}</span>}
               {p.isBot && <span className="badge badge-bot">{t('Bot')} · {t(p.difficulty.charAt(0).toUpperCase() + p.difficulty.slice(1))}</span>}
               {p.isBot && view.youAreHost && (

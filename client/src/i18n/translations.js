@@ -48,6 +48,8 @@ export const RU = {
   '2–8 players · share the room code with the table': '2–8 игроков · поделитесь кодом комнаты с участниками',
   'The Roost': 'Насест',
   'Gather your players, then light the fire.': 'Соберите игроков — и разжигайте пламя.',
+  'Choose your deck': 'Выберите свою колоду',
+  'Each player draws from their own faction deck — Unicorns can face Dragons.': 'Каждый игрок добирает карты из своей колоды фракции — единороги могут сражаться с драконами.',
   'Copy room code': 'Скопировать код комнаты',
   'Copied!': 'Скопировано!',
   'Tap to copy': 'Нажмите, чтобы скопировать',

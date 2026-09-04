@@ -50,12 +50,14 @@ export default {
 
     // POST /api/rooms -> create a room, returns { code }
     if (url.pathname === '/api/rooms' && request.method === 'POST') {
+      let options = {};
+      try { options = await request.json(); } catch {}
       for (let attempt = 0; attempt < 5; attempt++) {
         const code = makeCode();
         const stub = roomStub(env, code);
         const res = await stub.fetch('https://do/init', {
           method: 'POST',
-          body: JSON.stringify({ code }),
+          body: JSON.stringify({ code, factionId: options.factionId }),
           headers: { 'Content-Type': 'application/json' },
         });
         if (res.ok) return cors(Response.json({ code }));

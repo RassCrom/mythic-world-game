@@ -61,6 +61,33 @@ const TYPE_ART = {
   instant: ['i_roar'],
 };
 
+const UNICORN_ART = {
+  baby: ['/cards/unicorns/lucky_star-cinematic.png'],
+  basic: ['/cards/unicorns/meadow_mender-cinematic.png'],
+  magical: [
+    '/cards/unicorns/lucky_star-cinematic.png',
+    '/cards/unicorns/meadow_mender-cinematic.png',
+    '/cards/unicorns/windrunner-cinematic.png',
+    '/cards/unicorns/moonstone-cinematic.png',
+  ],
+  upgrade: ['/cards/unicorns/moonstone-cinematic.png', '/cards/unicorns/stargate-cinematic.png'],
+  downgrade: ['/cards/unicorns/windrunner-cinematic.png', '/cards/unicorns/moonstone-cinematic.png'],
+  magic: ['/cards/unicorns/stargate-cinematic.png', '/cards/unicorns/lucky_star-cinematic.png'],
+  instant: ['/cards/unicorns/neigh-cinematic.png'],
+};
+
+// The original handmade Unicorn illustrations remain preserved in the asset
+// folder. The active pack now uses this cinematic fantasy set, which matches
+// the Dragon collection's more dramatic card art.
+const UNICORN_FEATURE_ART = {
+  uni_m_lucky_star: '/cards/unicorns/lucky_star-cinematic.png',
+  uni_m_meadow_mender: '/cards/unicorns/meadow_mender-cinematic.png',
+  uni_m_windrunner: '/cards/unicorns/windrunner-cinematic.png',
+  uni_m_moonstone: '/cards/unicorns/moonstone-cinematic.png',
+  uni_s_stargate: '/cards/unicorns/stargate-cinematic.png',
+  uni_i_neigh: '/cards/unicorns/neigh-cinematic.png',
+};
+
 function hashId(value) {
   let n = 0;
   for (let i = 0; i < value.length; i++) n = ((n << 5) - n + value.charCodeAt(i)) | 0;
@@ -70,15 +97,28 @@ function hashId(value) {
 export function artForCard(defId) {
   const def = DEFS[defId];
   if (!def) return null;
+  if (def.faction === 'unicorns') {
+    if (UNICORN_FEATURE_ART[defId]) return UNICORN_FEATURE_ART[defId];
+    const options = UNICORN_ART[def.type] || UNICORN_ART.basic;
+    return options[hashId(defId) % options.length];
+  }
   if (FEATURE_ART.has(defId)) return `/cards/${defId}.webp`;
   const options = TYPE_ART[def.type] || TYPE_ART.basic;
   return `/cards/${options[hashId(defId) % options.length]}.webp`;
 }
 
 // Inline SVG glyphs use one consistent stroke style throughout the UI.
-export function TypeGlyph({ type }) {
+export function TypeGlyph({ type, faction }) {
   const stroke = 'currentColor';
   const common = { fill: 'none', stroke, strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (faction === 'unicorns' && (type === 'baby' || type === 'basic' || type === 'magical')) {
+    return (
+      <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true">
+        <path {...common} d="M8 8 6 4l5 2m5 2 2-4-5 2m-1 1 1-5 2 5m-8 3c0-3 2.2-5 5-5s5 2 5 5v4c0 3.1-2.2 5.5-5 5.5S7 17.1 7 14v-4Z" />
+        <path {...common} d="M9.5 13.5c1.5 1 3.5 1 5 0" />
+      </svg>
+    );
+  }
   switch (type) {
     case 'baby':
       return (
@@ -158,6 +198,7 @@ export default function CardView({
     );
   }
   if (!def) return null;
+  const typeLabel = def.kindLabel || TYPE_LABEL[def.type];
 
   const inspect = (event) => onInspect?.(defId, event);
   const primaryAction = onClick || (onInspect ? inspect : null);
@@ -198,7 +239,7 @@ export default function CardView({
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) handleMouseLeave(event);
       }}
-      aria-label={`${def.name}, ${t(TYPE_LABEL[def.type])}`}
+      aria-label={`${def.name}, ${t(typeLabel)}`}
       title={title || (!onInspect ? `${def.name} — ${def.text}` : undefined)}
     >
       <div className="card-ornament" aria-hidden="true" />
@@ -222,7 +263,7 @@ export default function CardView({
             onError={() => setImgOk(false)}
           />
         ) : (
-          <div className="card-art-placeholder"><TypeGlyph type={def.type} /></div>
+          <div className="card-art-placeholder"><TypeGlyph type={def.type} faction={def.faction} /></div>
         )}
         <span className="card-art-vignette" aria-hidden="true" />
         {toad && <span className="card-flag flag-toad">{t('TOAD')}</span>}
@@ -231,7 +272,7 @@ export default function CardView({
       </div>
       {!mini && (
         <div className="card-body">
-          <span className="card-type">{t(TYPE_LABEL[def.type])}{def.sub ? ` · ${t('Wyvern')}` : ''}</span>
+          <span className="card-type">{t(typeLabel)}{def.sub ? ` · ${t('Wyvern')}` : ''}</span>
           {!small && <p className="card-text">{def.text}</p>}
         </div>
       )}

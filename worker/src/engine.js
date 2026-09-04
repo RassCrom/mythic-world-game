@@ -7,7 +7,9 @@
 // fed back in and execution resumes. pump() is the single scheduler that
 // advances effects, the instant-response chain, and the turn flow.
 
-import { DEFS, BABY_ID, buildDeckList, isDragonType } from '../../shared/cards.js';
+import {
+  BABY_COUNT, DEFS, DEFAULT_FACTION_ID, FACTIONS, buildDeckList, getFaction, isDragonType,
+} from '../../shared/cards.js';
 
 export const HAND_LIMIT = 7;
 export const START_HAND = 5;
@@ -23,16 +25,17 @@ export const STABLE_CAP = 15;
 /* Construction                                                        */
 /* ================================================================== */
 
-export function createGame(code) {
+export function createGame(code, factionId = DEFAULT_FACTION_ID) {
   return {
     code,
+    // Kept as a default for newly joined players and for safe migration of
+    // rooms created before players could pick decks independently.
+    factionId: getFaction(factionId).id,
     status: 'lobby', // lobby | playing | ended
     hostId: null,
     players: [], // { id, token, name, seat, connected, hand:[], stable:[] }
     inst: {}, // instId -> defId
-    deck: [],
-    discard: [],
-    nest: [],
+    piles: {}, // factionId -> { deck:[], discard:[], nest:[], reshuffles:0 }
     turn: null,
     direction: 1,
     chain: [],
@@ -85,6 +88,7 @@ export function addPlayer(g, { token, name }) {
     name: sanitizeName(name) || 'Dragon ' + (g.players.length + 1),
     seat: g.players.length,
     connected: true,
+    factionId: getFaction(g.factionId).id,
     hand: [],
     stable: [],
   };
@@ -108,6 +112,7 @@ export function addBotPlayer(g, byPid, difficulty) {
     id, token: 'bot:' + id, name,
     seat: g.players.length,
     connected: true, isBot: true, difficulty,
+    factionId: getFaction(g.factionId).id,
     hand: [], stable: [],
   });
   addLog(g, `${name} the automaton (${difficulty}) joined the room.`);
@@ -124,6 +129,20 @@ export function removeBotPlayer(g, byPid, botId) {
   addLog(g, `${bot.name} the automaton was dismissed.`);
   return {};
 }
+
+export function setPlayerFaction(g, byPid, factionId) {
+  if (g.status !== 'lobby') return { error: 'Your deck can only be changed in the lobby.' };
+  if (!FACTIONS[factionId]) return { error: 'Unknown faction.' };
+  const player = byId(g, byPid);
+  if (!player) return { error: 'Unknown player.' };
+  if (player.factionId === factionId) return {};
+  player.factionId = factionId;
+  addLog(g, `${player.name} chose the ${FACTIONS[factionId].name} deck.`);
+  return {};
+}
+
+// Compatibility export for callers that used the old room-wide selector.
+export const setFaction = setPlayerFaction;
 
 // If the game is waiting on a bot (its turn action, a prompt aimed at it, or
 // an open response window that includes it), return that bot's id.
@@ -177,6 +196,35 @@ function defOf(g, iid) { return DEFS[g.inst[iid]]; }
 function stableOwner(g, iid) { return g.players.find((p) => p.stable.includes(iid)); }
 function current(g) { return g.players[g.turn.idx]; }
 function cardName(g, iid) { return defOf(g, iid).name; }
+function normalizePiles(g) {
+  if (!g.piles) {
+    const factionId = getFaction(g.factionId).id;
+    g.piles = {
+      [factionId]: {
+        deck: g.deck || [], discard: g.discard || [], nest: g.nest || [], reshuffles: g.reshuffles || 0,
+      },
+    };
+  }
+  for (const p of g.players) {
+    if (!FACTIONS[p.factionId]) p.factionId = getFaction(g.factionId).id;
+  }
+}
+
+function factionForPlayer(g, pid) {
+  normalizePiles(g);
+  return getFaction(byId(g, pid)?.factionId || g.factionId);
+}
+
+function pileForFaction(g, factionId) {
+  normalizePiles(g);
+  const id = getFaction(factionId).id;
+  if (!g.piles[id]) g.piles[id] = { deck: [], discard: [], nest: [], reshuffles: 0 };
+  return g.piles[id];
+}
+
+function pileForPlayer(g, pid) {
+  return pileForFaction(g, factionForPlayer(g, pid).id);
+}
 
 function stableOf(g, pid, pred) {
   const p = byId(g, pid);
@@ -231,7 +279,12 @@ export function dragonCount(g, pid) {
   for (const iid of byId(g, pid).stable) {
     if (!isDragonCard(g, iid)) continue;
     const d = defOf(g, iid);
-    n += d.countsAs === 2 && abilitiesActive(g, iid) ? 2 : 1;
+    const harmonyActive = d.harmonyBonus && abilitiesActive(g, iid) &&
+      !rawMods(g, pid).has('breakHarmony') && byId(g, pid).stable.some((other) => {
+        if (other === iid || !isDragonCard(g, other)) return false;
+        return (defOf(g, other).faction || DEFAULT_FACTION_ID) === 'unicorns';
+      });
+    n += (d.countsAs === 2 && abilitiesActive(g, iid)) || harmonyActive ? 2 : 1;
   }
   return n;
 }
@@ -244,7 +297,7 @@ function checkWin(g) {
   const order = turnOrderFrom(g, current(g).id);
   for (const pid of order) {
     if (dragonCount(g, pid) >= need) {
-      endGame(g, pid, `${byId(g, pid).name} gathered ${need} Dragons and wins!`);
+      endGame(g, pid, `${byId(g, pid).name} gathered ${need} ${factionForPlayer(g, pid).creaturePlural} and wins!`);
       return;
     }
   }
@@ -273,14 +326,15 @@ function turnOrderFrom(g, startPid) {
 /* Draw / discard / reshuffle                                          */
 /* ================================================================== */
 
-function reshuffleDiscardIntoDeck(g, countsTowardLimit) {
-  if (!g.discard.length) return false;
-  g.deck.push(...g.discard.splice(0));
-  shuffle(g.deck);
+function reshuffleDiscardIntoDeck(g, factionId, countsTowardLimit) {
+  const pile = pileForFaction(g, factionId);
+  if (!pile.discard.length) return false;
+  pile.deck.push(...pile.discard.splice(0));
+  shuffle(pile.deck);
   if (countsTowardLimit) {
-    g.reshuffles++;
-    addLog(g, `The deck ran out — discard pile shuffled in (${g.reshuffles}/2).`, 'shuffle');
-    if (g.reshuffles >= 2) {
+    pile.reshuffles++;
+    addLog(g, `The ${getFaction(factionId).name} deck ran out — its discard pile was shuffled in (${pile.reshuffles}/2).`, 'shuffle');
+    if (pile.reshuffles >= 2) {
       endByDeckOut(g);
       return true;
     }
@@ -297,18 +351,19 @@ function endByDeckOut(g) {
     const n = dragonCount(g, pid);
     if (n > best) { best = n; winner = pid; }
   }
-  endGame(g, winner, `The deck ran out twice — ${byId(g, winner).name} wins with the most Dragons (${best}).`);
+  endGame(g, winner, `A deck ran out twice — ${byId(g, winner).name} wins with the most creatures (${best}).`);
 }
 
 function drawCards(g, pid, n, quiet) {
   const p = byId(g, pid);
+  const pile = pileForPlayer(g, pid);
   let drawn = 0;
   for (let i = 0; i < n; i++) {
-    if (!g.deck.length) {
-      if (!reshuffleDiscardIntoDeck(g, true)) break;
+    if (!pile.deck.length) {
+      if (!reshuffleDiscardIntoDeck(g, p.factionId, true)) break;
       if (g.status !== 'playing') return drawn;
     }
-    const iid = g.deck.pop();
+    const iid = pile.deck.pop();
     if (!iid) break;
     p.hand.push(iid);
     drawn++;
@@ -319,8 +374,9 @@ function drawCards(g, pid, n, quiet) {
 
 function toDiscard(g, iid) {
   const d = defOf(g, iid);
-  if (d.type === 'baby') g.nest.push(iid);
-  else g.discard.push(iid);
+  const pile = pileForFaction(g, d.faction || DEFAULT_FACTION_ID);
+  if (d.type === 'baby') pile.nest.push(iid);
+  else pile.discard.push(iid);
 }
 
 /* ================================================================== */
@@ -365,7 +421,7 @@ function enterStable(g, iid, pid, opts = {}) {
   checkWin(g);
 }
 
-// Remove a card from its stable. reason: 'destroy' | 'sacrifice' | 'return' | 'move'
+// Remove a card from its stable. reason: 'destroy' | 'sacrifice' | 'purify' | 'return' | 'move'
 // Destination handling: destroy/sacrifice -> discard (babies -> nest);
 // 'return' -> owner's hand (babies -> nest); 'move' -> caller places it.
 function removeFromStable(g, iid, reason) {
@@ -374,17 +430,18 @@ function removeFromStable(g, iid, reason) {
   const d = defOf(g, iid);
   p.stable = p.stable.filter((x) => x !== iid);
 
-  if (reason === 'destroy' || reason === 'sacrifice') {
+  if (reason === 'destroy' || reason === 'sacrifice' || reason === 'purify') {
     toDiscard(g, iid);
-    addLog(g, `${d.name} was ${reason === 'destroy' ? 'destroyed' : 'sacrificed'} (${p.name}).`, 'destroy');
+    const verb = reason === 'destroy' ? 'destroyed' : reason === 'purify' ? 'purified away' : 'sacrificed';
+    addLog(g, `${d.name} was ${verb} (${p.name}).`, 'destroy');
     // Leave ability (Spiteclaw / Seraph).
     if (d.onLeave && d.type === 'magical' && !rawMods(g, p.id).has('suppress')) {
       pushFrame(g, { owner: p.id, source: iid, steps: d.onLeave });
     }
   } else if (reason === 'return') {
     if (d.type === 'baby') {
-      g.nest.push(iid);
-      addLog(g, `${d.name} was returned to the Nest.`);
+      pileForFaction(g, d.faction || DEFAULT_FACTION_ID).nest.push(iid);
+      addLog(g, `${d.name} was returned to the ${d.faction === 'unicorns' ? 'Meadow' : 'Nest'}.`);
     } else {
       p.hand.push(iid);
       addLog(g, `${d.name} was returned to ${p.name}'s hand.`);
@@ -435,6 +492,8 @@ function legalStableTargets(g, filter, ctx) {
       }
       if (ctx.forDestroy) {
         if (isDragonType(d.type) && mods.has('dragonsSafe')) continue; // Dragonscale Ward
+        if (ctx.byMagic && isDragonType(d.type) &&
+            (d.faction || DEFAULT_FACTION_ID) === 'unicorns' && mods.has('unicornMagicSafe')) continue;
         if (ctx.byMagic && d.noMagicDestroy && abilitiesActive(g, iid)) continue; // Spellscale
       }
       if (ctx.forSteal && dragon && d.type === 'basic' && queensDecreeBlocks(g, ctx.chooser)) continue;
@@ -541,6 +600,26 @@ function execStep(g, frame, step, choice) {
       if (choice === null) return 'done'; // skipped
       if (step.saveDone) frame.vars[step.saveDone] = true;
       pushFrame(g, { owner: frame.owner, source: frame.source, steps: [{ do: '_resolveDestroy', target: choice, byMagic: !!step.byMagic }] });
+      return 'done';
+    }
+
+    case 'purify': {
+      const chooser = resolveWho(g, frame, step.who);
+      const cands = legalStableTargets(g, step.filter || { kind: 'downgrade', zone: 'own' }, { chooser });
+      if (!cands.length) return 'done';
+      if (choice === undefined) {
+        setPrompt(g, {
+          playerId: chooser,
+          kind: 'pickCard',
+          title: 'Purify a Downgrade',
+          candidates: cands,
+          canSkip: !!step.optional,
+        });
+        return 'wait';
+      }
+      if (choice === null) return 'done';
+      removeFromStable(g, choice, 'purify');
+      addLog(g, `${byId(g, chooser).name} restored a little sparkle to the stable.`, 'play');
       return 'done';
     }
 
@@ -667,7 +746,8 @@ function execStep(g, frame, step, choice) {
 
     case 'searchDeck': {
       const pid = resolveWho(g, frame, step.who);
-      const cands = g.deck.filter((iid) => matchesDeckFilter(g, iid, step.filter));
+      const pile = pileForPlayer(g, pid);
+      const cands = pile.deck.filter((iid) => matchesDeckFilter(g, iid, step.filter));
       if (!cands.length) return 'done';
       if (choice === undefined) {
         setPrompt(g, {
@@ -677,17 +757,18 @@ function execStep(g, frame, step, choice) {
         });
         return 'wait';
       }
-      if (choice === null) { shuffle(g.deck); return 'done'; }
-      g.deck = g.deck.filter((x) => x !== choice);
+      if (choice === null) { shuffle(pile.deck); return 'done'; }
+      pile.deck = pile.deck.filter((x) => x !== choice);
       byId(g, pid).hand.push(choice);
-      shuffle(g.deck);
+      shuffle(pile.deck);
       addLog(g, `${byId(g, pid).name} searched the deck and took ${cardName(g, choice)}.`, 'draw');
       return 'done';
     }
 
     case 'fromDiscard': {
       const pid = resolveWho(g, frame, step.who);
-      const cands = g.discard.filter((iid) => matchesDeckFilter(g, iid, step.filter));
+      const pile = pileForPlayer(g, pid);
+      const cands = pile.discard.filter((iid) => matchesDeckFilter(g, iid, step.filter));
       if (!cands.length) return 'done';
       if (choice === undefined) {
         setPrompt(g, {
@@ -698,7 +779,7 @@ function execStep(g, frame, step, choice) {
         return 'wait';
       }
       if (choice === null) return 'done';
-      g.discard = g.discard.filter((x) => x !== choice);
+      pile.discard = pile.discard.filter((x) => x !== choice);
       if (step.to === 'stable') {
         addLog(g, `${byId(g, pid).name} raised ${cardName(g, choice)} from the discard pile!`, 'play');
         enterStable(g, choice, pid);
@@ -847,17 +928,18 @@ function execStep(g, frame, step, choice) {
     }
 
     case 'shuffleDiscardIntoDeck': {
-      reshuffleDiscardIntoDeck(g, false);
+      reshuffleDiscardIntoDeck(g, factionForPlayer(g, frame.owner).id, false);
       return 'done';
     }
 
     case 'moltHand': {
       const pid = resolveWho(g, frame, step.who);
       const p = byId(g, pid);
-      g.deck.push(...p.hand.splice(0));
-      g.deck.push(...g.discard.splice(0));
-      shuffle(g.deck);
-      addLog(g, `${p.name} shuffled their hand and the discard pile into the deck.`, 'shuffle');
+      const pile = pileForPlayer(g, pid);
+      pile.deck.push(...p.hand.splice(0));
+      pile.deck.push(...pile.discard.splice(0));
+      shuffle(pile.deck);
+      addLog(g, `${p.name} shuffled their hand and their faction discard pile into the deck.`, 'shuffle');
       drawCards(g, pid, 5);
       return 'done';
     }
@@ -953,24 +1035,25 @@ function execStep(g, frame, step, choice) {
 
     case 'babyFromNest': {
       const pid = resolveWho(g, frame, step.who);
+      const pile = pileForPlayer(g, pid);
       const max = step.n || 1;
       const stage = frame.vars[vkey] || { taken: 0 };
-      if (!g.nest.length || stage.taken >= max) return 'done';
+      if (!pile.nest.length || stage.taken >= max) return 'done';
       if (step.optional && choice === undefined) {
         setPrompt(g, {
           playerId: pid, kind: 'yesno',
           title: max > 1
-            ? `Bring a Baby Dragon from the Nest into your stable? (${stage.taken}/${max} taken)`
-            : 'Bring a Baby Dragon from the Nest into your stable?',
+            ? `Bring a ${cardName(g, pile.nest[pile.nest.length - 1])} from the ${factionForPlayer(g, pid).id === 'unicorns' ? 'Meadow' : 'Nest'} into your stable? (${stage.taken}/${max} taken)`
+            : `Bring a ${cardName(g, pile.nest[pile.nest.length - 1])} from the ${factionForPlayer(g, pid).id === 'unicorns' ? 'Meadow' : 'Nest'} into your stable?`,
         });
         return 'wait';
       }
       if (step.optional && !choice) return 'done';
-      const iid = g.nest.pop();
+      const iid = pile.nest.pop();
       enterStable(g, iid, pid);
       const taken = stage.taken + 1;
       frame.vars[vkey] = { taken };
-      if (taken < max && g.nest.length) return execStep(g, frame, step, undefined);
+      if (taken < max && pile.nest.length) return execStep(g, frame, step, undefined);
       return 'done';
     }
 
@@ -1034,6 +1117,17 @@ function execStep(g, frame, step, choice) {
       return 'done';
     }
 
+    case 'harmonyDraw': {
+      const pid = frame.owner;
+      const unicorns = stableOf(g, pid, (d, iid) => isDragonCard(g, iid) &&
+        (d.faction || DEFAULT_FACTION_ID) === 'unicorns').length;
+      if (unicorns >= 2 && !rawMods(g, pid).has('breakHarmony')) {
+        drawCards(g, pid, 1);
+        addLog(g, `${byId(g, pid).name}'s Unicorns found Harmony and drew a card.`, 'draw');
+      }
+      return 'done';
+    }
+
     /* ---- internal resolution steps (destroy/sacrifice with saves) ---- */
 
     case '_resolveDestroy': {
@@ -1045,6 +1139,8 @@ function execStep(g, frame, step, choice) {
       // Re-validate (state may have changed since targeting).
       if ((d.protected && abilitiesActive(g, target)) ||
           (isDragonType(d.type) && rawMods(g, owner.id).has('dragonsSafe')) ||
+          (step.byMagic && isDragonType(d.type) &&
+            (d.faction || DEFAULT_FACTION_ID) === 'unicorns' && rawMods(g, owner.id).has('unicornMagicSafe')) ||
           (step.byMagic && d.noMagicDestroy && abilitiesActive(g, target))) {
         return 'done';
       }
@@ -1146,6 +1242,7 @@ function matchesDeckFilter(g, iid, filter) {
   if (!filter) return true;
   if (filter.types && !filter.types.includes(d.type)) return false;
   if (filter.sub && d.sub !== filter.sub) return false;
+  if (filter.faction && (d.faction || DEFAULT_FACTION_ID) !== filter.faction) return false;
   return true;
 }
 
@@ -1205,7 +1302,7 @@ function resolveChain(g) {
       enterStable(g, base.iid, target.id);
     }
   } else if (d.type === 'magic') {
-    g.discard.push(base.iid); // to discard first, so shuffle effects include it
+    toDiscard(g, base.iid); // to discard first, so shuffle effects include it
     addLog(g, `${p.name} cast ${d.name}.`, 'magic');
     if (d.steps) pushFrame(g, { owner: base.playerId, source: base.iid, steps: d.steps });
   }
@@ -1404,11 +1501,17 @@ export function startGame(g, pid) {
   g.inst = {};
   let n = 0;
   const mk = (defId) => { const iid = 'c' + (++n); g.inst[iid] = defId; return iid; };
-  g.nest = [];
-  for (let i = 0; i < 13; i++) g.nest.push(mk(BABY_ID));
-  g.deck = shuffle(buildDeckList().map(mk));
-  g.discard = [];
-  g.reshuffles = 0;
+  g.piles = {};
+  const selectedFactions = [...new Set(g.players.map((p) => getFaction(p.factionId).id))];
+  for (const factionId of selectedFactions) {
+    const faction = getFaction(factionId);
+    const pile = pileForFaction(g, factionId);
+    pile.nest = [];
+    for (let i = 0; i < BABY_COUNT; i++) pile.nest.push(mk(faction.starterId));
+    pile.deck = shuffle(buildDeckList(factionId).map(mk));
+    pile.discard = [];
+    pile.reshuffles = 0;
+  }
   g.winnerId = null;
   g.endReason = null;
   g.chain = [];
@@ -1422,12 +1525,12 @@ export function startGame(g, pid) {
   for (const p of g.players) {
     p.hand = [];
     p.stable = [];
-    const baby = g.nest.pop();
+    const baby = pileForPlayer(g, p.id).nest.pop();
     p.stable.push(baby);
   }
   for (const p of g.players) drawCards(g, p.id, START_HAND, true);
 
-  addLog(g, `The game begins! Each player starts with a Baby Dragon and ${START_HAND} cards. First to ${winThreshold(g)} Dragons wins.`, 'play');
+  addLog(g, `The faction showdown begins! Each player starts with their faction’s Baby card and ${START_HAND} cards. First to ${winThreshold(g)} creatures wins.`, 'play');
   initTurn(g, Math.floor(Math.random() * g.players.length));
   pump(g);
   return {};
@@ -1664,7 +1767,10 @@ export function expireTurn(g, now = Date.now()) {
 /* ================================================================== */
 
 export function viewFor(g, pid) {
+  normalizePiles(g);
   const me = byId(g, pid);
+  const myFaction = factionForPlayer(g, pid);
+  const myPile = pileForPlayer(g, pid);
   const visibleHands = {};
   for (const p of g.players) {
     if (p.id === pid || (g.status === 'playing' && rawMods(g, p.id).has('handVisible'))) {
@@ -1679,6 +1785,8 @@ export function viewFor(g, pid) {
     connected: p.connected,
     isBot: !!p.isBot,
     difficulty: p.isBot ? p.difficulty : undefined,
+    factionId: getFaction(p.factionId).id,
+    factionName: getFaction(p.factionId).name,
     isHost: p.id === g.hostId,
     handCount: p.hand.length,
     dragons: g.status !== 'lobby' ? dragonCount(g, p.id) : 0,
@@ -1732,13 +1840,16 @@ export function viewFor(g, pid) {
     you: pid,
     code: g.code,
     status: g.status,
+    faction: myFaction,
+    factionId: myFaction.id,
+    starterDefId: myFaction.starterId,
     hostId: g.hostId,
     youAreHost: pid === g.hostId,
     players,
     hands: visibleHands,
-    deckCount: g.deck.length,
-    discard: g.discard.map((iid) => ({ iid, defId: g.inst[iid] })),
-    nestCount: g.nest.length,
+    deckCount: myPile.deck.length,
+    discard: myPile.discard.map((iid) => ({ iid, defId: g.inst[iid] })),
+    nestCount: myPile.nest.length,
     turn: g.turn ? {
       playerId: g.status === 'playing' || g.status === 'ended' ? current(g).id : null,
       playerName: current(g).name,
@@ -1759,7 +1870,7 @@ export function viewFor(g, pid) {
     playable,
     canDraw,
     winThreshold: winThreshold(g),
-    reshuffles: g.reshuffles,
+    reshuffles: myPile.reshuffles,
     winner: g.winnerId ? { id: g.winnerId, name: byId(g, g.winnerId)?.name, reason: g.endReason } : null,
     log: g.log.slice(-80),
   };

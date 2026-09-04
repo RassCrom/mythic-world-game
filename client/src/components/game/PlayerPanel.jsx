@@ -37,7 +37,7 @@ export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCa
           </span>
         )}
         <span className="player-meta">
-          <span className="badge badge-dragons" title={t('Dragons / goal')}>{player.dragons}/{view.winThreshold}</span>
+          <span className={`badge badge-dragons badge-faction-${player.factionId}`} title={t('{creatures} / goal', { creatures: player.factionName || 'Creatures' })}>{player.dragons}/{view.winThreshold}</span>
           {!isMe && <span className="badge" title={t('Cards in hand')}>{t('{count} cards', { count: player.handCount })}</span>}
         </span>
       </header>

@@ -10,6 +10,8 @@ export const FLIGHT_MS = 420;
 export const MOD_BADGES = {
   uncounterable: ['Sigil', 'Their plays cannot be stopped by Instants'],
   dragonsSafe: ['Warded', 'Their Dragons cannot be destroyed'],
+  unicornMagicSafe: ['Rainbow Ward', 'Their Unicorns cannot be destroyed by Magic cards'],
+  breakHarmony: ['Lonely', 'Harmony abilities do not work in this stable'],
   noUpgrades: ['No Upgrades', 'Cannot play Upgrade cards'],
   handVisible: ['Scryed', 'Hand visible to everyone'],
   toads: ['Toads!', 'Their Dragons are Toads and do not count'],

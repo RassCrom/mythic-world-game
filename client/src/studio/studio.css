@@ -890,6 +890,8 @@
   box-shadow: 0 4px 12px rgba(230, 126, 34, 0.2);
 }
 
+.home-studio-btn .glyph { width: 18px; height: 18px; flex: none; }
+
 /* ============================================ */
 /* UI/UX IMPROVEMENTS - Phase 2                 */
 /* ============================================ */

@@ -13,8 +13,12 @@ function wsUrl(code) {
   return base.replace(/^http/, 'ws') + `/api/rooms/${encodeURIComponent(code)}/ws`;
 }
 
-export async function createRoom() {
-  const res = await fetch(apiUrl('/api/rooms'), { method: 'POST' });
+export async function createRoom(factionId) {
+  const res = await fetch(apiUrl('/api/rooms'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ factionId }),
+  });
   if (!res.ok) throw new Error('Could not create a room. Is the server up?');
   return res.json(); // { code }
 }

@@ -113,7 +113,7 @@ export default function StudioSandbox({ cards, factions }) {
             <div className="sandbox-zone-cards">
               {oppStable.map((id, index) => (
                 <div key={`${id}-${index}`} style={{ position: 'relative' }}>
-                  <CardView defId={id} small onClick={() => setSelectedCardId(id)} />
+                  <CardView defId={id} cardDef={cards[id]} small onClick={() => setSelectedCardId(id)} />
                   <div style={{ display: 'flex', gap: '4px', marginTop: '4px', justifyContent: 'center' }}>
                     <button type="button" className="btn-studio btn-studio-ghost" style={{ padding: '2px 4px', fontSize: '10px' }} title="Steal to My Stable" onClick={() => moveCard(index, 'oppStable', 'myStable')}>Steal</button>
                     <button type="button" className="btn-studio btn-studio-ghost" style={{ padding: '2px 4px', fontSize: '10px' }} title="Destroy to Discard" onClick={() => moveCard(index, 'oppStable', 'discard')}>Destroy</button>
@@ -136,7 +136,7 @@ export default function StudioSandbox({ cards, factions }) {
             <div className="sandbox-zone-cards">
               {myStable.map((id, index) => (
                 <div key={`${id}-${index}`} style={{ position: 'relative' }}>
-                  <CardView defId={id} small onClick={() => setSelectedCardId(id)} />
+                  <CardView defId={id} cardDef={cards[id]} small onClick={() => setSelectedCardId(id)} />
                   <div style={{ display: 'flex', gap: '4px', marginTop: '4px', justifyContent: 'center' }}>
                     <button type="button" className="btn-studio btn-studio-ghost" style={{ padding: '2px 4px', fontSize: '10px' }} title="Return to Hand" onClick={() => moveCard(index, 'myStable', 'hand')}>Hand</button>
                     <button type="button" className="btn-studio btn-studio-ghost" style={{ padding: '2px 4px', fontSize: '10px' }} title="Sacrifice to Discard" onClick={() => moveCard(index, 'myStable', 'discard')}>Sacrifice</button>
@@ -159,7 +159,7 @@ export default function StudioSandbox({ cards, factions }) {
             <div className="sandbox-zone-cards">
               {hand.map((id, index) => (
                 <div key={`${id}-${index}`} style={{ position: 'relative' }}>
-                  <CardView defId={id} small onClick={() => setSelectedCardId(id)} />
+                  <CardView defId={id} cardDef={cards[id]} small onClick={() => setSelectedCardId(id)} />
                   <div style={{ display: 'flex', gap: '4px', marginTop: '4px', justifyContent: 'center' }}>
                     <button type="button" className="btn-studio btn-studio-primary" style={{ padding: '2px 6px', fontSize: '10px' }} onClick={() => moveCard(index, 'hand', 'myStable')}>Play</button>
                     <button type="button" className="btn-studio btn-studio-ghost" style={{ padding: '2px 4px', fontSize: '10px' }} onClick={() => moveCard(index, 'hand', 'discard')}>Discard</button>
@@ -179,7 +179,7 @@ export default function StudioSandbox({ cards, factions }) {
             <div className="sandbox-zone-cards">
               {discard.map((id, index) => (
                 <div key={`${id}-${index}`} style={{ position: 'relative', opacity: 0.85 }}>
-                  <CardView defId={id} small onClick={() => setSelectedCardId(id)} />
+                  <CardView defId={id} cardDef={cards[id]} small onClick={() => setSelectedCardId(id)} />
                   <div style={{ display: 'flex', gap: '4px', marginTop: '4px', justifyContent: 'center' }}>
                     <button type="button" className="btn-studio btn-studio-ghost" style={{ padding: '2px 4px', fontSize: '10px' }} title="Reanimate to Stable" onClick={() => moveCard(index, 'discard', 'myStable')}>Reanimate</button>
                     <button type="button" className="btn-studio btn-studio-ghost" style={{ padding: '2px 4px', fontSize: '10px' }} title="Recover to Hand" onClick={() => moveCard(index, 'discard', 'hand')}>Hand</button>

@@ -8,7 +8,7 @@ import {
   createGame, addPlayer, markDisconnected, markConnected,
   startGame, restartGame, playCard, drawAction, passWindow, choose,
   forceChoice, forcePass, forceEndTurn, expireTurn, viewFor, addLog,
-  addBotPlayer, removeBotPlayer, botWaitingId,
+  addBotPlayer, removeBotPlayer, botWaitingId, setFaction, setSettings,
 } from './engine.js';
 import { decideBotAction } from './bot.js';
 
@@ -148,7 +148,9 @@ export class GameRoom {
       case 'drawAction': return drawAction(g, pid);
       case 'pass': return passWindow(g, pid);
       case 'choose': return choose(g, pid, msg.value === null ? null : msg.value);
-      case 'addBot': return addBotPlayer(g, pid, String(msg.difficulty || 'medium'));
+      case 'addBot': return addBotPlayer(g, pid, String(msg.difficulty || 'medium'), msg.faction ? String(msg.faction) : undefined);
+      case 'setFaction': return setFaction(g, pid, String(msg.faction || ''));
+      case 'setSettings': return setSettings(g, pid, msg.settings);
       case 'removeBot': return removeBotPlayer(g, pid, String(msg.playerId));
       case 'forceChoice': return forceChoice(g, pid);
       case 'forcePass': return forcePass(g, pid);

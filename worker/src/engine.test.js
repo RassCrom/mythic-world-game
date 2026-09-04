@@ -10,6 +10,11 @@ import {
   passWindow,
   playCard,
   startGame,
+  setFaction,
+  setSettings,
+  isLoyal,
+  creatureCount,
+  viewFor,
 } from './engine.js';
 
 function startedGame() {
@@ -67,9 +72,11 @@ test('setup gives every player five cards and a Baby Dragon before the first man
   assert.equal(secondPlayer.hand.length, 5);
   for (const player of game.players) {
     assert.equal(player.stable.length, 1);
-    assert.equal(game.inst[player.stable[0]], 'baby_dragon');
+    assert.equal(game.inst[player.stable[0]], player.faction === 'dragon' ? 'baby_dragon' : 'baby_unicorn');
   }
-  assert.equal(game.nest.length, 11);
+  assert.equal(firstPlayer.faction, 'dragon', 'seats alternate factions: first is a dragon keeper');
+  assert.equal(secondPlayer.faction, 'unicorn');
+  assert.equal(game.nest.length, 14);
 });
 
 test('drawing in the action phase draws once and immediately ends the turn', () => {
@@ -299,7 +306,7 @@ test('every effect action referenced by the card database is implemented by the 
     'shuffleDiscardIntoDeck', 'moltHand', 'moveUpDown', 'destroyUpOrSacDown',
     'costDiscardThen', 'costSacrificeSelfThen', 'babyFromNest', 'ask', 'ifVar',
     'skipToEnd', 'extraAction', 'reverseTurnOrder', 'copyEntrance', 'swapDragon',
-    'volcanicPurge',
+    'volcanicPurge', 'tame', 'swapCreatures', 'countVar',
   ]);
   const referenced = new Set();
   const visit = (value) => {
@@ -359,4 +366,235 @@ test('the overcrowded-stable sacrifice does not fire below the cap', () => {
 
   assert.equal(player.stable.length, 15);
   assert.equal(game.prompt, null);
+});
+
+
+/* ================================================================== */
+/* Dragons vs Unicorns                                                 */
+/* ================================================================== */
+
+function playerOf(game, pid) { return game.players.find((p) => p.id === pid); }
+
+function pullFromDeck(game, defId) {
+  const iid = game.deck.find((candidate) => game.inst[candidate] === defId);
+  assert.ok(iid, `${defId} should exist in the deck`);
+  game.deck = game.deck.filter((candidate) => candidate !== iid);
+  return iid;
+}
+
+test('factions can be changed in the lobby and are locked afterwards', () => {
+  const game = createGame('FACT');
+  const first = addPlayer(game, { token: 'a', name: 'Aster' }).playerId;
+  addPlayer(game, { token: 'b', name: 'Bramble' });
+  assert.deepEqual(setFaction(game, first, 'unicorn'), {});
+  assert.equal(playerOf(game, first).faction, 'unicorn');
+  assert.deepEqual(setFaction(game, first, 'griffin'), { error: 'Unknown faction.' });
+  Math.random = (() => { const o = Math.random; Math.random = () => 0; return o; })();
+  assert.deepEqual(startGame(game, first), {});
+  assert.equal(setFaction(game, first, 'dragon').error, 'Factions are locked once the game starts.');
+  assert.equal(game.inst[playerOf(game, first).stable[0]], 'baby_unicorn', 'a unicorn keeper hatches a Baby Unicorn');
+});
+
+test('a wild Magical creature (rival faction) counts toward the goal but its ability stays dormant', () => {
+  const { game, first } = startedGame(); // first = dragon keeper
+  const player = playerOf(game, first);
+  const stormfeather = putInActiveHand(game, 'mu_peg_storm'); // unicorn: "enters: DRAW a card"
+  const handBefore = player.hand.length;
+  assert.deepEqual(playCard(game, first, stormfeather), {});
+  passAllResponses(game);
+  assert.ok(player.stable.includes(stormfeather));
+  assert.equal(isLoyal(game, stormfeather), false);
+  assert.equal(player.hand.length, handBefore - 1, 'no draw: the pegasus is wild in a dragon stable');
+  assert.equal(creatureCount(game, first), 2, 'it still counts as a creature');
+});
+
+test('a loyal Magical creature of your own faction fires its entrance ability', () => {
+  const { game, first, second } = startedGame();
+  // Give the unicorn keeper the turn.
+  assert.deepEqual(drawAction(game, first), {});
+  const player = playerOf(game, second);
+  const stormfeather = putInActiveHand(game, 'mu_peg_storm');
+  const handBefore = player.hand.length;
+  assert.deepEqual(playCard(game, second, stormfeather), {});
+  passAllResponses(game);
+  assert.equal(isLoyal(game, stormfeather), true);
+  assert.equal(player.hand.length, handBefore, 'play one, draw one');
+});
+
+test('Taming Bond wakes a wild Magical creature and fires its entrance ability', () => {
+  const { game, first } = startedGame();
+  const player = playerOf(game, first);
+  const stormfeather = pullFromDeck(game, 'mu_peg_storm');
+  player.stable.push(stormfeather);
+  const bond = putInActiveHand(game, 's_taming');
+  const handBefore = player.hand.length;
+  assert.deepEqual(playCard(game, first, bond), {});
+  passAllResponses(game);
+  assert.equal(game.prompt?.kind, 'pickCard');
+  assert.deepEqual(game.prompt.candidates, [stormfeather]);
+  assert.deepEqual(choose(game, first, stormfeather), {});
+  assert.equal(isLoyal(game, stormfeather), true);
+  assert.equal(player.hand.length, handBefore, 'Taming Bond spent, Stormfeather drew one');
+});
+
+test('Pegasi are flying: they can never be stolen, Rainbow Mane protects a whole stable', () => {
+  const { game, first, second } = startedGame();
+  const foe = playerOf(game, second);
+  const pegasus = pullFromDeck(game, 'mu_peg_gale');
+  const basic = pullFromDeck(game, 'basic_rosebloom');
+  foe.stable.push(pegasus, basic);
+  const enchanting = putInActiveHand(game, 'm_enchanting');
+  assert.deepEqual(playCard(game, first, enchanting), {});
+  passAllResponses(game);
+  assert.equal(game.prompt?.kind, 'pickHand', 'discard a card to steal');
+  assert.deepEqual(choose(game, first, [game.prompt.candidates[0]]), {});
+  assert.equal(game.prompt?.kind, 'pickCard');
+  assert.ok(!game.prompt.candidates.includes(pegasus), 'the pegasus flies off');
+  assert.ok(game.prompt.candidates.includes(basic));
+  assert.deepEqual(choose(game, first, basic), {});
+  assert.ok(playerOf(game, first).stable.includes(basic));
+
+  // Rainbow Mane: nothing in that stable can be stolen or swapped away any more.
+  foe.stable.push(pullFromDeck(game, 'u_mane'));
+  foe.stable.push(pullFromDeck(game, 'basic_skyhoof'));
+  assert.deepEqual(drawAction(game, second), {}); // back to the dragon keeper
+  const riftcoil = putInActiveHand(game, 'm_riftcoil');
+  assert.deepEqual(playCard(game, first, riftcoil), {});
+  passAllResponses(game);
+  assert.equal(game.prompt, null, 'Riftcoil finds no creature it may swap with');
+});
+
+test('Ember: a dragon keeper draws once per turn after destroying a rival card', () => {
+  const { game, first, second } = startedGame();
+  const me = playerOf(game, first);
+  const foeBaby = playerOf(game, second).stable[0];
+  const venom = putInActiveHand(game, 's_venom');
+  const handBefore = me.hand.length;
+  assert.deepEqual(playCard(game, first, venom), {});
+  passAllResponses(game);
+  assert.deepEqual(choose(game, first, foeBaby), {});
+  assert.equal(me.hand.length, handBefore, 'venom spent, Ember drew one back');
+  assert.ok(game.log.some((entry) => /^Ember:/.test(entry.msg)));
+});
+
+test('Sparkle: a unicorn keeper draws when a rival destroys a loyal creature', () => {
+  const { game, first, second } = startedGame();
+  const foe = playerOf(game, second);
+  const foeBaby = foe.stable[0];
+  const venom = putInActiveHand(game, 's_venom');
+  const foeHand = foe.hand.length;
+  assert.deepEqual(playCard(game, first, venom), {});
+  passAllResponses(game);
+  assert.deepEqual(choose(game, first, foeBaby), {});
+  // The action ended the dragon keeper's turn, so the unicorn keeper also took their draw-phase card.
+  assert.equal(foe.hand.length, foeHand + 2, 'Sparkle consolation draw + draw phase');
+  assert.ok(game.log.some((entry) => /^Sparkle:/.test(entry.msg)));
+  assert.equal(game.inst[foeBaby], 'baby_unicorn');
+  assert.ok(game.nest.includes(foeBaby), 'the Baby Unicorn went back to the Nest');
+});
+
+test('Dawnwing Pegasus returns to hand instead of being destroyed', () => {
+  const { game, first, second } = startedGame();
+  const foe = playerOf(game, second);
+  const dawnwing = pullFromDeck(game, 'mu_peg_dawn');
+  foe.stable.push(dawnwing);
+  const venom = putInActiveHand(game, 's_venom');
+  assert.deepEqual(playCard(game, first, venom), {});
+  passAllResponses(game);
+  assert.deepEqual(choose(game, first, dawnwing), {});
+  assert.ok(foe.hand.includes(dawnwing));
+  assert.ok(!foe.stable.includes(dawnwing));
+  assert.ok(!game.discard.includes(dawnwing));
+});
+
+test('Shieldhorn Unicorn wards loyal creatures from Magic destruction only', () => {
+  const { game, first, second } = startedGame();
+  const foe = playerOf(game, second);
+  const shieldhorn = pullFromDeck(game, 'mu_shieldhorn');
+  const wildDrake = pullFromDeck(game, 'basic_crimson'); // a dragon in a unicorn stable: wild
+  foe.stable.push(shieldhorn, wildDrake);
+  const venom = putInActiveHand(game, 's_venom');
+  assert.deepEqual(playCard(game, first, venom), {});
+  passAllResponses(game);
+  assert.equal(game.prompt?.kind, 'pickCard');
+  assert.ok(!game.prompt.candidates.includes(shieldhorn));
+  assert.ok(!game.prompt.candidates.includes(foe.stable[0]), 'the loyal Baby Unicorn is warded');
+  assert.ok(game.prompt.candidates.includes(wildDrake), 'a wild creature is not protected');
+});
+
+test('Rainbow Bridge swaps one of your creatures with a rival creature', () => {
+  const { game, first, second } = startedGame();
+  const me = playerOf(game, first);
+  const foe = playerOf(game, second);
+  const mine = pullFromDeck(game, 'basic_rosebloom');
+  const theirs = pullFromDeck(game, 'basic_crimson');
+  me.stable.push(mine);
+  foe.stable.push(theirs);
+  const bridge = putInActiveHand(game, 's_bridge');
+  assert.deepEqual(playCard(game, first, bridge), {});
+  passAllResponses(game);
+  assert.equal(game.prompt?.kind, 'pickCard');
+  assert.ok(game.prompt.candidates.includes(mine));
+  assert.deepEqual(choose(game, first, mine), {});
+  assert.ok(game.prompt.candidates.includes(theirs));
+  assert.deepEqual(choose(game, first, theirs), {});
+  assert.ok(me.stable.includes(theirs) && !me.stable.includes(mine));
+  assert.ok(foe.stable.includes(mine) && !foe.stable.includes(theirs));
+});
+
+test('Slumber Spell skips the Draw phase and Muddy Hooves forbids Magic', () => {
+  const { game, first, second } = startedGame();
+  const foe = playerOf(game, second);
+  foe.stable.push(pullFromDeck(game, 'd_slumber'));
+  foe.stable.push(pullFromDeck(game, 'd_muddy'));
+  const foeHand = foe.hand.length;
+  assert.deepEqual(drawAction(game, first), {});
+  assert.equal(activePlayer(game).id, second);
+  assert.equal(foe.hand.length, foeHand, 'no draw-phase card');
+  const venom = putInActiveHand(game, 's_venom');
+  assert.match(playCard(game, second, venom).error, /Muddy Hooves/);
+});
+
+test('Cozy Meadow hatches a Baby of your faction at the start of your turn when none is present', () => {
+  const { game, first, second } = startedGame();
+  const foe = playerOf(game, second);
+  foe.stable = foe.stable.filter((iid) => game.inst[iid] !== 'baby_unicorn');
+  game.nest.push(...[]); // nest still holds unicorn babies
+  foe.stable.push(pullFromDeck(game, 'u_meadow'));
+  assert.deepEqual(drawAction(game, first), {});
+  assert.equal(activePlayer(game).id, second);
+  assert.ok(foe.stable.some((iid) => game.inst[iid] === 'baby_unicorn'));
+});
+
+test('Blossom Unicorn draws two only with three loyal Unicorns', () => {
+  const { game, first, second } = startedGame();
+  assert.deepEqual(drawAction(game, first), {});
+  const me = playerOf(game, second);
+  me.stable.push(pullFromDeck(game, 'basic_meadow')); // + Baby Unicorn = 2 loyal, Blossom makes 3
+  const blossom = putInActiveHand(game, 'mu_blossom');
+  const before = me.hand.length;
+  assert.deepEqual(playCard(game, second, blossom), {});
+  passAllResponses(game);
+  assert.equal(me.hand.length, before - 1 + 2);
+});
+
+test('Faction War shares the victory with every keeper of the winning faction', () => {
+  const game = createGame('WAR');
+  const a = addPlayer(game, { token: 'a', name: 'A' }).playerId; // dragon
+  const b = addPlayer(game, { token: 'b', name: 'B' }).playerId; // unicorn
+  const c = addPlayer(game, { token: 'c', name: 'C' }).playerId; // dragon
+  assert.deepEqual(setSettings(game, a, { factionWar: true }), {});
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try { assert.deepEqual(startGame(game, a), {}); } finally { Math.random = originalRandom; }
+  const me = playerOf(game, a);
+  for (const id of ['basic_crimson', 'basic_azure', 'basic_verdant', 'basic_gilded', 'basic_obsidian']) me.stable.push(pullFromDeck(game, id));
+  const last = putInActiveHand(game, 'basic_ivory');
+  assert.deepEqual(playCard(game, a, last), {});
+  passAllResponses(game);
+  assert.equal(game.status, 'ended');
+  assert.equal(game.winnerId, a);
+  assert.match(game.endReason, /Dragon Clan wins the war/);
+  assert.deepEqual(viewFor(game, c).winner.youWon, true);
+  assert.deepEqual(viewFor(game, b).winner.youWon, false);
 });

@@ -29,6 +29,10 @@ project) over classic take-that card-game mechanics.
   *Primordial Roar* / *Super Neigh* cannot be stopped.
 - **The Nest** holds 8 Baby Dragons and 8 Baby Unicorns; you always hatch a
   baby of your own faction when one is available.
+- **Even factions.** Because Magical abilities only work while loyal, the deck
+  is balanced per faction-sensitive type: 34 magicals, 12 upgrades, 8
+  downgrades, 12 magic and 10 instants on each side (196 cards in all), so
+  neither faction draws a live ability more often than the other.
 - **Faction War** (host toggle): when any keeper reaches the goal, their whole
   faction shares the victory.
 

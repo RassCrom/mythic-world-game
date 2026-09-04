@@ -826,6 +826,153 @@ def({
 });
 
 /* ------------------------------------------------------------------ */
+/* Unicorn Herd — balance pass                                          */
+/*                                                                      */
+/* The faction-sensitive slots (magicals, upgrades, downgrades, magic)   */
+/* were dragon-heavy, and because Magical abilities only work while      */
+/* LOYAL that skew handed Dragon keepers a live ability far more often   */
+/* than Unicorn keepers. These cards close the gap by addition, so no    */
+/* existing card was cut or weakened. Every effect below reuses steps    */
+/* the engine already implements.                                       */
+/* ------------------------------------------------------------------ */
+
+def({
+  id: 'mu_sugarplum', name: 'Sugarplum Unicorn', type: 'magical', faction: 'unicorn', qty: 2, color: '#f3a8d8',
+  text: 'When this card enters your stable, you may return a card from the discard pile to your hand.',
+  flavor: 'Nothing sweet is ever really gone.',
+  onEnter: [{ do: 'fromDiscard', who: 'owner', optional: true }],
+});
+
+def({
+  id: 'mu_peg_lull', name: 'Lullwing Pegasus', type: 'magical', faction: 'unicorn', sub: 'pegasus', qty: 2, color: '#c8b6f0', flying: true,
+  text: 'When this card enters your stable, DRAW a card.',
+  flavor: 'Lands like a yawn.',
+  onEnter: [{ do: 'draw', who: 'owner', n: 1 }],
+});
+
+def({
+  id: 'mu_peppermint', name: 'Peppermint Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#ff9bb0',
+  text: 'At the start of your turn, you may DISCARD a card to DRAW two cards.',
+  flavor: 'Strong opinions, stronger breath.',
+  onTurnStart: {
+    steps: [
+      { do: 'costDiscardThen', who: 'owner', then: [{ do: 'draw', who: 'owner', n: 2 }] },
+    ],
+  },
+});
+
+def({
+  id: 'mu_lantern', name: 'Lanternlight Unicorn', type: 'magical', faction: 'unicorn', qty: 2, color: '#ffe1a0',
+  text: 'When this card enters your stable, you may SEARCH the deck for a Basic creature, add it to your hand, then shuffle.',
+  flavor: 'Holds the light so nobody trips.',
+  onEnter: [{ do: 'searchDeck', who: 'owner', filter: { types: ['basic'] }, optional: true }],
+});
+
+def({
+  id: 'mu_peg_thistle', name: 'Thistledown Pegasus', type: 'magical', faction: 'unicorn', sub: 'pegasus', qty: 1, color: '#bfe6c8', flying: true,
+  text: 'When this card enters your stable, you may RETURN a Downgrade in your stable to its owner\u2019s hand.',
+  flavor: 'Blows the bad weather back where it came from.',
+  onEnter: [{ do: 'return', chooser: 'owner', filter: { kind: 'downgrade', zone: 'own' }, optional: true }],
+});
+
+def({
+  id: 'mu_kindly', name: 'Kindly Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#ffd6e8',
+  text: 'When this card enters your stable, each player DRAWS a card.',
+  flavor: 'Insufferably nice about it, too.',
+  onEnter: [{ do: 'eachPlayer', steps: [{ do: 'draw', who: 'each', n: 1 }] }],
+});
+
+def({
+  id: 'mu_marshmallow', name: 'Marshmallow Unicorn', type: 'magical', faction: 'unicorn', qty: 2, color: '#fff0f5',
+  text: 'If this card is sacrificed or destroyed, DRAW a card.',
+  flavor: 'Squishes. Does not break.',
+  onLeave: [{ do: 'draw', who: 'owner', n: 1 }],
+});
+
+def({
+  id: 'mu_starlace', name: 'Starlace Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#a9c9ff',
+  text: 'When this card enters your stable, you may bring a Baby from the Nest into your stable.',
+  flavor: 'Knits constellations into cradles.',
+  onEnter: [{ do: 'babyFromNest', who: 'owner', optional: true }],
+});
+
+def({
+  id: 'u_garland', name: 'Blossom Garland', type: 'upgrade', faction: 'unicorn', qty: 2, color: '#ffb3d1',
+  text: 'At the start of your turn, if there are no Downgrades in this stable, DRAW a card.',
+  flavor: 'Blooms only where nothing is rotting.',
+  onTurnStart: {
+    steps: [
+      { do: 'countVar', var: 'dn', filter: { kind: 'downgrade', zone: 'own' } },
+      { do: 'ifVar', var: 'dn', atMost: 0, then: [{ do: 'draw', who: 'owner', n: 1 }] },
+    ],
+  },
+});
+
+def({
+  id: 'u_canopy', name: 'Starlight Canopy', type: 'upgrade', faction: 'unicorn', qty: 3, color: '#9fb8f5',
+  text: 'At the start of your turn, if there are three or more Unicorns in this stable, DRAW a card.',
+  flavor: 'A roof made of other people\u2019s wishes.',
+  onTurnStart: {
+    steps: [
+      { do: 'countVar', var: 'herd', filter: { kind: 'creature', zone: 'own', faction: 'unicorn' } },
+      { do: 'ifVar', var: 'herd', atLeast: 3, then: [{ do: 'draw', who: 'owner', n: 1 }] },
+    ],
+  },
+});
+
+def({
+  id: 'u_hearthring', name: 'Hearth Ring', type: 'upgrade', faction: 'unicorn', qty: 2, color: '#f5c99b',
+  text: 'At the start of your turn, you may DISCARD a card to return a card from the discard pile to your hand.',
+  flavor: 'Trade a cold ember for a warm one.',
+  onTurnStart: {
+    steps: [
+      {
+        do: 'costDiscardThen', who: 'owner',
+        then: [{ do: 'fromDiscard', who: 'owner', optional: true }],
+      },
+    ],
+  },
+});
+
+def({
+  id: 'd_glitterfog', name: 'Glitterfog', type: 'downgrade', faction: 'unicorn', qty: 3, color: '#cdb4f6',
+  text: 'At the start of this stable\u2019s turn, its owner DISCARDS a card.',
+  flavor: 'Beautiful. Impossible to see through. Gets everywhere.',
+  onTurnStart: {
+    steps: [
+      { do: 'discard', who: 'owner', n: 1, reasonText: 'Glitterfog' },
+    ],
+  },
+});
+
+def({
+  id: 'd_braid', name: 'Tangled Braid', type: 'downgrade', faction: 'unicorn', qty: 2, color: '#e79ab5',
+  text: 'This stable\u2019s owner cannot play Upgrades.',
+  flavor: 'Someone plaited your whole hoard together.',
+  mods: ['noUpgradesSelf'],
+});
+
+def({
+  id: 's_wellwish', name: 'Well Wishes', type: 'magic', faction: 'unicorn', qty: 2, color: '#ffc2e2',
+  text: 'DRAW two cards, then each other player DRAWS a card.',
+  flavor: 'You cannot be smug alone.',
+  steps: [
+    { do: 'draw', who: 'owner', n: 2 },
+    { do: 'eachPlayer', include: 'others', steps: [{ do: 'draw', who: 'each', n: 1 }] },
+  ],
+});
+
+def({
+  id: 's_mendwing', name: 'Mending Wings', type: 'magic', faction: 'unicorn', qty: 1, color: '#a8e6d0',
+  text: 'Return a card from the discard pile to your hand, then DRAW a card.',
+  flavor: 'Feather by feather, nothing stays broken.',
+  steps: [
+    { do: 'fromDiscard', who: 'owner', optional: true },
+    { do: 'draw', who: 'owner', n: 1 },
+  ],
+});
+
+/* ------------------------------------------------------------------ */
 
 export const DEFS = D;
 

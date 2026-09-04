@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFS } from '../../shared/cards.js';
+import { readFileSync } from 'node:fs';
+import { DEFS, buildDeckList } from '../../shared/cards.js';
 import {
   addPlayer,
   choose,
@@ -598,3 +599,115 @@ test('Faction War shares the victory with every keeper of the winning faction', 
   assert.deepEqual(viewFor(game, c).winner.youWon, true);
   assert.deepEqual(viewFor(game, b).winner.youWon, false);
 });
+
+test('faction-sensitive card types are balanced between the two factions', () => {
+  // Magical abilities only work while LOYAL, so an uneven split of the
+  // faction-sensitive types hands one faction a live ability more often than
+  // the other. Basics and instants are already symmetric; keep them that way.
+  const counts = {};
+  for (const id of buildDeckList()) {
+    const card = DEFS[id];
+    const faction = card.faction || 'neutral';
+    if (faction === 'neutral') continue;
+    counts[card.type] ??= { dragon: 0, unicorn: 0 };
+    counts[card.type][faction] += 1;
+  }
+  for (const [type, split] of Object.entries(counts)) {
+    assert.equal(
+      split.dragon,
+      split.unicorn,
+      `${type}: ${split.dragon} dragon vs ${split.unicorn} unicorn cards in the deck`,
+    );
+  }
+});
+
+test('every card effect uses a step the engine implements', () => {
+  // The engine dispatches steps from a switch; collect its case labels so a
+  // typo in a card definition fails here instead of silently no-opping mid-game.
+  const source = readFileSync(new URL('./engine.js', import.meta.url), 'utf8');
+  const known = new Set([...source.matchAll(/case '([A-Za-z]+)':/g)].map((m) => m[1]));
+  const seen = new Set();
+  const walk = (steps) => {
+    for (const step of steps || []) {
+      if (!step || typeof step !== 'object') continue;
+      if (step.do) seen.add(step.do);
+      for (const branch of [step.steps, step.then, step.else]) walk(branch);
+    }
+  };
+  for (const card of Object.values(DEFS)) {
+    walk(card.steps);
+    walk(card.onEnter);
+    walk(card.onLeave);
+    walk(card.onTurnStart?.steps);
+  }
+  const unknown = [...seen].filter((name) => !known.has(name)).sort();
+  assert.deepEqual(unknown, [], `unimplemented effect steps: ${unknown.join(', ')}`);
+});
+
+// A started two-player game whose first seat is pledged to `faction`.
+function startedGameAs(faction) {
+  const game = createGame('BAL');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
+  const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId;
+  assert.deepEqual(setFaction(game, first, faction), {});
+  assert.deepEqual(setFaction(game, second, faction === 'dragon' ? 'unicorn' : 'dragon'), {});
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try { assert.deepEqual(startGame(game, first), {}); } finally { Math.random = originalRandom; }
+  return { game, first, second };
+}
+
+test('Kindly Unicorn draws a card for every player when it enters', () => {
+  // Playing a card ends the turn, so the next player's mandatory draw lands in
+  // the same measurement. Compare against a plain creature to isolate the
+  // ability itself.
+  const control = handGainFromPlaying('basic_crimson');
+  const kindly = handGainFromPlaying('mu_kindly');
+  assert.equal(kindly.caster, control.caster + 1, 'the caster draws with everyone else');
+  assert.equal(kindly.other, control.other + 1, 'the other player draws too');
+});
+
+// Plays defId from the first (Unicorn) seat and reports how each hand changed.
+function handGainFromPlaying(defId) {
+  const { game, first, second } = startedGameAs('unicorn');
+  const iid = pullFromDeck(game, defId);
+  playerOf(game, first).hand.push(iid);
+  const before = [playerOf(game, first).hand.length, playerOf(game, second).hand.length];
+  assert.deepEqual(playCard(game, first, iid), {});
+  passAllResponses(game);
+  assert.ok(playerOf(game, first).stable.includes(iid), `${defId} joins the stable`);
+  return {
+    caster: playerOf(game, first).hand.length - before[0],
+    other: playerOf(game, second).hand.length - before[1],
+  };
+}
+
+test('Starlight Canopy only draws once the stable holds three Unicorns', () => {
+  const { game, first, second } = startedGameAs('unicorn');
+  const me = playerOf(game, first);
+  me.stable.push(pullFromDeck(game, 'u_canopy'));
+  // Setup already dealt a Baby Unicorn, which counts toward the herd.
+  me.stable.push(pullFromDeck(game, 'basic_starlit'));
+  // Two Unicorns: a full turn cycle nets zero (one card played, one drawn).
+  assert.equal(cycleToOwnTurn(game, first, second), 0);
+  me.stable.push(pullFromDeck(game, 'basic_meadow'));
+  // Three Unicorns: the Canopy adds a card on top of the mandatory draw.
+  assert.equal(cycleToOwnTurn(game, first, second), 1);
+});
+
+// Plays one card from each seat so the turn comes back around, and reports how
+// many cards `pid` gained across the cycle. Dragon basics are used so the
+// Unicorn count in pid's stable is not disturbed.
+function cycleToOwnTurn(game, pid, otherPid) {
+  const before = playerOf(game, pid).hand.length;
+  for (const [actor, defId] of [[pid, 'basic_crimson'], [otherPid, 'basic_azure']]) {
+    assert.equal(activePlayer(game).id, actor);
+    const iid = pullFromDeck(game, defId);
+    playerOf(game, actor).hand.push(iid);
+    assert.deepEqual(playCard(game, actor, iid), {});
+    passAllResponses(game);
+  }
+  assert.equal(activePlayer(game).id, pid, 'turn came back around');
+  // pid played one card and drew one back, so the baseline delta is zero.
+  return playerOf(game, pid).hand.length - before - 1;
+}

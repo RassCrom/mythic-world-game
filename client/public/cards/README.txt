@@ -1,16 +1,9 @@
-Card art goes here.
+Card art goes here, one WebP per card named after the card's def id
+(see shared/cards.js), e.g. baby_unicorn.webp, mu_peg_cloud.webp, s_bridge.webp.
 
-Drop a JPG per card named after the card's def id, e.g.:
-
-  baby_dragon.jpg
-  basic_crimson.jpg
-  m_battering.jpg
-  u_sigil.jpg
-  d_cage.jpg
-  s_venom.jpg
-  i_roar.jpg
-
-The full list of ids is in shared/cards.js. Recommended size: 500x420 (5:7
-card, art fills the middle band; it is object-fit: cover so any landscape
-crop works). Until an image exists the client renders a procedural
-placeholder tinted with the card's color, so missing art never breaks the UI.
+Recommended size: 320x480 or larger (2:3 portrait; object-fit: cover).
+All shipped illustrations were generated with Higgsfield (Nano Banana Pro)
+using one shared prompt style: "cute cartoon trading-card illustration,
+whimsical storybook style, chibi proportions, bold clean outlines, soft cel
+shading, pastel palette, simple soft-gradient background, no text".
+Missing files fall back to a tinted procedural placeholder.

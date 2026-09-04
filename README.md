@@ -1,9 +1,36 @@
-# Unstable Dragons
+# Mythic World: Dragons vs Unicorns
 
-A chaotic 2–8 player online card game: build a stable of dragons before your
-friends stop you. Original dragon-themed card set (all names, rules text and
-art slots are original to this project) over classic take-that card-game
-mechanics.
+A cute, chaotic 2–8 player online card game in the spirit of *Unstable
+Unicorns*: pledge to the **Dragon Clan** or the **Unicorn Herd**, build a
+stable of 7 creatures, and stop your friends from doing the same. Original
+card set (all names, rules text and illustrations are original to this
+project) over classic take-that card-game mechanics.
+
+## Dragons vs Unicorns — the faction rules
+
+- **Pledge** in the lobby: every keeper is a Dragon or a Unicorn (seats
+  alternate by default; bots can be assigned or auto-balanced).
+- **Loyal vs wild.** Every creature card belongs to a faction. In a stable of
+  its own faction it is *loyal*; in a rival stable it is *wild*. Wild creatures
+  still count toward the goal, but **Magical creatures only use their
+  abilities while loyal** — a stolen unicorn won't sparkle for a dragon.
+  Stealing, swapping or taming a creature into a stable of its own faction
+  wakes it up (its entrance ability fires).
+- **Taming.** *Taming Bond* and *Whisperhorn Unicorn* make a wild creature
+  loyal to you. *Wild Heart* (downgrade) makes every creature in a stable wild.
+- **Pegasi** (winged unicorns) are *Flying*: they can never be stolen or
+  swapped away. *Wyverns* and *Hydras* are the dragon sub-kinds.
+- **Faction passives** (once per turn each):
+  - 🐉 **Ember** — the first time each turn a Dragon keeper DESTROYS another
+    player's card, they DRAW a card.
+  - 🦄 **Sparkle** — the first time each turn another player destroys one of
+    a Unicorn keeper's loyal creatures, the Unicorn keeper DRAWS a card.
+- **Instants:** dragons *Roar!*, unicorns *Neigh!* — both stop a card.
+  *Primordial Roar* / *Super Neigh* cannot be stopped.
+- **The Nest** holds 8 Baby Dragons and 8 Baby Unicorns; you always hatch a
+  baby of your own faction when one is available.
+- **Faction War** (host toggle): when any keeper reaches the goal, their whole
+  faction shares the victory.
 
 - **Frontend:** React (plain JavaScript), static site → Cloudflare Pages
 - **Backend:** Cloudflare Worker + one **Durable Object per room** (keyed by
@@ -115,12 +142,12 @@ as a build-time environment variable there.
 
 ## Game rules (implemented server-side)
 
-- Everyone starts with 1 Baby Dragon (from the shared 13-card Nest) and 5 cards.
+- Everyone starts with 1 Baby of their faction (from the 16-card Nest) and 5 cards.
 - **Turn:** Beginning phase (start-of-turn effects fire) → Draw 1 →
   **one action** (play a card *or* draw a card; some cards grant extra
   actions) → End phase (discard down to 7).
-- **Win:** 7 dragons in your stable (2–5 players) or 6 (6–8 players).
-  Toad-cursed dragons don't count. If the deck empties, the discard pile is
+- **Win:** 7 creatures in your stable (2–5 players) or 6 (6–8 players).
+  Toad-cursed creatures don't count. If the deck empties, the discard pile is
   reshuffled in; the second time that happens, most dragons wins immediately.
 - **Instants:** when any card is played, every other player holding an
   Instant gets a response window ("Roar"). Roars can Roar each other; the
@@ -130,7 +157,7 @@ as a build-time environment variable there.
   made when a card *resolves* (after the Roar window), exactly like the
   tabletop flow.
 
-The full 112-card deck (+13 babies) with quantities lives in
+The full 165-card deck (+16 babies) with quantities lives in
 [shared/cards.js](shared/cards.js) — every mechanic (steal, sacrifice,
 destroy-protection, ability suppression, hand-reveal, forced discards, deck
 searches, resurrection, the wandering whelp, guardians, phoenix saves, …) is
@@ -154,9 +181,11 @@ action instead of stalling.
 
 ## Notes
 
-- **Card art:** the client looks for `/cards/<defId>.jpg` and falls back to a
-  tinted procedural placeholder — drop images into `client/public/cards/`
-  whenever they're ready (naming guide in that folder's README.txt).
+- **Card art:** every card has an illustration at `/cards/<defId>.webp`
+  (generated with Higgsfield in one consistent cute storybook style); a
+  tinted procedural placeholder appears if a file is ever missing. Card
+  frames are drawn in CSS — one silhouette per card type (egg, plain, sparkly,
+  shield, thorns, scroll, lightning) tinted per faction.
 - **Sound:** all audio is synthesized in the browser (WebAudio) — ambience,
   draws, roars, destruction, victory. Toggle with the "Sound" button; the
   choice persists.

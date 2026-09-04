@@ -21,12 +21,12 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.lang = locale;
-    document.title = locale === 'ru' ? 'Нестабильные драконы' : 'Unstable Dragons';
+    document.title = locale === 'ru' ? 'Мифический мир: Драконы против Единорогов' : 'Mythic World: Dragons vs Unicorns';
     const description = document.querySelector('meta[name="description"]');
     if (description) {
       description.content = locale === 'ru'
-        ? 'Unstable Dragons — хаотичная многопользовательская карточная игра. Соберите логово драконов раньше соперников.'
-        : 'Unstable Dragons — a chaotic multiplayer card game. Build your stable of dragons before your friends stop you.';
+        ? 'Mythic World — милая хаотичная карточная игра: драконы против единорогов. Соберите 7 существ раньше соперников.'
+        : 'Mythic World — a cute, chaotic multiplayer card game. Dragons vs Unicorns: build a stable of 7 creatures before your friends stop you.';
     }
   }, [locale]);
 

@@ -1,78 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { DEFS } from '../../../shared/cards.js';
+import { DEFS, FACTIONS, SUB_LABEL } from '../../../shared/cards.js';
 import { useI18n } from '../i18n/index.jsx';
 
 export const TYPE_LABEL = {
-  baby: 'Baby Dragon',
-  basic: 'Basic Dragon',
-  magical: 'Magical Dragon',
+  baby: 'Baby',
+  basic: 'Basic',
+  magical: 'Magical',
   upgrade: 'Upgrade',
   downgrade: 'Downgrade',
   magic: 'Magic',
   instant: 'Instant',
 };
 
-const FEATURE_ART = new Set([
-  'baby_dragon',
-  'basic_verdant',
-  'm_battering',
-  'm_cataclysm',
-  'm_spellscale',
-  'm_ironclaw',
-  'm_phoenix',
-  'm_harvest',
-  'm_colossal',
-  'm_stormwing',
-  'm_galewing',
-  'm_hoardwing',
-  'm_baron',
-  'm_bonescale',
-  'm_alluring',
-  'm_enchanting',
-  'm_queen',
-  'm_guardian',
-  'm_elder',
-  'm_gilded_wyv',
-  'm_scrappy',
-  'm_razorfin',
-  'm_torpedo',
-  'm_spiteclaw',
-  'm_stray',
-  'm_seraph',
-  'm_tidal',
-  'm_nagging',
-  'm_pest',
-  'm_chronodrake',
-  'm_mirrorwing',
-  'm_riftcoil',
-  'u_armor',
-  'd_fog',
-  's_venom',
-  'i_roar',
-]);
+const CREATURE_TYPES = new Set(['baby', 'basic', 'magical']);
 
-const TYPE_ART = {
-  baby: ['baby_dragon'],
-  basic: ['basic_verdant'],
-  magical: ['m_phoenix', 'm_harvest', 'm_stormwing'],
-  upgrade: ['u_armor'],
-  downgrade: ['d_fog'],
-  magic: ['s_venom'],
-  instant: ['i_roar'],
-};
-
-function hashId(value) {
-  let n = 0;
-  for (let i = 0; i < value.length; i++) n = ((n << 5) - n + value.charCodeAt(i)) | 0;
-  return Math.abs(n);
+// Every card ships with its own illustration at /cards/<defId>.webp; the
+// placeholder below only appears if a file is missing.
+export function artForCard(defId) {
+  if (!DEFS[defId]) return null;
+  return `/cards/${defId}.webp`;
 }
 
-export function artForCard(defId) {
-  const def = DEFS[defId];
-  if (!def) return null;
-  if (FEATURE_ART.has(defId)) return `/cards/${defId}.webp`;
-  const options = TYPE_ART[def.type] || TYPE_ART.basic;
-  return `/cards/${options[hashId(defId) % options.length]}.webp`;
+// "Magical Unicorn · Pegasus", "Basic Dragon", "Upgrade", …
+export function cardKindLabel(def, t) {
+  if (!def) return '';
+  if (CREATURE_TYPES.has(def.type)) {
+    const faction = FACTIONS[def.faction];
+    const base = t(`${TYPE_LABEL[def.type]} ${faction ? faction.creature : 'creature'}`);
+    return def.sub ? `${base} · ${t(SUB_LABEL[def.sub] || def.sub)}` : base;
+  }
+  return t(TYPE_LABEL[def.type]);
 }
 
 // Inline SVG glyphs use one consistent stroke style throughout the UI.
@@ -112,19 +69,37 @@ export function TypeGlyph({ type }) {
           <path {...common} d="M13 2L5 13h5l-1 9 8-11h-5l1-9Z" />
         </svg>
       );
+    case 'unicorn':
+      return <FactionGlyph faction="unicorn" />;
     default:
-      return (
-        <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true">
-          <path {...common} d="M3 17c2-6 6-9 13-11l4-3-1 5c1 1 2 2 2 4l-4 .5 2 2.5-5 .5c-.5 2.5-2.5 4-5 4l1.5-3L8 17l-1.5-2.5L3 17Z" />
-          <circle cx="15.4" cy="9.2" r="0.7" fill={stroke} stroke="none" />
-        </svg>
-      );
+      return <FactionGlyph faction="dragon" />;
   }
+}
+
+// Faction emblems: a curling flame for the Dragon Clan, a horn-and-star for the Herd.
+export function FactionGlyph({ faction, className = 'glyph' }) {
+  const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (faction === 'unicorn') {
+    return (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+        <path {...common} d="M12 21V9" />
+        <path {...common} d="M12 9 9.5 2.5 12 4l2.5-1.5L12 9Z" />
+        <path {...common} d="M6 15c1.5-.5 3 0 4 1M18 15c-1.5-.5-3 0-4 1" />
+        <path {...common} d="M4 8.5l.6 1.4 1.4.6-1.4.6L4 12.5l-.6-1.4L2 10.5l1.4-.6L4 8.5ZM20 6l.6 1.4L22 8l-1.4.6L20 10l-.6-1.4L18 8l1.4-.6L20 6Z" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path {...common} d="M12 22c-4 0-7-2.8-7-6.5 0-3 2-4.6 3.2-6.7.5 1.4 1.3 2.2 2.3 2.7.3-2.7 1.2-5.6 3.5-7.5.2 2.7 1.7 4.5 3.1 6.3 1.2 1.6 1.9 3 1.9 5.2 0 3.7-3 6.5-7 6.5Z" />
+      <path {...common} d="M12 22c-1.7 0-3-1.4-3-3.2 0-1.6 1.2-2.5 1.9-3.6.7 1.3 1.6 1.9 2.4 2.2.5.5.7 1 .7 1.6 0 1.7-1.2 3-2 3Z" />
+    </svg>
+  );
 }
 
 export default function CardView({
   defId, cardDef, faceDown, onClick, onInspect, onInspectEnd, actionLabel, glow, selected, dimmed, small, mini,
-  suppressed, toad, stopped, count, title, iid, style, touchInspectFirst,
+  suppressed, toad, wild, tamed, stopped, count, title, iid, style, touchInspectFirst, backFaction,
 }) {
   const { t, card } = useI18n();
   const [imgOk, setImgOk] = useState(true);
@@ -132,14 +107,19 @@ export default function CardView({
 
   useEffect(() => setImgOk(true), [defId, cardDef]);
 
+  const faction = def?.faction && FACTIONS[def.faction] ? def.faction : 'neutral';
+
   const cls = [
     'card',
     small ? 'card-sm' : '',
     mini ? 'card-mini' : '',
     faceDown ? 'card-back' : `card-${def?.type}`,
+    faceDown ? `back-${backFaction || 'neutral'}` : `faction-${faction}`,
+    def?.sub ? `sub-${def.sub}` : '',
     glow ? `glow-${glow}` : '',
     selected ? 'card-selected' : '',
     dimmed ? 'card-dimmed' : '',
+    wild ? 'card-wild' : '',
     onClick || onInspect ? 'card-clickable' : '',
     touchInspectFirst && onClick && onInspect ? 'card-touch-split' : '',
   ].filter(Boolean).join(' ');
@@ -148,8 +128,11 @@ export default function CardView({
     return (
       <article className={cls} data-iid={iid} title={title} aria-label={title || t('Face-down card')} style={style}>
         <div className="card-back-frame" aria-hidden="true">
-          <div className="card-back-pattern"><TypeGlyph type="basic" /></div>
-          <span className="card-back-rune">MW</span>
+          <div className="card-back-pattern"><TypeGlyph type="magic" /></div>
+          <span className="card-back-rune">
+            <FactionGlyph faction="dragon" className="glyph back-emblem-dragon" />
+            <FactionGlyph faction="unicorn" className="glyph back-emblem-unicorn" />
+          </span>
           <span className="card-back-title">Mythic<br />World</span>
         </div>
         {count != null && <span className="card-count">{count}</span>}
@@ -161,6 +144,7 @@ export default function CardView({
 
   const inspect = (event) => onInspect?.(defId, event);
   const primaryAction = onClick || (onInspect ? inspect : null);
+  const kindLabel = cardKindLabel(def, t);
 
   const handleMouseMove = (event) => {
     if (mini) return;
@@ -198,19 +182,14 @@ export default function CardView({
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) handleMouseLeave(event);
       }}
-      aria-label={`${def.name}, ${t(TYPE_LABEL[def.type])}`}
+      aria-label={`${def.name}, ${kindLabel}`}
       title={title || (!onInspect ? `${def.name} — ${def.text}` : undefined)}
     >
-      <div className="card-ornament" aria-hidden="true" />
+      <div className="card-frame-deco" aria-hidden="true">
+        <span className="deco deco-a" /><span className="deco deco-b" /><span className="deco deco-c" /><span className="deco deco-d" />
+      </div>
       <div className="card-holo-glare" aria-hidden="true" />
-      <span className="card-corner corner-tl" aria-hidden="true" />
-      <span className="card-corner corner-tr" aria-hidden="true" />
-      <span className="card-corner corner-bl" aria-hidden="true" />
-      <span className="card-corner corner-br" aria-hidden="true" />
 
-      <header className="card-head">
-        <span className="card-name">{def.name}</span>
-      </header>
       <div className="card-art">
         {imgOk ? (
           <img
@@ -226,15 +205,26 @@ export default function CardView({
         )}
         <span className="card-art-vignette" aria-hidden="true" />
         {toad && <span className="card-flag flag-toad">{t('TOAD')}</span>}
-        {suppressed && !toad && <span className="card-flag flag-fog">{t('FOGGED')}</span>}
+        {wild && !toad && <span className="card-flag flag-wild">{t('WILD')}</span>}
+        {tamed && !toad && !wild && <span className="card-flag flag-tamed">{t('TAMED')}</span>}
+        {suppressed && !toad && !wild && <span className="card-flag flag-fog">{t('FOGGED')}</span>}
         {stopped && <span className="card-flag flag-stopped">{t('STOPPED')}</span>}
       </div>
+
+      <span className={`card-emblem emblem-${faction}`} aria-hidden="true">
+        {faction === 'neutral' ? <TypeGlyph type={def.type} /> : <FactionGlyph faction={faction} />}
+      </span>
+
       {!mini && (
         <div className="card-body">
-          <span className="card-type">{t(TYPE_LABEL[def.type])}{def.sub ? ` · ${t('Wyvern')}` : ''}</span>
+          <span className="card-type"><TypeGlyph type={def.type} />{kindLabel}</span>
           {!small && <p className="card-text">{def.text}</p>}
         </div>
       )}
+      <header className="card-head">
+        <span className="card-name">{def.name}</span>
+      </header>
+
       {primaryAction && (
         <button
           type="button"

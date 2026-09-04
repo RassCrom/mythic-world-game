@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import CardView, { TypeGlyph } from './CardView.jsx';
-import { DEFS } from '../../../shared/cards.js';
+import CardView, { FactionGlyph, TypeGlyph } from './CardView.jsx';
+import { DEFS, FACTIONS } from '../../../shared/cards.js';
 import { sfx, playLogSound, isMuted, setMuted } from '../sound.js';
 import { useI18n } from '../i18n/index.jsx';
 import ChronicleEntry from './game/ChronicleEntry.jsx';
@@ -196,10 +196,14 @@ export default function Game({ view, send, onLeave }) {
   const opponents = view.players.filter((p) => p.id !== view.you);
 
   const statusLine = (() => {
-    if (view.winner) return t('{name} wins!', { name: view.winner.name });
+    if (view.winner) {
+      return view.settings?.factionWar && view.winner.faction
+        ? t('The {faction} win!', { faction: t(FACTIONS[view.winner.faction].name) })
+        : t('{name} wins!', { name: view.winner.name });
+    }
     if (view.window) {
       return view.window.canRespond
-        ? t('{player} is playing {card} — ROAR or pass!', { player: view.window.topPlayer, card: text(view.window.topName) })
+        ? t('{player} is playing {card} — {shout} or pass!', { player: view.window.topPlayer, card: text(view.window.topName), shout: t(me?.faction === 'unicorn' ? 'NEIGH' : 'ROAR') })
         : t('Waiting for responses to {card}… ({players})', { card: text(view.window.topName), players: view.window.awaiting.join(', ') });
     }
     if (prompt && !prompt.mine) return `${prompt.waitingOn} ${text(prompt.title)}`;
@@ -275,7 +279,7 @@ export default function Game({ view, send, onLeave }) {
       <section className="table-center" aria-label={t('Table')}>
         <div className="arena-piles">
           <div className="pile" data-zone="deck" title={t('Draw pile — {count} cards', { count: view.deckCount })}>
-            <CardView faceDown small count={view.deckCount} />
+            <CardView faceDown small count={view.deckCount} backFaction="neutral" />
             <span className="pile-label">{t('Draw pile')}{view.reshuffles > 0 ? t(' · {count}/2 reshuffles', { count: view.reshuffles }) : ''}</span>
           </div>
 
@@ -299,8 +303,11 @@ export default function Game({ view, send, onLeave }) {
             <span className="pile-label">{t('Discard')} · {view.discard.length}</span>
           </div>
 
-          <div className="pile pile-nest" title={t('The Nest — {count} Baby Dragons', { count: view.nestCount })}>
-            <CardView defId="baby_dragon" small onInspect={showCardPreview} onInspectEnd={hideCardPreview} />
+          <div className="pile pile-nest" title={t('The Nest — {count} Babies', { count: view.nestCount })}>
+            <div className="nest-stack">
+              <CardView defId={me?.faction === 'unicorn' ? 'baby_dragon' : 'baby_unicorn'} small onInspect={showCardPreview} onInspectEnd={hideCardPreview} />
+              <CardView defId={me?.faction === 'unicorn' ? 'baby_unicorn' : 'baby_dragon'} small onInspect={showCardPreview} onInspectEnd={hideCardPreview} />
+            </div>
             <span className="nest-count">{view.nestCount}</span>
             <span className="pile-label">{t('The Nest')}</span>
           </div>
@@ -464,8 +471,14 @@ export default function Game({ view, send, onLeave }) {
       )}
 
       {view.winner && (
-        <Modal title={t('Victory!')}>
+        <Modal title={view.winner.youWon ? t('Victory!') : t('Defeat…')}>
+          <div className={`win-banner faction-${view.winner.faction || 'dragon'}`} aria-hidden="true">
+            <FactionGlyph faction={view.winner.faction} />
+          </div>
           <p className="win-text">{text(view.winner.reason)}</p>
+          {view.settings?.factionWar && view.winner.faction && (
+            <p className="win-sub">{t('The {faction} share the victory.', { faction: t(FACTIONS[view.winner.faction].name) })}</p>
+          )}
           <div className="modal-actions">
             {view.youAreHost && (
               <button className="btn btn-primary" onClick={() => { sfx.click(); send({ type: 'restart' }); }}>{t('Rematch')}</button>

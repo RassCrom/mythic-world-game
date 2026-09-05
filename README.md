@@ -138,16 +138,17 @@ machine where you are logged in:
 
 ```bash
 npx wrangler pages project create unstable-dragons \
-  --production-branch claude/gallant-wozniak-ftxskm
+  --production-branch production
 ```
 
 The Worker needs no equivalent step — `wrangler deploy` creates it if missing
 and updates it otherwise, and the `v1` Durable Object migration is a no-op once
 it has been applied.
 
-Deliberately, only the development branch deploys. `main` still holds the
-archived Deck Duel engine, and deploying it would overwrite production with an
-older, incompatible design.
+CI deploys `main`. The Pages project’s production branch is named
+`production` (not `main`), so the client deploy script passes
+`--branch production`; an upload under any other branch name only creates a
+preview URL.
 
 ### 1. Worker + Durable Object
 

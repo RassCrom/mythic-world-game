@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "wrangler pages deploy dist --project-name unstable-dragons"
+    "deploy": "wrangler pages deploy dist --project-name unstable-dragons --branch production"
   },
   "dependencies": {
     "react": "^18.3.1",

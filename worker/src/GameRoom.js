@@ -9,6 +9,7 @@ import {
   startGame, restartGame, playCard, drawAction, passWindow, choose,
   forceChoice, forcePass, forceEndTurn, expireTurn, viewFor, addLog,
   addBotPlayer, removeBotPlayer, botWaitingId, setFaction, setSettings,
+  isReadableSave,
 } from './engine.js';
 import { decideBotAction } from './bot.js';
 
@@ -22,7 +23,16 @@ export class GameRoom {
   }
 
   async loadGame() {
-    if (!this.game) this.game = (await this.state.storage.get('game')) || null;
+    if (this.game) return this.game;
+    const stored = await this.state.storage.get('game');
+    // A room saved by an older engine cannot be resumed — drop it so the code
+    // opens a fresh lobby instead of throwing on an unknown card id.
+    if (stored && !isReadableSave(stored)) {
+      await this.state.storage.delete('game');
+      this.game = null;
+      return null;
+    }
+    this.game = stored || null;
     return this.game;
   }
 

@@ -19,6 +19,19 @@ export const TURN_TIME_MS = 60_000;
 // table's own card-frame capacity before it starts scrolling).
 export const STABLE_CAP = 15;
 
+// Bumped whenever saved games stop being readable by this engine. Rooms stored
+// under an older schema are discarded on load rather than migrated: the Deck
+// Duel model (schema 1) kept per-faction draw piles and card ids like
+// `uni_s_stargate` that no longer exist in the database, so there is nothing
+// faithful to convert them into.
+export const SCHEMA = 2;
+
+// A saved game this engine can safely resume. Anything else is from a previous
+// model of the game and would crash on the first defOf() lookup.
+export function isReadableSave(g) {
+  return !!g && g.schema === SCHEMA;
+}
+
 /* ================================================================== */
 /* Construction                                                        */
 /* ================================================================== */
@@ -26,6 +39,7 @@ export const STABLE_CAP = 15;
 export function createGame(code) {
   return {
     code,
+    schema: SCHEMA,
     status: 'lobby', // lobby | playing | ended
     hostId: null,
     players: [], // { id, token, name, seat, faction, connected, hand:[], stable:[] }
@@ -281,12 +295,26 @@ function isDragonCard(g, iid) {
   return true;
 }
 
+// Harmony: a creature with `harmonyBonus` counts double while at least one
+// other LOYAL creature shares its stable. Tying it to loyalty rather than to
+// raw presence keeps it inside the faction system — a stolen wild creature
+// fills a slot but does not keep anyone company.
+function harmonyActive(g, pid, iid) {
+  const d = defOf(g, iid);
+  if (!d.harmonyBonus || !abilitiesActive(g, iid)) return false;
+  if (rawMods(g, pid).has('breakHarmony')) return false;
+  return byId(g, pid).stable.some(
+    (other) => other !== iid && isDragonCard(g, other) && isLoyal(g, other),
+  );
+}
+
 export function creatureCount(g, pid) {
   let n = 0;
   for (const iid of byId(g, pid).stable) {
     if (!isDragonCard(g, iid)) continue;
     const d = defOf(g, iid);
-    n += d.countsAs === 2 && abilitiesActive(g, iid) ? 2 : 1;
+    const double = (d.countsAs === 2 && abilitiesActive(g, iid)) || harmonyActive(g, pid, iid);
+    n += double ? 2 : 1;
   }
   return n;
 }

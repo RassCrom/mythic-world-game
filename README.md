@@ -30,9 +30,14 @@ project) over classic take-that card-game mechanics.
 - **The Nest** holds 8 Baby Dragons and 8 Baby Unicorns; you always hatch a
   baby of your own faction when one is available.
 - **Even factions.** Because Magical abilities only work while loyal, the deck
-  is balanced per faction-sensitive type: 34 magicals, 12 upgrades, 8
-  downgrades, 12 magic and 10 instants on each side (196 cards in all), so
-  neither faction draws a live ability more often than the other.
+  is balanced per faction-sensitive type — equal magicals, upgrades,
+  downgrades, magic and instants on each side (204 cards in all) — so neither
+  faction draws a live ability more often than the other. `engine.test.js`
+  asserts the split, so an unbalanced addition fails the build.
+- **Harmony.** *Harmony Unicorn* and *Hearthbound Wyrm* count as **two**
+  creatures while another **loyal** creature shares their stable — a stolen wild
+  creature fills a slot but keeps nobody company. *Discord* and *Snarlwind*
+  (downgrades) switch Harmony off for the stable they sit in.
 - **Faction War** (host toggle): when any keeper reaches the goal, their whole
   faction shares the victory.
 
@@ -56,6 +61,15 @@ project) over classic take-that card-game mechanics.
     ├── public/cards/       # drop card art here later (see README.txt inside)
     └── src/
 ```
+
+### Earlier design: Deck Duel
+
+Until September 2026 the game used a different faction model, preserved on the
+`archive/deck-duel` branch: each player chose Dragons or Unicorns in the lobby
+and drew from their own faction's pile, with mirrored card packs. It was
+replaced by the shared-deck model above, which makes faction matter on every
+card rather than only at the lobby. Harmony is ported from it. Saved rooms from
+that engine are not readable here — see `SCHEMA` in `worker/src/engine.js`.
 
 ---
 

@@ -974,6 +974,43 @@ def({
 
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Harmony — ported from the Deck Duel model (archive/deck-duel)        */
+/*                                                                      */
+/* There it read "counts double while a Unicorn shares your stable".    */
+/* Here it is tied to loyalty instead, so it says something about the   */
+/* faction system: a stolen creature fills a slot but keeps nobody      */
+/* company. Symmetric across both factions so the balance test holds.   */
+/* ------------------------------------------------------------------ */
+
+def({
+  id: 'mu_harmony', name: 'Harmony Unicorn', type: 'magical', faction: 'unicorn', qty: 2, color: '#bfe3f0',
+  harmonyBonus: true,
+  text: 'This card counts as TWO creatures while another loyal creature shares your stable.',
+  flavor: 'Sings only in company. Sulks alone.',
+});
+
+def({
+  id: 'm_hearthbound', name: 'Hearthbound Wyrm', type: 'magical', faction: 'dragon', qty: 2, color: '#e0a05c',
+  harmonyBonus: true,
+  text: 'This card counts as TWO creatures while another loyal creature shares your stable.',
+  flavor: 'A hoard of one is just a pile.',
+});
+
+def({
+  id: 'd_discord', name: 'Discord', type: 'downgrade', faction: 'unicorn', qty: 2, color: '#9b8aa8',
+  text: 'Cards in this stable no longer count as two creatures for Harmony.',
+  flavor: 'One flat note, held forever.',
+  mods: ['breakHarmony'],
+});
+
+def({
+  id: 'd_snarlwind', name: 'Snarlwind', type: 'downgrade', faction: 'dragon', qty: 2, color: '#7d6a55',
+  text: 'Cards in this stable no longer count as two creatures for Harmony.',
+  flavor: 'Too loud in here to hear anyone else.',
+  mods: ['breakHarmony'],
+});
+
 export const DEFS = D;
 
 export function isDragonType(type) {

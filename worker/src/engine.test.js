@@ -15,6 +15,8 @@ import {
   setSettings,
   isLoyal,
   creatureCount,
+  isReadableSave,
+  SCHEMA,
   viewFor,
 } from './engine.js';
 
@@ -711,3 +713,73 @@ function cycleToOwnTurn(game, pid, otherPid) {
   // pid played one card and drew one back, so the baseline delta is zero.
   return playerOf(game, pid).hand.length - before - 1;
 }
+
+/* ================================================================== */
+/* Harmony and save compatibility                                      */
+/* ================================================================== */
+
+// Math.random is stubbed during setup, so the deal is deterministic but a
+// given card may land in a hand rather than staying in the deck. These tests
+// only care about getting an instance, not where it came from.
+function pullCard(game, defId) {
+  const from = [game.deck, ...game.players.map((p) => p.hand)]
+    .find((zone) => zone.some((iid) => game.inst[iid] === defId));
+  assert.ok(from, `${defId} should exist somewhere in the dealt game`);
+  const iid = from.find((candidate) => game.inst[candidate] === defId);
+  from.splice(from.indexOf(iid), 1);
+  return iid;
+}
+
+test('Harmony counts double only while a loyal companion shares the stable', () => {
+  const { game, first } = startedGameAs('unicorn');
+  const me = playerOf(game, first);
+  const harmony = pullCard(game, 'mu_harmony');
+
+  // Setup deals a Baby Unicorn, so clear the stable to isolate the rule.
+  me.stable = [harmony];
+  assert.equal(creatureCount(game, first), 1, 'alone, Harmony is worth one');
+
+  me.stable.push(pullCard(game, 'basic_starlit'));
+  assert.equal(creatureCount(game, first), 3, 'a loyal companion doubles it: 2 + 1');
+});
+
+test('a wild companion does not sustain Harmony', () => {
+  const { game, first } = startedGameAs('unicorn');
+  const me = playerOf(game, first);
+  const harmony = pullCard(game, 'mu_harmony');
+  const dragon = pullCard(game, 'basic_crimson');
+  me.stable = [harmony, dragon];
+
+  assert.equal(isLoyal(game, dragon), false, 'a dragon in a unicorn stable is wild');
+  assert.equal(creatureCount(game, first), 2, 'the wild dragon fills a slot but keeps no company');
+});
+
+test('Discord switches Harmony off for the stable it sits in', () => {
+  const { game, first } = startedGameAs('unicorn');
+  const me = playerOf(game, first);
+  me.stable = [pullCard(game, 'mu_harmony'), pullCard(game, 'basic_starlit')];
+  assert.equal(creatureCount(game, first), 3);
+
+  me.stable.push(pullCard(game, 'd_discord'));
+  assert.equal(creatureCount(game, first), 2, 'breakHarmony drops it back to one each');
+});
+
+test('saved games from a previous engine are not readable', () => {
+  const { game } = startedGameAs('unicorn');
+  assert.equal(game.schema, SCHEMA, 'new games carry the current schema');
+  assert.equal(isReadableSave(game), true);
+
+  // What a Deck Duel room looks like in Durable Object storage: per-faction
+  // piles, no shared deck, and card ids this database no longer defines.
+  const deckDuelSave = {
+    code: 'OLD01',
+    status: 'playing',
+    piles: { unicorns: { deck: ['i1'], discard: [], nest: [], reshuffles: 0 } },
+    inst: { i1: 'uni_s_stargate' },
+    players: [{ id: 'p1', factionId: 'unicorns', stable: ['i1'], hand: [] }],
+  };
+  assert.equal(isReadableSave(deckDuelSave), false, 'it would crash on the first card lookup');
+  assert.equal(DEFS.uni_s_stargate, undefined, 'and its card ids really are gone');
+  assert.equal(isReadableSave(null), false);
+  assert.equal(isReadableSave({ ...game, schema: 1 }), false);
+});

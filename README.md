@@ -101,6 +101,26 @@ tab and join with the code from another tab (2+ players needed to start).
 > branch you mean to ship — deploying from a stale working copy is the easiest
 > way to put an old build into production without noticing.
 
+### 0. Or let CI do it
+
+`.github/workflows/deploy.yml` deploys both halves on every push to the
+development branch, then asks the deployed Worker for its fingerprint and fails
+the run if it does not match the commit. Pull requests run the tests only.
+It needs three values under **Settings → Secrets and variables → Actions**:
+
+| | Name | Value |
+|---|---|---|
+| Secret | `CLOUDFLARE_API_TOKEN` | A token scoped to *Workers Scripts: Edit* and *Cloudflare Pages: Edit* on this account — nothing broader |
+| Secret | `CLOUDFLARE_ACCOUNT_ID` | From the Cloudflare dashboard sidebar |
+| Variable | `WORKER_URL` | e.g. `https://unstable-dragons.<you>.workers.dev`, no trailing slash |
+
+`WORKER_URL` is a *variable*, not a secret: it is a public URL, and CI needs to
+print it when a deploy does not match.
+
+Deliberately, only the development branch deploys. `main` still holds the
+archived Deck Duel engine, and deploying it would overwrite production with an
+older, incompatible design.
+
 ### 1. Worker + Durable Object
 
 ```bash
@@ -146,7 +166,7 @@ pass it inline, the syntax differs per shell: bash/zsh
 
 ```bash
 curl https://unstable-dragons.<you>.workers.dev/api/version
-# {"cards":127,"deck":196,"hash":"945c4649"}
+# {"cards":131,"deck":204,"hash":"f7e9100c"}
 ```
 
 Compare it with `npm run fingerprint` in `worker/` from the checkout you meant

@@ -117,6 +117,19 @@ It needs three values under **Settings → Secrets and variables → Actions**:
 `WORKER_URL` is a *variable*, not a secret: it is a public URL, and CI needs to
 print it when a deploy does not match.
 
+The Pages project has to exist before the first CI run. Wrangler only offers to
+create one when it is attached to a TTY, and CI is not, so run this once from a
+machine where you are logged in:
+
+```bash
+npx wrangler pages project create unstable-dragons \
+  --production-branch claude/gallant-wozniak-ftxskm
+```
+
+The Worker needs no equivalent step — `wrangler deploy` creates it if missing
+and updates it otherwise, and the `v1` Durable Object migration is a no-op once
+it has been applied.
+
 Deliberately, only the development branch deploys. `main` still holds the
 archived Deck Duel engine, and deploying it would overwrite production with an
 older, incompatible design.

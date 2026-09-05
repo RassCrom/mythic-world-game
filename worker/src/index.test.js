@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { makeCode, normalizeCode } from './index.js';
+import { DEFS, buildDeckList } from '../../shared/cards.js';
+import { deckFingerprint, makeCode, normalizeCode } from './index.js';
 
 test('room codes use five unambiguous characters', () => {
   for (let index = 0; index < 100; index++) {
@@ -13,4 +14,12 @@ test('room code normalization accepts valid codes and rejects malformed input', 
   assert.equal(normalizeCode('AB-CD'), 'ABCD');
   assert.equal(normalizeCode('abc'), null);
   assert.equal(normalizeCode('way-too-long'), null);
+});
+
+test('the deck fingerprint is stable and reflects the card database', () => {
+  const first = deckFingerprint();
+  assert.deepEqual(first, deckFingerprint(), 'the same build must fingerprint identically');
+  assert.equal(first.cards, Object.keys(DEFS).length);
+  assert.equal(first.deck, buildDeckList().length);
+  assert.match(first.hash, /^[0-9a-f]{8}$/);
 });

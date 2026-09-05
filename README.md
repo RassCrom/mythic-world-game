@@ -81,6 +81,12 @@ tab and join with the code from another tab (2+ players needed to start).
 
 ## Deployment
 
+> **Deploy both halves from the same checkout.** `shared/cards.js` is bundled
+> into the Worker *and* the client, so shipping only one leaves the server and
+> the browser disagreeing about the deck. Deploy from a fresh clone of the
+> branch you mean to ship — deploying from a stale working copy is the easiest
+> way to put an old build into production without noticing.
+
 ### 1. Worker + Durable Object
 
 ```bash
@@ -108,11 +114,30 @@ Note the deployed URL, e.g. `https://unstable-dragons.<you>.workers.dev`.
 
 ```bash
 cd client
-VITE_API_BASE=https://unstable-dragons.<you>.workers.dev npm run build
-npx wrangler pages deploy dist --project-name unstable-dragons
+cp .env.production.example .env.production   # then edit the URL in it, once
+npm run build
+npm run deploy                               # = wrangler pages deploy dist
 ```
 
-(On Windows PowerShell: `$env:VITE_API_BASE = "https://..."; npm run build`.)
+Vite reads `.env.production` automatically for production builds, so the URL
+lives in one gitignored file instead of your shell history. If you would rather
+pass it inline, the syntax differs per shell: bash/zsh
+`VITE_API_BASE=https://... npm run build`, PowerShell
+`$env:VITE_API_BASE="https://..."; npm run build`, cmd.exe
+`set VITE_API_BASE=https://... && npm run build`.
+
+### 3. Confirm what is actually live
+
+`GET /api/version` returns a fingerprint of the card database:
+
+```bash
+curl https://unstable-dragons.<you>.workers.dev/api/version
+# {"cards":127,"deck":196,"hash":"945c4649"}
+```
+
+Compare it with `npm run fingerprint` in `worker/` from the checkout you meant
+to ship. Identical values mean the deployed Worker carries that exact card
+database; a mismatch means the deploy did not come from this commit.
 
 `VITE_API_BASE` tells the client where the Worker lives; the WebSocket URL is
 derived from it (`wss://…/api/rooms/<CODE>/ws`). The Worker sends permissive

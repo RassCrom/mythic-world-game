@@ -3,6 +3,7 @@
 // keyed by room code.
 
 import { GameRoom } from './GameRoom.js';
+import { DEFS, buildDeckList } from '../../shared/cards.js';
 export { GameRoom };
 
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
@@ -40,12 +41,36 @@ function roomStub(env, code) {
   return env.GAME_ROOM.getByName(code);
 }
 
+// A stable summary of the card database: distinct definitions, total copies in
+// a shuffled deck, and a hash over the sorted ids so a card change is visible
+// even when the counts happen to match.
+export function deckFingerprint() {
+  const ids = Object.keys(DEFS).sort();
+  let hash = 0x811c9dc5;
+  for (const id of ids.join(',')) {
+    hash ^= id.charCodeAt(0);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return {
+    cards: ids.length,
+    deck: buildDeckList().length,
+    hash: hash.toString(16).padStart(8, '0'),
+  };
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') {
       return cors(new Response(null, { status: 204 }));
+    }
+
+    // GET /api/version -> deck fingerprint. Lets you confirm which build is
+    // live without opening the game: compare it against `npm run fingerprint`
+    // in the checkout you meant to deploy.
+    if (url.pathname === '/api/version' && request.method === 'GET') {
+      return cors(Response.json(deckFingerprint()));
     }
 
     // POST /api/rooms -> create a room, returns { code }

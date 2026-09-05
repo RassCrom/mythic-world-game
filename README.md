@@ -1,9 +1,45 @@
-# Unstable Dragons
+# Mythic World: Dragons vs Unicorns
 
-A chaotic 2–8 player online card game: build a stable of dragons before your
-friends stop you. Original dragon-themed card set (all names, rules text and
-art slots are original to this project) over classic take-that card-game
-mechanics.
+A cute, chaotic 2–8 player online card game in the spirit of *Unstable
+Unicorns*: pledge to the **Dragon Clan** or the **Unicorn Herd**, build a
+stable of 7 creatures, and stop your friends from doing the same. Original
+card set (all names, rules text and illustrations are original to this
+project) over classic take-that card-game mechanics.
+
+## Dragons vs Unicorns — the faction rules
+
+- **Pledge** in the lobby: every keeper is a Dragon or a Unicorn (seats
+  alternate by default; bots can be assigned or auto-balanced).
+- **Loyal vs wild.** Every creature card belongs to a faction. In a stable of
+  its own faction it is *loyal*; in a rival stable it is *wild*. Wild creatures
+  still count toward the goal, but **Magical creatures only use their
+  abilities while loyal** — a stolen unicorn won't sparkle for a dragon.
+  Stealing, swapping or taming a creature into a stable of its own faction
+  wakes it up (its entrance ability fires).
+- **Taming.** *Taming Bond* and *Whisperhorn Unicorn* make a wild creature
+  loyal to you. *Wild Heart* (downgrade) makes every creature in a stable wild.
+- **Pegasi** (winged unicorns) are *Flying*: they can never be stolen or
+  swapped away. *Wyverns* and *Hydras* are the dragon sub-kinds.
+- **Faction passives** (once per turn each):
+  - 🐉 **Ember** — the first time each turn a Dragon keeper DESTROYS another
+    player's card, they DRAW a card.
+  - 🦄 **Sparkle** — the first time each turn another player destroys one of
+    a Unicorn keeper's loyal creatures, the Unicorn keeper DRAWS a card.
+- **Instants:** dragons *Roar!*, unicorns *Neigh!* — both stop a card.
+  *Primordial Roar* / *Super Neigh* cannot be stopped.
+- **The Nest** holds 8 Baby Dragons and 8 Baby Unicorns; you always hatch a
+  baby of your own faction when one is available.
+- **Even factions.** Because Magical abilities only work while loyal, the deck
+  is balanced per faction-sensitive type — equal magicals, upgrades,
+  downgrades, magic and instants on each side (204 cards in all) — so neither
+  faction draws a live ability more often than the other. `engine.test.js`
+  asserts the split, so an unbalanced addition fails the build.
+- **Harmony.** *Harmony Unicorn* and *Hearthbound Wyrm* count as **two**
+  creatures while another **loyal** creature shares their stable — a stolen wild
+  creature fills a slot but keeps nobody company. *Discord* and *Snarlwind*
+  (downgrades) switch Harmony off for the stable they sit in.
+- **Faction War** (host toggle): when any keeper reaches the goal, their whole
+  faction shares the victory.
 
 - **Frontend:** React (plain JavaScript), static site → Cloudflare Pages
 - **Backend:** Cloudflare Worker + one **Durable Object per room** (keyed by
@@ -25,6 +61,15 @@ mechanics.
     ├── public/cards/       # drop card art here later (see README.txt inside)
     └── src/
 ```
+
+### Earlier design: Deck Duel
+
+Until September 2026 the game used a different faction model, preserved on the
+`archive/deck-duel` branch: each player chose Dragons or Unicorns in the lobby
+and drew from their own faction's pile, with mirrored card packs. It was
+replaced by the shared-deck model above, which makes faction matter on every
+card rather than only at the lobby. Harmony is ported from it. Saved rooms from
+that engine are not readable here — see `SCHEMA` in `worker/src/engine.js`.
 
 ---
 
@@ -49,6 +94,45 @@ The Vite dev server proxies `/api/*` (including WebSocket upgrades) to
 tab and join with the code from another tab (2+ players needed to start).
 
 ## Deployment
+
+> **Deploy both halves from the same checkout.** `shared/cards.js` is bundled
+> into the Worker *and* the client, so shipping only one leaves the server and
+> the browser disagreeing about the deck. Deploy from a fresh clone of the
+> branch you mean to ship — deploying from a stale working copy is the easiest
+> way to put an old build into production without noticing.
+
+### 0. Or let CI do it
+
+`.github/workflows/deploy.yml` deploys both halves on every push to the
+development branch, then asks the deployed Worker for its fingerprint and fails
+the run if it does not match the commit. Pull requests run the tests only.
+It needs three values under **Settings → Secrets and variables → Actions**:
+
+| | Name | Value |
+|---|---|---|
+| Secret | `CLOUDFLARE_API_TOKEN` | A token scoped to *Workers Scripts: Edit* and *Cloudflare Pages: Edit* on this account — nothing broader |
+| Secret | `CLOUDFLARE_ACCOUNT_ID` | From the Cloudflare dashboard sidebar |
+| Variable | `WORKER_URL` | e.g. `https://unstable-dragons.<you>.workers.dev`, no trailing slash |
+
+`WORKER_URL` is a *variable*, not a secret: it is a public URL, and CI needs to
+print it when a deploy does not match.
+
+The Pages project has to exist before the first CI run. Wrangler only offers to
+create one when it is attached to a TTY, and CI is not, so run this once from a
+machine where you are logged in:
+
+```bash
+npx wrangler pages project create unstable-dragons \
+  --production-branch claude/gallant-wozniak-ftxskm
+```
+
+The Worker needs no equivalent step — `wrangler deploy` creates it if missing
+and updates it otherwise, and the `v1` Durable Object migration is a no-op once
+it has been applied.
+
+Deliberately, only the development branch deploys. `main` still holds the
+archived Deck Duel engine, and deploying it would overwrite production with an
+older, incompatible design.
 
 ### 1. Worker + Durable Object
 
@@ -77,11 +161,30 @@ Note the deployed URL, e.g. `https://unstable-dragons.<you>.workers.dev`.
 
 ```bash
 cd client
-VITE_API_BASE=https://unstable-dragons.<you>.workers.dev npm run build
-npx wrangler pages deploy dist --project-name unstable-dragons
+cp .env.production.example .env.production   # then edit the URL in it, once
+npm run build
+npm run deploy                               # = wrangler pages deploy dist
 ```
 
-(On Windows PowerShell: `$env:VITE_API_BASE = "https://..."; npm run build`.)
+Vite reads `.env.production` automatically for production builds, so the URL
+lives in one gitignored file instead of your shell history. If you would rather
+pass it inline, the syntax differs per shell: bash/zsh
+`VITE_API_BASE=https://... npm run build`, PowerShell
+`$env:VITE_API_BASE="https://..."; npm run build`, cmd.exe
+`set VITE_API_BASE=https://... && npm run build`.
+
+### 3. Confirm what is actually live
+
+`GET /api/version` returns a fingerprint of the card database:
+
+```bash
+curl https://unstable-dragons.<you>.workers.dev/api/version
+# {"cards":131,"deck":204,"hash":"f7e9100c"}
+```
+
+Compare it with `npm run fingerprint` in `worker/` from the checkout you meant
+to ship. Identical values mean the deployed Worker carries that exact card
+database; a mismatch means the deploy did not come from this commit.
 
 `VITE_API_BASE` tells the client where the Worker lives; the WebSocket URL is
 derived from it (`wss://…/api/rooms/<CODE>/ws`). The Worker sends permissive
@@ -115,12 +218,12 @@ as a build-time environment variable there.
 
 ## Game rules (implemented server-side)
 
-- Everyone starts with 1 Baby Dragon (from the shared 13-card Nest) and 5 cards.
+- Everyone starts with 1 Baby of their faction (from the 16-card Nest) and 5 cards.
 - **Turn:** Beginning phase (start-of-turn effects fire) → Draw 1 →
   **one action** (play a card *or* draw a card; some cards grant extra
   actions) → End phase (discard down to 7).
-- **Win:** 7 dragons in your stable (2–5 players) or 6 (6–8 players).
-  Toad-cursed dragons don't count. If the deck empties, the discard pile is
+- **Win:** 7 creatures in your stable (2–5 players) or 6 (6–8 players).
+  Toad-cursed creatures don't count. If the deck empties, the discard pile is
   reshuffled in; the second time that happens, most dragons wins immediately.
 - **Instants:** when any card is played, every other player holding an
   Instant gets a response window ("Roar"). Roars can Roar each other; the
@@ -130,7 +233,7 @@ as a build-time environment variable there.
   made when a card *resolves* (after the Roar window), exactly like the
   tabletop flow.
 
-The full 112-card deck (+13 babies) with quantities lives in
+The full 165-card deck (+16 babies) with quantities lives in
 [shared/cards.js](shared/cards.js) — every mechanic (steal, sacrifice,
 destroy-protection, ability suppression, hand-reveal, forced discards, deck
 searches, resurrection, the wandering whelp, guardians, phoenix saves, …) is
@@ -154,9 +257,11 @@ action instead of stalling.
 
 ## Notes
 
-- **Card art:** the client looks for `/cards/<defId>.jpg` and falls back to a
-  tinted procedural placeholder — drop images into `client/public/cards/`
-  whenever they're ready (naming guide in that folder's README.txt).
+- **Card art:** every card has an illustration at `/cards/<defId>.webp`
+  (generated with Higgsfield in one consistent cute storybook style); a
+  tinted procedural placeholder appears if a file is ever missing. Card
+  frames are drawn in CSS — one silhouette per card type (egg, plain, sparkly,
+  shield, thorns, scroll, lightning) tinted per faction.
 - **Sound:** all audio is synthesized in the browser (WebAudio) — ambience,
   draws, roars, destruction, victory. Toggle with the "Sound" button; the
   choice persists.

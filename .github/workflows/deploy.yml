@@ -1,0 +1,132 @@
+name: Deploy
+
+# Worker and client are deployed together, from one checkout, in that order.
+# shared/cards.js is bundled into both, so shipping one without the other leaves
+# the server and the browser disagreeing about the deck.
+#
+# Only this branch deploys. main still holds the archived Deck Duel design, and
+# deploying it would overwrite production with an older, incompatible engine.
+on:
+  push:
+    branches: [claude/gallant-wozniak-ftxskm]
+  pull_request:
+  workflow_dispatch:
+
+# A later push supersedes an in-flight deploy rather than racing it.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            worker/package-lock.json
+            client/package-lock.json
+
+      - name: Install
+        run: |
+          npm ci --prefix worker
+          npm ci --prefix client
+
+      - name: Engine tests
+        run: npm test --prefix worker
+
+      - name: Client build
+        run: npm run build --prefix client
+
+  deploy:
+    needs: test
+    # Pull requests run the tests but never touch production.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            worker/package-lock.json
+            client/package-lock.json
+
+      - name: Check required configuration
+        run: |
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ]  || missing="$missing CLOUDFLARE_API_TOKEN(secret)"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID(secret)"
+          [ -n "$WORKER_URL" ]            || missing="$missing WORKER_URL(variable)"
+          if [ -n "$missing" ]; then
+            echo "::error::Not configured — set in Settings → Secrets and variables → Actions:$missing"
+            exit 1
+          fi
+        env:
+          WORKER_URL: ${{ vars.WORKER_URL }}
+
+      - name: Install
+        run: |
+          npm ci --prefix worker
+          npm ci --prefix client
+
+      # The Worker goes first: the client is about to be built against its API,
+      # and a browser talking to an older engine is the failure we are avoiding.
+      - name: Deploy Worker
+        run: npm run deploy --prefix worker
+
+      - name: Build client
+        run: npm run build --prefix client
+        env:
+          VITE_API_BASE: ${{ vars.WORKER_URL }}
+
+      - name: Deploy client to Pages
+        run: npm run deploy --prefix client
+
+      # Ask the deployed Worker what card database it is serving and compare it
+      # with this checkout. This is the check that would have caught production
+      # running a build three commits behind the rebrand.
+      - name: Verify the deployed Worker matches this commit
+        run: |
+          expected=$(npm run --silent fingerprint --prefix worker)
+          echo "expected: $expected"
+
+          for attempt in 1 2 3 4 5; do
+            live=$(curl -fsS --max-time 20 "$WORKER_URL/api/version") && break
+            echo "attempt $attempt: no answer yet, waiting for propagation"
+            sleep 10
+          done
+          echo "live:     $live"
+
+          node -e '
+            const [expected, live] = process.argv.slice(1).map((raw) => JSON.parse(raw));
+            const same = ["cards", "deck", "hash"].every((key) => expected[key] === live[key]);
+            if (!same) {
+              console.error("::error::Deployed Worker does not match this commit.");
+              console.error(`  expected ${JSON.stringify(expected)}`);
+              console.error(`  live     ${JSON.stringify(live)}`);
+              process.exit(1);
+            }
+            console.log(`Deployed Worker is serving this commit (${expected.cards} cards, deck ${expected.deck}, hash ${expected.hash}).`);
+          ' "$expected" "$live"
+        env:
+          WORKER_URL: ${{ vars.WORKER_URL }}
+
+      - name: Summary
+        run: |
+          {
+            echo "### Deployed"
+            echo
+            echo "- Worker: ${{ vars.WORKER_URL }}"
+            echo "- Commit: \`${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

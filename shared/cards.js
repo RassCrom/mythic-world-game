@@ -1,56 +1,66 @@
-// Unstable Dragons — card database.
+// Mythic World: Dragons vs Unicorns — card database.
 // Original card set: all names, rules text, and flavor written for this game.
-// Mechanics follow the classic "collect dragons / stop plays" party-game formula.
+// Mechanics follow the classic "collect creatures / stop plays" party-game formula.
+//
+// Factions:
+//   Every player pledges to a faction in the lobby: the Dragon Clan or the
+//   Unicorn Herd. Every creature card also belongs to a faction. A creature
+//   in a stable of its own faction is LOYAL; in a rival stable it is WILD.
+//   Wild creatures still count toward the goal, but Magical creatures only
+//   use their abilities while loyal ("a unicorn won't sparkle for a dragon").
+//   Faction passives (resolved by the engine, once per turn each):
+//     dragon  — Ember:   the first time each turn you DESTROY another player's
+//                        card, DRAW a card.
+//     unicorn — Sparkle: the first time each turn another player destroys one
+//                        of your loyal creatures, DRAW a card.
 //
 // Card types:
 //   baby      — start-of-game card from the shared Nest; never in deck/hand/discard
 //   basic     — no ability, counts toward the win condition
-//   magical   — dragon with a unique ability
+//   magical   — creature with a unique ability (active only while loyal)
 //   upgrade   — attaches to a stable (usually yours); one per name per stable
 //   downgrade — attaches to a stable (usually an opponent's); one per name per stable
 //   magic     — one-shot effect, then discarded
-//   instant   — playable in response to another card being played (the "Roar" window)
+//   instant   — playable in response to another card being played (Roar! / Neigh!)
+//
+// Sub-kinds: wyvern & hydra (dragons), pegasus (unicorns). Pegasi are FLYING:
+// they can never be stolen.
 //
 // Effect steps are interpreted by the server-side engine (worker/src/engine.js).
-// The client only uses name/type/text/color for rendering.
-
-export const BABY_ID = 'baby_dragon';
-export const BABY_COUNT = 13;
-
-export const DEFAULT_FACTION_ID = 'dragons';
+// The client only uses name/type/faction/text/color for rendering.
 
 export const FACTIONS = {
-  dragons: {
-    id: 'dragons',
-    name: 'Dragons',
-    title: 'Unstable Dragons',
-    description: 'Fire, treasure, and glorious chaos. The original high-conflict deck.',
-    playstyle: 'Destruction · stealing · wild combos',
-    color: '#e8905a',
-    hero: '/hero-image-menu.png',
-    starterId: BABY_ID,
-    creatureSingular: 'Dragon',
-    creaturePlural: 'Dragons',
-    starterPlural: 'Baby Dragons',
+  dragon: {
+    id: 'dragon',
+    name: 'Dragon Clan',
+    creature: 'Dragon',
+    creatures: 'Dragons',
+    baby: 'baby_dragon',
+    instant: 'Roar!',
+    color: '#ff8a4c',
+    passiveName: 'Ember',
+    passive: 'The first time each turn you DESTROY another player’s card, DRAW a card.',
+    blurb: 'Fire, hoards and big feelings. Dragons win by burning down everyone else’s stable.',
   },
-  unicorns: {
-    id: 'unicorns',
-    name: 'Unicorns',
-    title: 'Unstable Unicorns',
-    description: 'A complete prismatic pack built around Harmony, purification, and rainbow wards.',
-    playstyle: 'Harmony · protection · clever recovery',
-    color: '#d96f98',
-    hero: '/heroes/hero-unicorn-cinematic.png',
-    starterId: 'baby_unicorn',
-    creatureSingular: 'Unicorn',
-    creaturePlural: 'Unicorns',
-    starterPlural: 'Baby Unicorns',
+  unicorn: {
+    id: 'unicorn',
+    name: 'Unicorn Herd',
+    creature: 'Unicorn',
+    creatures: 'Unicorns',
+    baby: 'baby_unicorn',
+    instant: 'Neigh!',
+    color: '#ff7ac8',
+    passiveName: 'Sparkle',
+    passive: 'The first time each turn another player destroys one of your loyal creatures, DRAW a card.',
+    blurb: 'Rainbows, glitter and passive-aggressive kindness. Unicorns win by out-cuddling the competition.',
   },
 };
+export const FACTION_IDS = ['dragon', 'unicorn'];
 
-export function getFaction(factionId = DEFAULT_FACTION_ID) {
-  return FACTIONS[factionId] || FACTIONS[DEFAULT_FACTION_ID];
-}
+export const BABY_IDS = { dragon: 'baby_dragon', unicorn: 'baby_unicorn' };
+export const BABY_ID = 'baby_dragon'; // legacy alias
+export const BABY_COUNT_PER_FACTION = 8;
+export const BABY_COUNT = BABY_COUNT_PER_FACTION * 2;
 
 const D = {};
 
@@ -59,23 +69,28 @@ function def(card) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Baby Dragons (Nest)                                                 */
+/* Babies (the Nest)                                                   */
 /* ------------------------------------------------------------------ */
 
 def({
-  id: 'baby_dragon',
-  name: 'Baby Dragon',
-  type: 'baby',
-  qty: BABY_COUNT,
+  id: 'baby_dragon', name: 'Baby Dragon', type: 'baby', faction: 'dragon', qty: BABY_COUNT_PER_FACTION,
   color: '#e8905a',
   text: 'Fresh from the egg. If this card would leave your stable, return it to the Nest instead.',
+  flavor: 'Mostly teeth, entirely trouble.',
+});
+
+def({
+  id: 'baby_unicorn', name: 'Baby Unicorn', type: 'baby', faction: 'unicorn', qty: BABY_COUNT_PER_FACTION,
+  color: '#f4a6d7',
+  text: 'Still wobbly on its hooves. If this card would leave your stable, return it to the Nest instead.',
+  flavor: 'Its horn is a nub. Its ego is not.',
 });
 
 /* ------------------------------------------------------------------ */
-/* Basic Dragons                                                       */
+/* Basic creatures                                                     */
 /* ------------------------------------------------------------------ */
 
-const BASICS = [
+const BASIC_DRAGONS = [
   ['basic_crimson', 'Crimson Drake', '#c0392b', 'All fire, no finesse.'],
   ['basic_azure', 'Azure Drake', '#2e86c1', 'It hoards rainwater and opinions.'],
   ['basic_verdant', 'Verdant Drake', '#27ae60', 'Sleeps in treetops. Snores pollen.'],
@@ -83,10 +98,20 @@ const BASICS = [
   ['basic_obsidian', 'Obsidian Drake', '#5d6d7e', 'Broods dramatically at all hours.'],
   ['basic_ivory', 'Ivory Drake', '#aab7c4', 'Suspiciously polite for a fire hazard.'],
 ];
-for (const [id, name, color, flavor] of BASICS) {
-  // Eleven Basics keeps the deck moving without crowding out the exciting cards.
-  const qty = id === 'basic_ivory' ? 1 : 2;
-  def({ id, name, type: 'basic', qty, color, text: 'A Basic Dragon. No ability — just ambition.', flavor });
+for (const [id, name, color, flavor] of BASIC_DRAGONS) {
+  def({ id, name, type: 'basic', faction: 'dragon', qty: 3, color, text: 'A Basic Dragon. No ability — just ambition.', flavor });
+}
+
+const BASIC_UNICORNS = [
+  ['basic_rosebloom', 'Rosebloom Unicorn', '#ff8fb8', 'Smells like strawberries and judgement.'],
+  ['basic_skyhoof', 'Skyhoof Unicorn', '#7ec8ff', 'Trots on clouds. Refuses stairs.'],
+  ['basic_meadow', 'Meadow Unicorn', '#8fe3a1', 'Eats only the prettiest flowers.'],
+  ['basic_starlit', 'Starlit Unicorn', '#ffd77a', 'Glows in the dark. Will not stop.'],
+  ['basic_twilight', 'Twilight Unicorn', '#b48cff', 'Writes poetry about its own mane.'],
+  ['basic_snowmane', 'Snowmane Unicorn', '#e8f4ff', 'Cool, calm, and secretly ticklish.'],
+];
+for (const [id, name, color, flavor] of BASIC_UNICORNS) {
+  def({ id, name, type: 'basic', faction: 'unicorn', qty: 3, color, text: 'A Basic Unicorn. No ability — just sparkle.', flavor });
 }
 
 /* ------------------------------------------------------------------ */
@@ -94,38 +119,38 @@ for (const [id, name, color, flavor] of BASICS) {
 /* ------------------------------------------------------------------ */
 
 def({
-  id: 'm_battering', name: 'Battering Wyrm', type: 'magical', qty: 1, color: '#8e6f3e',
-  text: 'At the start of your turn, you may DESTROY a Dragon. If you do, skip straight to your End phase.',
+  id: 'm_battering', name: 'Battering Wyrm', type: 'magical', faction: 'dragon', qty: 1, color: '#8e6f3e',
+  text: 'At the start of your turn, you may DESTROY a creature. If you do, skip straight to your End phase.',
   onTurnStart: {
     steps: [
-      { do: 'destroy', chooser: 'owner', filter: { kind: 'dragon', zone: 'any' }, optional: true, saveDone: 'hit' },
+      { do: 'destroy', chooser: 'owner', filter: { kind: 'creature', zone: 'any' }, optional: true, saveDone: 'hit' },
       { do: 'ifVar', var: 'hit', then: [{ do: 'skipToEnd' }] },
     ],
   },
 });
 
 def({
-  id: 'm_cataclysm', name: 'Cataclysm Dragon', type: 'magical', qty: 1, color: '#7d3c98',
-  text: 'When this card enters your stable, each player must SACRIFICE a Dragon.',
+  id: 'm_cataclysm', name: 'Cataclysm Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#7d3c98',
+  text: 'When this card enters your stable, each player must SACRIFICE a creature.',
   onEnter: [
-    { do: 'eachPlayer', include: 'all', steps: [{ do: 'sacrifice', who: 'each', filter: { kind: 'dragon' }, optional: false }] },
+    { do: 'eachPlayer', include: 'all', steps: [{ do: 'sacrifice', who: 'each', filter: { kind: 'creature' }, optional: false }] },
   ],
 });
 
 def({
-  id: 'm_spellscale', name: 'Spellscale Whelp', type: 'magical', qty: 1, color: '#48c9b0',
+  id: 'm_spellscale', name: 'Spellscale Whelp', type: 'magical', faction: 'dragon', qty: 1, color: '#48c9b0',
   text: 'This card cannot be destroyed by Magic cards.',
   noMagicDestroy: true,
 });
 
 def({
-  id: 'm_ironclaw', name: 'Ironclaw Dragon', type: 'magical', qty: 1, color: '#839192',
+  id: 'm_ironclaw', name: 'Ironclaw Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#839192',
   text: 'When this card enters your stable, you may DESTROY an Upgrade in any stable or SACRIFICE a Downgrade in your stable.',
   onEnter: [{ do: 'destroyUpOrSacDown', optional: true }],
 });
 
 def({
-  id: 'm_harvest', name: 'Harvest Dragon', type: 'magical', qty: 1, color: '#d68910',
+  id: 'm_harvest', name: 'Harvest Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#d68910',
   text: 'When this card enters your stable, DRAW 2 cards, then DISCARD a card.',
   onEnter: [
     { do: 'draw', who: 'owner', n: 2 },
@@ -134,45 +159,45 @@ def({
 });
 
 def({
-  id: 'm_phoenix', name: 'Phoenix Dragon', type: 'magical', qty: 1, color: '#e74c3c',
+  id: 'm_phoenix', name: 'Phoenix Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#e74c3c',
   text: 'If this card would be sacrificed or destroyed, you may DISCARD a card instead.',
   wouldLeave: 'discardInstead',
 });
 
 def({
-  id: 'm_colossal', name: 'Colossal Dragon', type: 'magical', qty: 1, color: '#6c3483',
-  text: 'This card counts as 2 Dragons. You cannot play Instant cards.',
+  id: 'm_colossal', name: 'Colossal Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#6c3483',
+  text: 'This card counts as 2 creatures. You cannot play Instant cards.',
   countsAs: 2,
   mods: ['noInstantsSelf'],
 });
 
 def({
-  id: 'm_stormwing', name: 'Stormwing', type: 'magical', qty: 1, color: '#5dade2',
+  id: 'm_stormwing', name: 'Stormwing', type: 'magical', faction: 'dragon', qty: 1, color: '#5dade2',
   text: 'When this card enters your stable, you may take a Magic card from the discard pile into your hand.',
   onEnter: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['magic'] }, to: 'hand', optional: true }],
 });
 
 def({
-  id: 'm_galewing', name: 'Galewing', type: 'magical', qty: 1, color: '#a3e4d7',
+  id: 'm_galewing', name: 'Galewing', type: 'magical', faction: 'dragon', qty: 1, color: '#a3e4d7',
   text: 'When this card enters your stable, you may take an Instant card from the discard pile into your hand.',
   onEnter: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['instant'] }, to: 'hand', optional: true }],
 });
 
 def({
-  id: 'm_hoardwing', name: 'Hoardwing', type: 'magical', qty: 1, color: '#f4d03f',
+  id: 'm_hoardwing', name: 'Hoardwing', type: 'magical', faction: 'dragon', qty: 1, color: '#f4d03f',
   text: 'When this card enters your stable, DRAW a card.',
   onEnter: [{ do: 'draw', who: 'owner', n: 1 }],
 });
 
 def({
-  id: 'm_baron', name: 'Baron Dragon', type: 'magical', qty: 1, color: '#943126',
+  id: 'm_baron', name: 'Baron Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#943126',
   text: 'When this card enters your stable, pull a random card from another player’s hand into yours.',
   onEnter: [{ do: 'randomSteal', who: 'owner', optional: false }],
 });
 
 def({
-  id: 'm_bonescale', name: 'Bonescale Dragon', type: 'magical', qty: 1, color: '#909497',
-  text: 'When this card enters your stable, you may DISCARD a Dragon card. If you do, bring a Dragon from the discard pile into your stable.',
+  id: 'm_bonescale', name: 'Bonescale Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#909497',
+  text: 'When this card enters your stable, you may DISCARD a creature card. If you do, bring a creature from the discard pile into your stable.',
   onEnter: [{
     do: 'costDiscardThen', who: 'owner', filter: { types: ['basic', 'magical'] },
     then: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['basic', 'magical'] }, to: 'stable', optional: false }],
@@ -180,132 +205,312 @@ def({
 });
 
 def({
-  id: 'm_alluring', name: 'Alluring Wyvern', type: 'magical', sub: 'wyvern', qty: 1, color: '#af7ac5',
+  id: 'm_alluring', name: 'Alluring Wyvern', type: 'magical', faction: 'dragon', sub: 'wyvern', qty: 1, color: '#af7ac5',
   text: 'When this card enters your stable, you may STEAL an Upgrade.',
   onEnter: [{ do: 'steal', chooser: 'owner', filter: { kind: 'upgrade', zone: 'others' }, optional: true }],
 });
 
 def({
-  id: 'm_enchanting', name: 'Enchanting Dragon', type: 'magical', qty: 1, color: '#f1948a',
-  text: 'When this card enters your stable, you may DISCARD a card. If you do, STEAL a Dragon.',
+  id: 'm_enchanting', name: 'Enchanting Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#f1948a',
+  text: 'When this card enters your stable, you may DISCARD a card. If you do, STEAL a creature.',
   onEnter: [{
     do: 'costDiscardThen', who: 'owner',
-    then: [{ do: 'steal', chooser: 'owner', filter: { kind: 'dragon', zone: 'others' }, optional: false }],
+    then: [{ do: 'steal', chooser: 'owner', filter: { kind: 'creature', zone: 'others' }, optional: false }],
   }],
 });
 
 def({
-  id: 'm_queen', name: 'Queen Dragon', type: 'magical', qty: 1, color: '#c39bd3',
-  text: 'While this card is in your stable, Basic Dragons cannot enter any stable but yours.',
+  id: 'm_queen', name: 'Queen Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#c39bd3',
+  text: 'While this card is in your stable, Basic creatures cannot enter any stable but yours.',
   mods: ['queensDecree'],
 });
 
 def({
-  id: 'm_guardian', name: 'Guardian Dragon', type: 'magical', qty: 1, color: '#7fb3d5',
-  text: 'If another Dragon in your stable would be destroyed, you may SACRIFICE this card instead.',
+  id: 'm_guardian', name: 'Guardian Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#7fb3d5',
+  text: 'If another creature in your stable would be destroyed, you may SACRIFICE this card instead.',
   guardian: true,
 });
 
 def({
-  id: 'm_elder', name: 'Elder Wyvern', type: 'magical', sub: 'wyvern', qty: 1, color: '#76848c',
+  id: 'm_elder', name: 'Elder Wyvern', type: 'magical', faction: 'dragon', sub: 'wyvern', qty: 1, color: '#76848c',
   text: 'When this card enters your stable, you may search the deck for a Wyvern card and add it to your hand, then shuffle the deck.',
   onEnter: [{ do: 'searchDeck', who: 'owner', filter: { sub: 'wyvern' }, optional: true }],
 });
 
 def({
-  id: 'm_gilded_wyv', name: 'Gilded Wyvern', type: 'magical', sub: 'wyvern', qty: 1, color: '#d5b556',
+  id: 'm_gilded_wyv', name: 'Gilded Wyvern', type: 'magical', faction: 'dragon', sub: 'wyvern', qty: 1, color: '#d5b556',
   text: 'When this card enters your stable, you may search the deck for an Upgrade card and add it to your hand, then shuffle the deck.',
   onEnter: [{ do: 'searchDeck', who: 'owner', filter: { types: ['upgrade'] }, optional: true }],
 });
 
 def({
-  id: 'm_scrappy', name: 'Scrappy Wyvern', type: 'magical', sub: 'wyvern', qty: 1, color: '#a04000',
+  id: 'm_scrappy', name: 'Scrappy Wyvern', type: 'magical', faction: 'dragon', sub: 'wyvern', qty: 1, color: '#a04000',
   text: 'When this card enters your stable, you may search the deck for a Downgrade card and add it to your hand, then shuffle the deck.',
   onEnter: [{ do: 'searchDeck', who: 'owner', filter: { types: ['downgrade'] }, optional: true }],
 });
 
 def({
-  id: 'm_razorfin', name: 'Razorfin Wyvern', type: 'magical', sub: 'wyvern', qty: 1, color: '#2e86ab',
-  text: 'At the start of your turn, you may SACRIFICE this card. If you do, DESTROY a Dragon.',
+  id: 'm_razorfin', name: 'Razorfin Wyvern', type: 'magical', faction: 'dragon', sub: 'wyvern', qty: 1, color: '#2e86ab',
+  text: 'At the start of your turn, you may SACRIFICE this card. If you do, DESTROY a creature.',
   onTurnStart: {
     steps: [{
       do: 'costSacrificeSelfThen',
-      then: [{ do: 'destroy', chooser: 'owner', filter: { kind: 'dragon', zone: 'any' }, optional: false }],
+      then: [{ do: 'destroy', chooser: 'owner', filter: { kind: 'creature', zone: 'any' }, optional: false }],
     }],
   },
 });
 
 def({
-  id: 'm_torpedo', name: 'Torpedo Wyvern', type: 'magical', sub: 'wyvern', qty: 1, color: '#1a5276',
+  id: 'm_torpedo', name: 'Torpedo Wyvern', type: 'magical', faction: 'dragon', sub: 'wyvern', qty: 1, color: '#1a5276',
   text: 'When this card enters your stable, SACRIFICE all Downgrades in your stable.',
   onEnter: [{ do: 'sacrificeAll', who: 'owner', filter: { kind: 'downgrade' } }],
 });
 
 def({
-  id: 'm_spiteclaw', name: 'Spiteclaw Dragon', type: 'magical', qty: 1, color: '#922b21',
-  text: 'If this card is sacrificed or destroyed, you may DESTROY a Dragon.',
-  onLeave: [{ do: 'destroy', chooser: 'owner', filter: { kind: 'dragon', zone: 'any' }, optional: true }],
+  id: 'm_spiteclaw', name: 'Spiteclaw Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#922b21',
+  text: 'If this card is sacrificed or destroyed, you may DESTROY a creature.',
+  onLeave: [{ do: 'destroy', chooser: 'owner', filter: { kind: 'creature', zone: 'any' }, optional: true }],
 });
 
 def({
-  id: 'm_stray', name: 'Stray Whelp', type: 'magical', qty: 1, color: '#b9770e',
+  id: 'm_stray', name: 'Stray Whelp', type: 'magical', faction: 'dragon', qty: 1, color: '#b9770e',
   text: 'At the start of each player’s turn, this card moves to that player’s stable. This card cannot be sacrificed or destroyed.',
   protected: true,
   wanders: true,
 });
 
 def({
-  id: 'm_seraph', name: 'Seraph Dragon', type: 'magical', qty: 1, color: '#f7dc6f',
-  text: 'If this card is sacrificed or destroyed, you may bring a Baby Dragon from the Nest into your stable.',
+  id: 'm_seraph', name: 'Seraph Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#f7dc6f',
+  text: 'If this card is sacrificed or destroyed, you may bring a Baby from the Nest into your stable.',
   onLeave: [{ do: 'babyFromNest', who: 'owner', optional: true }],
 });
 
 def({
-  id: 'm_tidal', name: 'Tidal Dragon', type: 'magical', qty: 1, color: '#45b39d',
+  id: 'm_tidal', name: 'Tidal Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#45b39d',
   text: 'When this card enters your stable, you may return a card in another player’s stable to their hand.',
   onEnter: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'others' }, optional: true }],
 });
 
 def({
-  id: 'm_nagging', name: 'Nagging Dragon', type: 'magical', qty: 1, color: '#cd6155',
+  id: 'm_nagging', name: 'Nagging Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#cd6155',
   text: 'When this card enters your stable, each player must DISCARD a card.',
   onEnter: [{ do: 'eachPlayer', include: 'all', steps: [{ do: 'discard', who: 'each', n: 1 }] }],
 });
 
 def({
-  id: 'm_pest', name: 'Pest Drake', type: 'magical', qty: 1, color: '#82e0aa',
+  id: 'm_pest', name: 'Pest Drake', type: 'magical', faction: 'dragon', qty: 1, color: '#82e0aa',
   text: 'When this card enters your stable, you may choose another player. That player must DISCARD a card.',
   onEnter: [{ do: 'targetDiscard', chooser: 'owner', optional: true }],
 });
 
 def({
-  id: 'm_chronodrake', name: 'Chronodrake', type: 'magical', qty: 1, color: '#1f8f91',
+  id: 'm_chronodrake', name: 'Chronodrake', type: 'magical', faction: 'dragon', qty: 1, color: '#1f8f91',
   text: 'When this card enters your stable, reverse the direction of play.',
   onEnter: [{ do: 'reverseTurnOrder' }],
 });
 
 def({
-  id: 'm_mirrorwing', name: 'Mirrorwing Dragon', type: 'magical', qty: 1, color: '#9b8fc8',
-  text: 'When this card enters your stable, you may copy the entrance ability of another Magical Dragon in any stable.',
+  id: 'm_mirrorwing', name: 'Mirrorwing Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#9b8fc8',
+  text: 'When this card enters your stable, you may copy the entrance ability of another Magical creature in any stable.',
   onEnter: [{ do: 'copyEntrance', optional: true }],
 });
 
 def({
-  id: 'm_riftcoil', name: 'Riftcoil Dragon', type: 'magical', qty: 1, color: '#7048bd',
-  text: 'When this card enters your stable, you may swap it with a Dragon in another player’s stable.',
+  id: 'm_riftcoil', name: 'Riftcoil Dragon', type: 'magical', faction: 'dragon', qty: 1, color: '#7048bd',
+  text: 'When this card enters your stable, you may swap it with a creature in another player’s stable.',
   onEnter: [{ do: 'swapDragon', optional: true }],
 });
 
 def({
-  id: 'm_hydra', name: 'Hydra Dragon', sub: 'hydra', type: 'magical', qty: 1, color: '#0e6655',
-  text: 'If this card is sacrificed or destroyed, you may bring up to 2 Baby Dragons from the Nest into your stable.',
+  id: 'm_hydra', name: 'Hydra Dragon', sub: 'hydra', type: 'magical', faction: 'dragon', qty: 1, color: '#0e6655',
+  text: 'If this card is sacrificed or destroyed, you may bring up to 2 Babies from the Nest into your stable.',
   onLeave: [{ do: 'babyFromNest', who: 'owner', n: 2, optional: true }],
 });
 
 def({
-  id: 'm_volcanic', name: 'Volcanic Wyrm', type: 'magical', sub: 'wyvern', qty: 1, color: '#c0392b',
-  text: 'When this card enters your stable, you may SACRIFICE all other Dragons in your stable. If you do, DESTROY 2 cards for each Dragon sacrificed this way.',
+  id: 'm_volcanic', name: 'Volcanic Wyrm', type: 'magical', faction: 'dragon', sub: 'wyvern', qty: 1, color: '#c0392b',
+  text: 'When this card enters your stable, you may SACRIFICE all other creatures in your stable. If you do, DESTROY 2 cards for each creature sacrificed this way.',
   onEnter: [{ do: 'volcanicPurge' }],
+});
+
+def({
+  id: 'm_emberling', name: 'Emberling', type: 'magical', faction: 'dragon', qty: 1, color: '#ff6b35',
+  text: 'When this card enters your stable, if you have 3 or more loyal Dragons, DESTROY a card.',
+  onEnter: [
+    { do: 'countVar', var: 'pack', filter: { kind: 'creature', zone: 'own', faction: 'dragon', loyal: true } },
+    { do: 'ifVar', var: 'pack', atLeast: 3, then: [{ do: 'destroy', chooser: 'owner', filter: { kind: 'any', zone: 'others' }, optional: false }] },
+  ],
+});
+
+def({
+  id: 'm_dragonmother', name: 'Dragon Mother', type: 'magical', faction: 'dragon', qty: 1, color: '#b03a2e',
+  text: 'At the start of your turn, if there is no Baby in your stable, bring a Baby from the Nest into your stable.',
+  onTurnStart: {
+    steps: [
+      { do: 'countVar', var: 'babies', filter: { kind: 'baby', zone: 'own' } },
+      { do: 'ifVar', var: 'babies', atMost: 0, then: [{ do: 'babyFromNest', who: 'owner', optional: false }] },
+    ],
+  },
+});
+
+/* ------------------------------------------------------------------ */
+/* Magical Unicorns                                                    */
+/* ------------------------------------------------------------------ */
+
+def({
+  id: 'mu_rainbow', name: 'Rainbow Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#ff8ad4',
+  text: 'When this card enters your stable, you may bring a Baby from the Nest into your stable.',
+  onEnter: [{ do: 'babyFromNest', who: 'owner', optional: true }],
+  flavor: 'Every step leaves a tiny rainbow. The cleaning bill is enormous.',
+});
+
+def({
+  id: 'mu_mending', name: 'Mending Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#9fe6c8',
+  text: 'When this card enters your stable, you may take a creature card from the discard pile into your hand.',
+  onEnter: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['basic', 'magical'] }, to: 'hand', optional: true }],
+});
+
+def({
+  id: 'mu_glitterhoof', name: 'Glitterhoof', type: 'magical', faction: 'unicorn', qty: 1, color: '#ffd1f0',
+  text: 'At the start of your turn, you may DRAW an extra card.',
+  onTurnStart: {
+    steps: [
+      { do: 'ask', text: 'Draw an extra card with Glitterhoof?', saveDone: 'y' },
+      { do: 'ifVar', var: 'y', then: [{ do: 'draw', who: 'owner', n: 1 }] },
+    ],
+  },
+});
+
+def({
+  id: 'mu_blossom', name: 'Blossom Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#ffb3c6',
+  text: 'When this card enters your stable, if you have 3 or more loyal Unicorns, DRAW 2 cards.',
+  onEnter: [
+    { do: 'countVar', var: 'herd', filter: { kind: 'creature', zone: 'own', faction: 'unicorn', loyal: true } },
+    { do: 'ifVar', var: 'herd', atLeast: 3, then: [{ do: 'draw', who: 'owner', n: 2 }] },
+  ],
+});
+
+def({
+  id: 'mu_starfall', name: 'Starfall Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#c9b6ff',
+  text: 'When this card enters your stable, you may return an Upgrade or Downgrade in any stable to its owner’s hand.',
+  onEnter: [{ do: 'return', chooser: 'owner', filter: { kind: 'upDown', zone: 'any' }, optional: true }],
+});
+
+def({
+  id: 'mu_moonlit', name: 'Moonlit Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#a9c7ff',
+  text: 'This card cannot be stolen, swapped, or returned to a hand.',
+  rooted: true,
+});
+
+def({
+  id: 'mu_lullaby', name: 'Lullaby Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#d9c4ff',
+  text: 'When this card enters your stable, each other player must DISCARD a card.',
+  onEnter: [{ do: 'eachPlayer', include: 'others', steps: [{ do: 'discard', who: 'each', n: 1 }] }],
+});
+
+def({
+  id: 'mu_prism', name: 'Prism Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#f6f0ff',
+  text: 'This card counts as 2 creatures. You cannot play Upgrade cards.',
+  countsAs: 2,
+  mods: ['noUpgradesSelf'],
+});
+
+def({
+  id: 'mu_shieldhorn', name: 'Shieldhorn Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#8fd3ff',
+  text: 'Loyal creatures in your stable cannot be destroyed by Magic cards.',
+  mods: ['magicWard'],
+});
+
+def({
+  id: 'mu_dream', name: 'Dreamweaver Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#c084fc',
+  text: 'When this card enters your stable, look at another player’s hand and take a card from it.',
+  onEnter: [{ do: 'lookTake', who: 'owner' }],
+});
+
+def({
+  id: 'mu_whisper', name: 'Whisperhorn Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#ffe2a8',
+  text: 'When this card enters your stable, you may TAME a wild creature in your stable. It becomes loyal to you.',
+  onEnter: [{ do: 'tame', optional: true }],
+});
+
+def({
+  id: 'mu_charming', name: 'Charming Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#ff9ecf',
+  text: 'When this card enters your stable, you may move a Downgrade from your stable to another player’s stable.',
+  onEnter: [{ do: 'moveUpDown', chooser: 'owner', filter: { kind: 'downgrade', zone: 'own' }, optional: true }],
+});
+
+def({
+  id: 'mu_everbloom', name: 'Everbloom Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#a8f0b0',
+  text: 'At the start of your turn, if there is no Baby in your stable, bring a Baby from the Nest into your stable.',
+  onTurnStart: {
+    steps: [
+      { do: 'countVar', var: 'babies', filter: { kind: 'baby', zone: 'own' } },
+      { do: 'ifVar', var: 'babies', atMost: 0, then: [{ do: 'babyFromNest', who: 'owner', optional: false }] },
+    ],
+  },
+});
+
+def({
+  id: 'mu_mirror', name: 'Mirrormane Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#e0e7ff',
+  text: 'When this card enters your stable, you may copy the entrance ability of another Magical creature in any stable.',
+  onEnter: [{ do: 'copyEntrance', optional: true }],
+});
+
+def({
+  id: 'mu_guardian', name: 'Guardian Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#ffd6e7',
+  text: 'If another creature in your stable would be destroyed, you may SACRIFICE this card instead.',
+  guardian: true,
+});
+
+/* Pegasi — winged unicorns. Flying: cannot be stolen. */
+
+const FLY = ' (Flying: cannot be stolen.)';
+
+def({
+  id: 'mu_peg_cloud', name: 'Cloudhoof Pegasus', type: 'magical', faction: 'unicorn', sub: 'pegasus', qty: 1, color: '#dff3ff', flying: true,
+  text: 'When this card enters your stable, you may search the deck for a Pegasus card and add it to your hand, then shuffle the deck.' + FLY,
+  onEnter: [{ do: 'searchDeck', who: 'owner', filter: { sub: 'pegasus' }, optional: true }],
+});
+
+def({
+  id: 'mu_peg_gale', name: 'Galestride Pegasus', type: 'magical', faction: 'unicorn', sub: 'pegasus', qty: 1, color: '#b5e8ff', flying: true,
+  text: 'When this card enters your stable, you may return a creature in another player’s stable to their hand.' + FLY,
+  onEnter: [{ do: 'return', chooser: 'owner', filter: { kind: 'creature', zone: 'others' }, optional: true }],
+});
+
+def({
+  id: 'mu_peg_dawn', name: 'Dawnwing Pegasus', type: 'magical', faction: 'unicorn', sub: 'pegasus', qty: 1, color: '#ffd9a8', flying: true,
+  text: 'If this card would be sacrificed or destroyed, return it to your hand instead.' + FLY,
+  wouldLeave: 'returnInstead',
+});
+
+def({
+  id: 'mu_peg_thunder', name: 'Thunderhoof Pegasus', type: 'magical', faction: 'unicorn', sub: 'pegasus', qty: 1, color: '#9fb4ff', flying: true,
+  text: 'When this card enters your stable, you may DESTROY an Upgrade in another player’s stable.' + FLY,
+  onEnter: [{ do: 'destroy', chooser: 'owner', filter: { kind: 'upgrade', zone: 'others' }, optional: true }],
+});
+
+def({
+  id: 'mu_peg_sun', name: 'Sunchaser Pegasus', type: 'magical', faction: 'unicorn', sub: 'pegasus', qty: 1, color: '#ffe680', flying: true,
+  text: 'At the start of your turn, you may DRAW a card. If you do, DISCARD a card.' + FLY,
+  onTurnStart: {
+    steps: [
+      { do: 'ask', text: 'Draw a card with Sunchaser Pegasus? (You will then discard a card.)', saveDone: 'y' },
+      { do: 'ifVar', var: 'y', then: [{ do: 'draw', who: 'owner', n: 1 }, { do: 'discard', who: 'owner', n: 1 }] },
+    ],
+  },
+});
+
+def({
+  id: 'mu_peg_night', name: 'Nightglide Pegasus', type: 'magical', faction: 'unicorn', sub: 'pegasus', qty: 1, color: '#7f7fd5', flying: true,
+  text: 'When this card enters your stable, you may take an Instant card from the discard pile into your hand.' + FLY,
+  onEnter: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['instant'] }, to: 'hand', optional: true }],
+});
+
+def({
+  id: 'mu_peg_storm', name: 'Stormfeather Pegasus', type: 'magical', faction: 'unicorn', sub: 'pegasus', qty: 1, color: '#8ecae6', flying: true,
+  text: 'When this card enters your stable, DRAW a card.' + FLY,
+  onEnter: [{ do: 'draw', who: 'owner', n: 1 }],
 });
 
 /* ------------------------------------------------------------------ */
@@ -313,20 +518,20 @@ def({
 /* ------------------------------------------------------------------ */
 
 def({
-  id: 'u_sigil', name: 'Ancient Sigil', type: 'upgrade', qty: 2, color: '#f5b041',
+  id: 'u_sigil', name: 'Ancient Sigil', type: 'upgrade', faction: 'dragon', qty: 2, color: '#f5b041',
   text: 'Cards you play cannot be stopped by Instant cards.',
   mods: ['uncounterable'],
 });
 
 def({
-  id: 'u_armor', name: 'Dragonscale Ward', type: 'upgrade', qty: 2, color: '#5499c7',
-  text: 'Dragons in this stable cannot be destroyed.',
+  id: 'u_armor', name: 'Dragonscale Ward', type: 'upgrade', faction: 'dragon', qty: 2, color: '#5499c7',
+  text: 'Creatures in this stable cannot be destroyed.',
   mods: ['dragonsSafe'],
 });
 
 def({
-  id: 'u_tail', name: 'Spiked Tail', type: 'upgrade', qty: 2, color: '#58d68d',
-  text: 'This card can only enter a stable that holds a Basic Dragon. At the start of your turn, you may DRAW an extra card.',
+  id: 'u_tail', name: 'Spiked Tail', type: 'upgrade', faction: 'dragon', qty: 2, color: '#58d68d',
+  text: 'This card can only enter a stable that holds a Basic creature. At the start of your turn, you may DRAW an extra card.',
   requiresBasic: true,
   onTurnStart: {
     steps: [
@@ -337,7 +542,7 @@ def({
 });
 
 def({
-  id: 'u_keg', name: 'Powder Keg', type: 'upgrade', qty: 2, color: '#dc7633',
+  id: 'u_keg', name: 'Powder Keg', type: 'upgrade', faction: 'dragon', qty: 2, color: '#dc7633',
   text: 'At the start of your turn, you may SACRIFICE a card. If you do, DESTROY a card.',
   onTurnStart: {
     steps: [
@@ -348,15 +553,38 @@ def({
 });
 
 def({
-  id: 'u_twinheads', name: 'Twin Heads', type: 'upgrade', qty: 2, color: '#af7ac5',
+  id: 'u_twinheads', name: 'Twin Heads', type: 'upgrade', faction: 'dragon', qty: 2, color: '#af7ac5',
   text: 'At the start of your turn, gain an extra action for this turn (play a card or draw a card).',
   onTurnStart: { steps: [{ do: 'extraAction' }] },
 });
 
 def({
-  id: 'u_snare', name: 'Dragon Snare', type: 'upgrade', qty: 2, color: '#7e5109',
-  text: 'At the start of your turn, you may STEAL a Dragon. Return it to its stable at the end of your turn.',
+  id: 'u_snare', name: 'Dragon Snare', type: 'upgrade', faction: 'dragon', qty: 2, color: '#7e5109',
+  text: 'At the start of your turn, you may STEAL a creature. Return it to its stable at the end of your turn.',
   onTurnStart: { steps: [{ do: 'snareSteal' }] },
+});
+
+def({
+  id: 'u_mane', name: 'Rainbow Mane', type: 'upgrade', faction: 'unicorn', qty: 2, color: '#ff9ad5',
+  text: 'Creatures in this stable cannot be stolen.',
+  mods: ['noStealFrom'],
+});
+
+def({
+  id: 'u_meadow', name: 'Cozy Meadow', type: 'upgrade', faction: 'unicorn', qty: 1, color: '#a3e4a8',
+  text: 'At the start of your turn, if there is no Baby in this stable, bring a Baby from the Nest into it.',
+  onTurnStart: {
+    steps: [
+      { do: 'countVar', var: 'babies', filter: { kind: 'baby', zone: 'own' } },
+      { do: 'ifVar', var: 'babies', atMost: 0, then: [{ do: 'babyFromNest', who: 'owner', optional: false }] },
+    ],
+  },
+});
+
+def({
+  id: 'u_horseshoe', name: 'Lucky Horseshoe', type: 'upgrade', faction: 'unicorn', qty: 2, color: '#ffd166',
+  text: 'If a creature in this stable would be destroyed by a Magic card, its owner may DISCARD a card instead.',
+  mods: ['luckyShoe'],
 });
 
 /* ------------------------------------------------------------------ */
@@ -364,56 +592,74 @@ def({
 /* ------------------------------------------------------------------ */
 
 def({
-  id: 'd_cage', name: 'Thorned Cage', type: 'downgrade', qty: 1, color: '#6e2c00',
-  text: 'Each time a Dragon enters or leaves this stable, its owner must DISCARD a card.',
+  id: 'd_cage', name: 'Thorned Cage', type: 'downgrade', faction: 'dragon', qty: 1, color: '#6e2c00',
+  text: 'Each time a creature enters or leaves this stable, its owner must DISCARD a card.',
   mods: ['barbedWire'],
 });
 
 def({
-  id: 'd_fog', name: 'Dampening Fog', type: 'downgrade', qty: 1, color: '#85929e',
-  text: 'All Dragons in this stable are considered Basic Dragons with no abilities.',
+  id: 'd_fog', name: 'Dampening Fog', type: 'downgrade', faction: 'dragon', qty: 1, color: '#85929e',
+  text: 'All creatures in this stable are considered Basic creatures with no abilities.',
   mods: ['suppress'],
 });
 
 def({
-  id: 'd_lair', name: 'Ruined Lair', type: 'downgrade', qty: 1, color: '#4d5656',
+  id: 'd_lair', name: 'Ruined Lair', type: 'downgrade', faction: 'dragon', qty: 1, color: '#4d5656',
   text: 'This stable’s owner cannot play Upgrade cards.',
   mods: ['noUpgrades'],
 });
 
 def({
-  id: 'd_orb', name: 'Scrying Orb', type: 'downgrade', qty: 1, color: '#a569bd',
+  id: 'd_orb', name: 'Scrying Orb', type: 'downgrade', faction: 'dragon', qty: 1, color: '#a569bd',
   text: 'This stable’s owner must keep their hand visible to all players.',
   mods: ['handVisible'],
 });
 
 def({
-  id: 'd_toadcurse', name: 'Toadcurse', type: 'downgrade', qty: 1, color: '#52be80',
-  text: 'All Dragons in this stable are considered Toads. Cards that affect Dragons do not affect Toads, and Toads do not count toward winning.',
+  id: 'd_toadcurse', name: 'Toadcurse', type: 'downgrade', faction: 'dragon', qty: 1, color: '#52be80',
+  text: 'All creatures in this stable are considered Toads. Cards that affect creatures do not affect Toads, and Toads do not count toward winning.',
   mods: ['toads'],
 });
 
 def({
-  id: 'd_tithe', name: 'Blood Tithe', type: 'downgrade', qty: 1, color: '#78281f',
-  text: 'At the start of your turn, SACRIFICE a Dragon. If you do, DRAW a card.',
+  id: 'd_tithe', name: 'Blood Tithe', type: 'downgrade', faction: 'dragon', qty: 1, color: '#78281f',
+  text: 'At the start of your turn, SACRIFICE a creature. If you do, DRAW a card.',
   onTurnStart: {
     steps: [
-      { do: 'sacrifice', who: 'owner', filter: { kind: 'dragon' }, optional: false, saveDone: 'paid' },
+      { do: 'sacrifice', who: 'owner', filter: { kind: 'creature' }, optional: false, saveDone: 'paid' },
       { do: 'ifVar', var: 'paid', then: [{ do: 'draw', who: 'owner', n: 1 }] },
     ],
   },
 });
 
 def({
-  id: 'd_chains', name: 'Heavy Chains', type: 'downgrade', qty: 1, color: '#515a5a',
+  id: 'd_chains', name: 'Heavy Chains', type: 'downgrade', faction: 'dragon', qty: 1, color: '#515a5a',
   text: 'This stable’s owner cannot play Instant cards.',
   mods: ['noInstants'],
 });
 
 def({
-  id: 'd_cave', name: 'Cramped Cave', type: 'downgrade', qty: 1, color: '#7b7d7d',
-  text: 'If this stable ever holds more than 5 Dragons, its owner must SACRIFICE a Dragon.',
+  id: 'd_cave', name: 'Cramped Cave', type: 'downgrade', faction: 'dragon', qty: 1, color: '#7b7d7d',
+  text: 'If this stable ever holds more than 5 creatures, its owner must SACRIFICE a creature.',
   mods: ['maxFive'],
+});
+
+def({
+  id: 'd_wildheart', name: 'Wild Heart', type: 'downgrade', faction: 'unicorn', qty: 1, color: '#c77dff',
+  text: 'All creatures in this stable are considered wild — Magical creatures lose their abilities and faction passives do not trigger.',
+  mods: ['allWild'],
+});
+
+def({
+  id: 'd_slumber', name: 'Slumber Spell', type: 'downgrade', faction: 'unicorn', qty: 1, color: '#7b8cde',
+  text: 'This stable’s owner skips their Draw phase.',
+  mods: ['noDrawPhase'],
+});
+
+def({
+  id: 'd_muddy', name: 'Muddy Hooves', type: 'downgrade', faction: 'unicorn', qty: 1, color: '#a3785a',
+  text: 'This stable’s owner cannot play Magic cards.',
+  mods: ['noMagic'],
 });
 
 /* ------------------------------------------------------------------ */
@@ -421,25 +667,25 @@ def({
 /* ------------------------------------------------------------------ */
 
 def({
-  id: 's_venom', name: 'Dragonbane Venom', type: 'magic', qty: 3, color: '#1e8449',
-  text: 'DESTROY a Dragon.',
-  steps: [{ do: 'destroy', chooser: 'owner', filter: { kind: 'dragon', zone: 'any' }, optional: false, byMagic: true }],
+  id: 's_venom', name: 'Dragonbane Venom', type: 'magic', faction: 'dragon', qty: 3, color: '#1e8449',
+  text: 'DESTROY a creature.',
+  steps: [{ do: 'destroy', chooser: 'owner', filter: { kind: 'creature', zone: 'any' }, optional: false, byMagic: true }],
 });
 
 def({
-  id: 's_tailswipe', name: 'Tail Swipe', type: 'magic', qty: 2, color: '#ca6f1e',
+  id: 's_tailswipe', name: 'Tail Swipe', type: 'magic', faction: 'dragon', qty: 2, color: '#ca6f1e',
   text: 'Return a card in another player’s stable to their hand.',
   steps: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'others' }, optional: false }],
 });
 
 def({
-  id: 's_claws', name: 'Sticky Claws', type: 'magic', qty: 2, color: '#9c640c',
+  id: 's_claws', name: 'Sticky Claws', type: 'magic', faction: 'dragon', qty: 2, color: '#9c640c',
   text: 'Look at another player’s hand and take a card from it.',
   steps: [{ do: 'lookTake', who: 'owner' }],
 });
 
 def({
-  id: 's_fate', name: 'Twist of Fate', type: 'magic', qty: 1, color: '#5b2c6f',
+  id: 's_fate', name: 'Twist of Fate', type: 'magic', faction: 'neutral', qty: 1, color: '#5b2c6f',
   text: 'DRAW 2 cards, then DISCARD 3 cards.',
   steps: [
     { do: 'draw', who: 'owner', n: 2 },
@@ -448,13 +694,13 @@ def({
 });
 
 def({
-  id: 's_gust', name: 'Wing Gust', type: 'magic', qty: 2, color: '#85c1e9',
+  id: 's_gust', name: 'Wing Gust', type: 'magic', faction: 'dragon', qty: 2, color: '#85c1e9',
   text: 'Return one card in each player’s stable (including yours) to its owner’s hand.',
   steps: [{ do: 'returnEach' }],
 });
 
 def({
-  id: 's_lucky', name: 'Lucky Find', type: 'magic', qty: 2, color: '#f8c471',
+  id: 's_lucky', name: 'Lucky Find', type: 'magic', faction: 'neutral', qty: 2, color: '#f8c471',
   text: 'DRAW 3 cards, then DISCARD a card.',
   steps: [
     { do: 'draw', who: 'owner', n: 3 },
@@ -463,7 +709,7 @@ def({
 });
 
 def({
-  id: 's_maelstrom', name: 'Arcane Maelstrom', type: 'magic', qty: 1, color: '#2874a6',
+  id: 's_maelstrom', name: 'Arcane Maelstrom', type: 'magic', faction: 'neutral', qty: 1, color: '#2874a6',
   text: 'Each player must DISCARD a card. Then shuffle the discard pile into the deck.',
   steps: [
     { do: 'eachPlayer', include: 'all', steps: [{ do: 'discard', who: 'each', n: 1 }] },
@@ -472,13 +718,13 @@ def({
 });
 
 def({
-  id: 's_shift', name: 'Curse Shift', type: 'magic', qty: 2, color: '#a569bd',
+  id: 's_shift', name: 'Curse Shift', type: 'magic', faction: 'neutral', qty: 2, color: '#a569bd',
   text: 'Move an Upgrade or Downgrade from any stable to any other stable.',
   steps: [{ do: 'moveUpDown', chooser: 'owner' }],
 });
 
 def({
-  id: 's_slate', name: 'Clean Slate', type: 'magic', qty: 1, color: '#aeb6bf',
+  id: 's_slate', name: 'Clean Slate', type: 'magic', faction: 'neutral', qty: 1, color: '#aeb6bf',
   text: 'Every player must SACRIFICE all Upgrades and Downgrades in their stable. Then shuffle the discard pile into the deck.',
   steps: [
     { do: 'massSacUpDown' },
@@ -487,13 +733,13 @@ def({
 });
 
 def({
-  id: 's_molt', name: 'Molting Season', type: 'magic', qty: 1, color: '#d98880',
+  id: 's_molt', name: 'Molting Season', type: 'magic', faction: 'dragon', qty: 1, color: '#d98880',
   text: 'Shuffle your hand and the discard pile into the deck, then DRAW 5 cards.',
   steps: [{ do: 'moltHand', who: 'owner' }],
 });
 
 def({
-  id: 's_bargain', name: 'Sacrificial Bargain', type: 'magic', qty: 2, color: '#6e2c00',
+  id: 's_bargain', name: 'Sacrificial Bargain', type: 'magic', faction: 'dragon', qty: 2, color: '#6e2c00',
   text: 'SACRIFICE a card. If you do, DESTROY 2 cards.',
   steps: [
     { do: 'sacrifice', who: 'owner', filter: { kind: 'any' }, optional: false, saveDone: 'paid' },
@@ -507,9 +753,50 @@ def({
 });
 
 def({
-  id: 's_trade', name: 'Crooked Trade', type: 'magic', qty: 1, color: '#b7950b',
+  id: 's_trade', name: 'Crooked Trade', type: 'magic', faction: 'neutral', qty: 1, color: '#b7950b',
   text: 'Trade hands with another player.',
   steps: [{ do: 'tradeHands', who: 'owner' }],
+});
+
+def({
+  id: 's_bridge', name: 'Rainbow Bridge', type: 'magic', faction: 'unicorn', qty: 2, color: '#ff9ecf',
+  text: 'Swap a creature in your stable with a creature in another player’s stable.',
+  steps: [{ do: 'swapCreatures', chooser: 'owner' }],
+});
+
+def({
+  id: 's_glitterbomb', name: 'Glitter Bomb', type: 'magic', faction: 'unicorn', qty: 2, color: '#ffd1f0',
+  text: 'Each player must DISCARD a card, then DRAW a card.',
+  steps: [
+    { do: 'eachPlayer', include: 'all', steps: [{ do: 'discard', who: 'each', n: 1 }, { do: 'draw', who: 'each', n: 1 }] },
+  ],
+});
+
+def({
+  id: 's_taming', name: 'Taming Bond', type: 'magic', faction: 'unicorn', qty: 2, color: '#ffe2a8',
+  text: 'TAME a wild creature in your stable. It becomes loyal to you.',
+  steps: [{ do: 'tame', optional: false }],
+});
+
+def({
+  id: 's_horn', name: 'Horn of Renewal', type: 'magic', faction: 'unicorn', qty: 1, color: '#9fe6c8',
+  text: 'DISCARD a card. If you do, bring a creature from the discard pile into your stable.',
+  steps: [{
+    do: 'costDiscardThen', who: 'owner',
+    then: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['basic', 'magical'] }, to: 'stable', optional: false }],
+  }],
+});
+
+def({
+  id: 's_purify', name: 'Purifying Light', type: 'magic', faction: 'unicorn', qty: 1, color: '#fff3b0',
+  text: 'Every player must SACRIFICE all Downgrades in their stable.',
+  steps: [{ do: 'massSacUpDown', types: ['downgrade'] }],
+});
+
+def({
+  id: 's_stampede', name: 'Stampede', type: 'magic', faction: 'unicorn', qty: 1, color: '#c9b6ff',
+  text: 'Each other player must SACRIFICE an Upgrade or Downgrade in their stable.',
+  steps: [{ do: 'eachPlayer', include: 'others', steps: [{ do: 'sacrifice', who: 'each', filter: { kind: 'upDown' }, optional: false }] }],
 });
 
 /* ------------------------------------------------------------------ */
@@ -517,274 +804,242 @@ def({
 /* ------------------------------------------------------------------ */
 
 def({
-  id: 'i_roar', name: 'Roar!', type: 'instant', qty: 13, color: '#c0392b',
+  id: 'i_roar', name: 'Roar!', type: 'instant', faction: 'dragon', qty: 9, color: '#c0392b',
   text: 'Play only when another card is being played. STOP that card and send it to the discard pile.',
 });
 
 def({
-  id: 'i_primordial', name: 'Primordial Roar', type: 'instant', qty: 1, color: '#641e16',
+  id: 'i_primordial', name: 'Primordial Roar', type: 'instant', faction: 'dragon', qty: 1, color: '#641e16',
+  text: 'STOP a card being played and send it to the discard pile. This card cannot be stopped.',
+  uncounterable: true,
+});
+
+def({
+  id: 'i_neigh', name: 'Neigh!', type: 'instant', faction: 'unicorn', qty: 9, color: '#ff5fa8',
+  text: 'Play only when another card is being played. STOP that card and send it to the discard pile.',
+});
+
+def({
+  id: 'i_superneigh', name: 'Super Neigh', type: 'instant', faction: 'unicorn', qty: 1, color: '#b5179e',
   text: 'STOP a card being played and send it to the discard pile. This card cannot be stopped.',
   uncounterable: true,
 });
 
 /* ------------------------------------------------------------------ */
-/* Unicorn Herd — complete faction pack                               */
+/* Unicorn Herd — balance pass                                          */
+/*                                                                      */
+/* The faction-sensitive slots (magicals, upgrades, downgrades, magic)   */
+/* were dragon-heavy, and because Magical abilities only work while      */
+/* LOYAL that skew handed Dragon keepers a live ability far more often   */
+/* than Unicorn keepers. These cards close the gap by addition, so no    */
+/* existing card was cut or weakened. Every effect below reuses steps    */
+/* the engine already implements.                                       */
 /* ------------------------------------------------------------------ */
 
-function unicorn(card) {
-  def({ faction: 'unicorns', color: '#d96f98', ...card });
-}
-
-unicorn({
-  id: 'baby_unicorn', name: 'Baby Unicorn', type: 'baby', qty: BABY_COUNT, kindLabel: 'Baby Unicorn',
-  text: 'Fresh from a pearly egg. If this card would leave your stable, return it to the Meadow instead.',
+def({
+  id: 'mu_sugarplum', name: 'Sugarplum Unicorn', type: 'magical', faction: 'unicorn', qty: 2, color: '#f3a8d8',
+  text: 'When this card enters your stable, you may return a card from the discard pile to your hand.',
+  flavor: 'Nothing sweet is ever really gone.',
+  onEnter: [{ do: 'fromDiscard', who: 'owner', optional: true }],
 });
 
-const UNICORN_BASICS = [
-  ['uni_basic_pearl', 'Pearl Unicorn', '#e9d7bd', 'Collects moonlight in tiny jars.'],
-  ['uni_basic_rose', 'Rose Unicorn', '#cf7186', 'Always stops to smell every flower.'],
-  ['uni_basic_brook', 'Brook Unicorn', '#6da9bc', 'Its hoofprints fill with clear water.'],
-  ['uni_basic_meadow', 'Meadow Unicorn', '#7b9b70', 'Knows the name of every blade of grass.'],
-  ['uni_basic_dusk', 'Dusk Unicorn', '#817499', 'Arrives exactly when the fireflies do.'],
-  ['uni_basic_sunbeam', 'Sunbeam Unicorn', '#d2a94e', 'Brighter than breakfast and twice as cheerful.'],
-];
-for (const [id, name, color, flavor] of UNICORN_BASICS) {
-  // Match the Dragon pack: eleven Basics, with more room for magical Unicorns.
-  const qty = id === 'uni_basic_sunbeam' ? 1 : 2;
-  unicorn({ id, name, type: 'basic', qty, color, kindLabel: 'Basic Unicorn', text: 'A Basic Unicorn. No ability — pure sparkle.', flavor });
-}
-
-unicorn({
-  id: 'uni_m_dawnbloom', name: 'Dawnbloom Unicorn', type: 'magical', qty: 1, kindLabel: 'Magical Unicorn',
+def({
+  id: 'mu_peg_lull', name: 'Lullwing Pegasus', type: 'magical', faction: 'unicorn', sub: 'pegasus', qty: 2, color: '#c8b6f0', flying: true,
   text: 'When this card enters your stable, DRAW a card.',
+  flavor: 'Lands like a yawn.',
   onEnter: [{ do: 'draw', who: 'owner', n: 1 }],
 });
-unicorn({
-  id: 'uni_m_moonwhisper', name: 'Moonwhisper Unicorn', type: 'magical', qty: 1, color: '#9586b7', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, DRAW 2 cards, then DISCARD a card.',
-  onEnter: [{ do: 'draw', who: 'owner', n: 2 }, { do: 'discard', who: 'owner', n: 1 }],
+
+def({
+  id: 'mu_peppermint', name: 'Peppermint Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#ff9bb0',
+  text: 'At the start of your turn, you may DISCARD a card to DRAW two cards.',
+  flavor: 'Strong opinions, stronger breath.',
+  onTurnStart: {
+    steps: [
+      { do: 'costDiscardThen', who: 'owner', then: [{ do: 'draw', who: 'owner', n: 2 }] },
+    ],
+  },
 });
-unicorn({
-  id: 'uni_m_purifier', name: 'Pureheart Unicorn', type: 'magical', qty: 1, color: '#e2bd67', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may PURIFY a Downgrade in your stable.',
-  onEnter: [{ do: 'purify', who: 'owner', filter: { kind: 'downgrade', zone: 'own' }, optional: true }],
+
+def({
+  id: 'mu_lantern', name: 'Lanternlight Unicorn', type: 'magical', faction: 'unicorn', qty: 2, color: '#ffe1a0',
+  text: 'When this card enters your stable, you may SEARCH the deck for a Basic creature, add it to your hand, then shuffle.',
+  flavor: 'Holds the light so nobody trips.',
+  onEnter: [{ do: 'searchDeck', who: 'owner', filter: { types: ['basic'] }, optional: true }],
 });
-unicorn({
-  id: 'uni_m_harmonist', name: 'Kindred Chorus', type: 'magical', qty: 1, color: '#c96f9a', kindLabel: 'Magical Unicorn',
-  text: 'HARMONY — This card counts as 2 Unicorns while another Unicorn is in your stable.',
-  harmonyBonus: true,
+
+def({
+  id: 'mu_peg_thistle', name: 'Thistledown Pegasus', type: 'magical', faction: 'unicorn', sub: 'pegasus', qty: 1, color: '#bfe6c8', flying: true,
+  text: 'When this card enters your stable, you may RETURN a Downgrade in your stable to its owner\u2019s hand.',
+  flavor: 'Blows the bad weather back where it came from.',
+  onEnter: [{ do: 'return', chooser: 'owner', filter: { kind: 'downgrade', zone: 'own' }, optional: true }],
 });
-unicorn({
-  id: 'uni_m_guardian', name: 'Prismatic Guardian', type: 'magical', qty: 1, color: '#7e9fc5', kindLabel: 'Magical Unicorn',
-  text: 'While this card is in your stable, your Unicorns cannot be destroyed by Magic cards.',
-  mods: ['unicornMagicSafe'],
+
+def({
+  id: 'mu_kindly', name: 'Kindly Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#ffd6e8',
+  text: 'When this card enters your stable, each player DRAWS a card.',
+  flavor: 'Insufferably nice about it, too.',
+  onEnter: [{ do: 'eachPlayer', steps: [{ do: 'draw', who: 'each', n: 1 }] }],
 });
-unicorn({
-  id: 'uni_m_wishweaver', name: 'Wishweaver Unicorn', type: 'magical', qty: 1, color: '#be8dc3', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may search the deck for a Magic card and add it to your hand.',
-  onEnter: [{ do: 'searchDeck', who: 'owner', filter: { types: ['magic'] }, optional: true }],
+
+def({
+  id: 'mu_marshmallow', name: 'Marshmallow Unicorn', type: 'magical', faction: 'unicorn', qty: 2, color: '#fff0f5',
+  text: 'If this card is sacrificed or destroyed, DRAW a card.',
+  flavor: 'Squishes. Does not break.',
+  onLeave: [{ do: 'draw', who: 'owner', n: 1 }],
 });
-unicorn({
-  id: 'uni_m_starlight', name: 'Starlight Collector', type: 'magical', qty: 1, color: '#6f8fbc', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may take a Magic card from the discard pile into your hand.',
-  onEnter: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['magic'] }, to: 'hand', optional: true }],
-});
-unicorn({
-  id: 'uni_m_skydancer', name: 'Skydancer Unicorn', type: 'magical', qty: 1, color: '#74abc5', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may return a card in another player’s stable to their hand.',
-  onEnter: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'others' }, optional: true }],
-});
-unicorn({
-  id: 'uni_m_mirrorhorn', name: 'Mirrorhorn Unicorn', type: 'magical', qty: 1, color: '#aa8dbd', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may copy the entrance ability of another Magical Unicorn in any stable.',
-  onEnter: [{ do: 'copyEntrance', optional: true }],
-});
-unicorn({
-  id: 'uni_m_galloper', name: 'Golden Galloper', type: 'magical', qty: 1, color: '#d0a849', kindLabel: 'Magical Unicorn',
-  text: 'At the start of your turn, gain an extra action for this turn.',
-  onTurnStart: { steps: [{ do: 'extraAction' }] },
-});
-unicorn({
-  id: 'uni_m_gentleheart', name: 'Gentleheart Unicorn', type: 'magical', qty: 1, color: '#d6889b', kindLabel: 'Magical Unicorn',
-  text: 'If this card is sacrificed or destroyed, you may bring a Baby Unicorn from the Meadow into your stable.',
-  onLeave: [{ do: 'babyFromNest', who: 'owner', optional: true }],
-});
-unicorn({
-  id: 'uni_m_aurora', name: 'Aurora Chorus', type: 'magical', qty: 1, color: '#c07caa', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, gain an extra action this turn.',
-  onEnter: [{ do: 'extraAction' }],
-});
-unicorn({
-  id: 'uni_m_second_dawn', name: 'Second Dawn Unicorn', type: 'magical', qty: 1, color: '#e7a875', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may bring a Unicorn from the discard pile into your stable.',
-  onEnter: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['basic', 'magical'], faction: 'unicorns' }, to: 'stable', optional: true }],
-});
-unicorn({
-  id: 'uni_m_comet', name: 'Comet-Tail Unicorn', type: 'magical', qty: 1, color: '#7d83b2', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, reverse the direction of play.',
-  onEnter: [{ do: 'reverseTurnOrder' }],
-});
-unicorn({
-  id: 'uni_m_heartstring', name: 'Heartstring Unicorn', type: 'magical', qty: 1, color: '#cf6f8f', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may choose another player. That player DISCARDs a card; you DRAW a card.',
-  onEnter: [{ do: 'targetDiscard', chooser: 'owner', optional: true }, { do: 'draw', who: 'owner', n: 1 }],
-});
-unicorn({
-  id: 'uni_m_cloudkeeper', name: 'Cloudkeeper Unicorn', type: 'magical', qty: 1, color: '#91adbd', kindLabel: 'Magical Unicorn',
-  text: 'This card cannot be destroyed by Magic cards.',
-  noMagicDestroy: true,
-});
-unicorn({
-  id: 'uni_m_twilight', name: 'Twilight Courier', type: 'magical', qty: 1, color: '#725f91', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may take an Instant card from the discard pile into your hand.',
-  onEnter: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['instant'] }, to: 'hand', optional: true }],
-});
-unicorn({
-  id: 'uni_m_meadow_mender', name: 'Meadow Mender', type: 'magical', qty: 1, color: '#7ea47d', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may PURIFY a Downgrade in your stable.',
-  onEnter: [{ do: 'purify', who: 'owner', filter: { kind: 'downgrade', zone: 'own' }, optional: true }],
-});
-unicorn({
-  id: 'uni_m_lucky_star', name: 'Lucky Star Unicorn', type: 'magical', qty: 1, color: '#d0ae57', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, DRAW 2 cards, then DISCARD a card.',
-  onEnter: [{ do: 'draw', who: 'owner', n: 2 }, { do: 'discard', who: 'owner', n: 1 }],
-});
-unicorn({
-  id: 'uni_m_windrunner', name: 'Windrunner Unicorn', type: 'magical', qty: 1, color: '#75a7c5', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may return a card in another player’s stable to their hand.',
-  onEnter: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'others' }, optional: true }],
-});
-unicorn({
-  id: 'uni_m_moonstone', name: 'Moonstone Unicorn', type: 'magical', qty: 1, color: '#7d79ac', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may search the deck for an Upgrade card and add it to your hand.',
-  onEnter: [{ do: 'searchDeck', who: 'owner', filter: { types: ['upgrade'] }, optional: true }],
-});
-unicorn({
-  id: 'uni_m_hearthlight', name: 'Hearthlight Unicorn', type: 'magical', qty: 1, color: '#d58b7d', kindLabel: 'Magical Unicorn',
-  text: 'At the start of your turn, you may DRAW an extra card.',
-  onTurnStart: { steps: [{ do: 'ask', text: 'Draw an extra card with Hearthlight Unicorn?', saveDone: 'yes' }, { do: 'ifVar', var: 'yes', then: [{ do: 'draw', who: 'owner', n: 1 }] }] },
-});
-unicorn({
-  id: 'uni_m_trailblazer', name: 'Trailblazer Unicorn', type: 'magical', qty: 1, color: '#b47cae', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, gain an extra action this turn.',
-  onEnter: [{ do: 'extraAction' }],
-});
-unicorn({
-  id: 'uni_m_lullaby', name: 'Lullaby Unicorn', type: 'magical', qty: 1, color: '#a79dcb', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, each other player DISCARDs a card.',
-  onEnter: [{ do: 'eachPlayer', include: 'others', steps: [{ do: 'discard', who: 'each', n: 1 }] }],
-});
-unicorn({
-  id: 'uni_m_evergreen', name: 'Evergreen Unicorn', type: 'magical', qty: 1, color: '#609778', kindLabel: 'Magical Unicorn',
-  text: 'If this card would be sacrificed or destroyed, you may DISCARD a card instead.',
-  wouldLeave: 'discardInstead',
-});
-unicorn({
-  id: 'uni_m_bondkeeper', name: 'Bondkeeper Unicorn', type: 'magical', qty: 1, color: '#ca789b', kindLabel: 'Magical Unicorn',
-  text: 'HARMONY — This card counts as 2 Unicorns while another Unicorn is in your stable.',
-  harmonyBonus: true,
-});
-unicorn({
-  id: 'uni_m_foalfriend', name: 'Foalfriend Unicorn', type: 'magical', qty: 1, color: '#e8c49d', kindLabel: 'Magical Unicorn',
-  text: 'When this card enters your stable, you may bring a Baby Unicorn from the Meadow into your stable.',
+
+def({
+  id: 'mu_starlace', name: 'Starlace Unicorn', type: 'magical', faction: 'unicorn', qty: 1, color: '#a9c9ff',
+  text: 'When this card enters your stable, you may bring a Baby from the Nest into your stable.',
+  flavor: 'Knits constellations into cradles.',
   onEnter: [{ do: 'babyFromNest', who: 'owner', optional: true }],
 });
 
-unicorn({
-  id: 'uni_up_rainbow_ward', name: 'Rainbow Sanctuary', type: 'upgrade', qty: 2, color: '#be83ad',
-  text: 'Unicorns in this stable cannot be destroyed by Magic cards.', mods: ['unicornMagicSafe'],
-});
-unicorn({
-  id: 'uni_up_friendship', name: 'Friendship Bracelet', type: 'upgrade', qty: 2, color: '#d9869e',
-  text: 'At the start of your turn, HARMONY — if you have at least 2 Unicorns, DRAW a card.',
-  onTurnStart: { steps: [{ do: 'harmonyDraw' }] },
-});
-unicorn({
-  id: 'uni_up_horseshoe', name: 'Golden Horseshoe', type: 'upgrade', qty: 2, color: '#d4aa4d',
-  text: 'At the start of your turn, you may DRAW an extra card.',
-  onTurnStart: { steps: [{ do: 'ask', text: 'Draw an extra card with Golden Horseshoe?', saveDone: 'yes' }, { do: 'ifVar', var: 'yes', then: [{ do: 'draw', who: 'owner', n: 1 }] }] },
-});
-unicorn({
-  id: 'uni_up_cloud_saddle', name: 'Cloud Saddle', type: 'upgrade', qty: 2, color: '#87a9bc',
-  text: 'At the start of your turn, gain an extra action for this turn.',
-  onTurnStart: { steps: [{ do: 'extraAction' }] },
-});
-unicorn({
-  id: 'uni_up_wishing_well', name: 'Wishing Well', type: 'upgrade', qty: 2, color: '#8a83b2',
-  text: 'At the start of your turn, you may search the deck for a Magic card and add it to your hand.',
-  onTurnStart: { steps: [{ do: 'searchDeck', who: 'owner', filter: { types: ['magic'] }, optional: true }] },
+def({
+  id: 'u_garland', name: 'Blossom Garland', type: 'upgrade', faction: 'unicorn', qty: 2, color: '#ffb3d1',
+  text: 'At the start of your turn, if there are no Downgrades in this stable, DRAW a card.',
+  flavor: 'Blooms only where nothing is rotting.',
+  onTurnStart: {
+    steps: [
+      { do: 'countVar', var: 'dn', filter: { kind: 'downgrade', zone: 'own' } },
+      { do: 'ifVar', var: 'dn', atMost: 0, then: [{ do: 'draw', who: 'owner', n: 1 }] },
+    ],
+  },
 });
 
-unicorn({ id: 'uni_down_lonely', name: 'Lonely Paddock', type: 'downgrade', qty: 1, color: '#786b7f', text: 'HARMONY abilities in this stable do not work.', mods: ['breakHarmony'] });
-unicorn({ id: 'uni_down_tangle', name: 'Tangled Mane', type: 'downgrade', qty: 1, color: '#725d75', text: 'All Magical Unicorns in this stable lose their abilities.', mods: ['suppress'] });
-unicorn({ id: 'uni_down_gray', name: 'Gray Skies', type: 'downgrade', qty: 1, color: '#69737d', text: 'This stable’s owner cannot play Instant cards.', mods: ['noInstants'] });
-unicorn({ id: 'uni_down_mud', name: 'Muddy Hoofprints', type: 'downgrade', qty: 1, color: '#79644e', text: 'This stable’s owner must keep their hand visible to all players.', mods: ['handVisible'] });
-unicorn({ id: 'uni_down_cramped', name: 'Cramped Pasture', type: 'downgrade', qty: 1, color: '#6f755f', text: 'If this stable ever holds more than 5 Unicorns, its owner must SACRIFICE a Unicorn.', mods: ['maxFive'] });
-
-unicorn({
-  id: 'uni_s_purify', name: 'Purifying Beam', type: 'magic', qty: 2, color: '#d9b65f',
-  text: 'PURIFY a Downgrade in any stable.', steps: [{ do: 'purify', who: 'owner', filter: { kind: 'downgrade', zone: 'any' }, optional: false }],
-});
-unicorn({
-  id: 'uni_s_bridge', name: 'Rainbow Bridge', type: 'magic', qty: 2, color: '#c57fa8',
-  text: 'Return a card in another player’s stable to their hand.', steps: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'others' }, optional: false }],
-});
-unicorn({
-  id: 'uni_s_wish', name: 'Wish Upon a Star', type: 'magic', qty: 2, color: '#8f83b6',
-  text: 'DRAW 3 cards, then DISCARD a card.', steps: [{ do: 'draw', who: 'owner', n: 3 }, { do: 'discard', who: 'owner', n: 1 }],
-});
-unicorn({
-  id: 'uni_s_group_hug', name: 'Group Hug', type: 'magic', qty: 2, color: '#d08194',
-  text: 'Every player DRAWs a card.', steps: [{ do: 'eachPlayer', include: 'all', steps: [{ do: 'draw', who: 'each', n: 1 }] }],
-});
-unicorn({
-  id: 'uni_s_second_chance', name: 'Second Chance', type: 'magic', qty: 2, color: '#e0a371',
-  text: 'Take a Unicorn from the discard pile into your hand.', steps: [{ do: 'fromDiscard', who: 'owner', filter: { types: ['basic', 'magical'], faction: 'unicorns' }, to: 'hand', optional: false }],
-});
-unicorn({
-  id: 'uni_s_prismatic_shift', name: 'Prismatic Shift', type: 'magic', qty: 2, color: '#a579af',
-  text: 'Move an Upgrade or Downgrade from any stable to any other stable.', steps: [{ do: 'moveUpDown', chooser: 'owner' }],
-});
-unicorn({
-  id: 'uni_s_sparkle_storm', name: 'Sparkle Storm', type: 'magic', qty: 2, color: '#ad789f',
-  text: 'Choose another player. That player DISCARDs a card. Then DRAW a card.', steps: [{ do: 'targetDiscard', chooser: 'owner', optional: false }, { do: 'draw', who: 'owner', n: 1 }],
-});
-unicorn({
-  id: 'uni_s_moonlit_rescue', name: 'Moonlit Rescue', type: 'magic', qty: 2, color: '#7186ae',
-  text: 'Return a card in your stable to your hand, then DRAW 2 cards.', steps: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'own' }, optional: false }, { do: 'draw', who: 'owner', n: 2 }],
-});
-unicorn({
-  id: 'uni_s_sunshower', name: 'Sunshower', type: 'magic', qty: 2, color: '#d3a85e',
-  text: 'PURIFY a Downgrade in your stable, then DRAW a card.', steps: [{ do: 'purify', who: 'owner', filter: { kind: 'downgrade', zone: 'own' }, optional: false }, { do: 'draw', who: 'owner', n: 1 }],
-});
-unicorn({
-  id: 'uni_s_stargate', name: 'Stargate', type: 'magic', qty: 2, color: '#8f7eb7',
-  text: 'Search the deck for a Magical Unicorn and add it to your hand.', steps: [{ do: 'searchDeck', who: 'owner', filter: { types: ['magical'], faction: 'unicorns' }, optional: false }],
-});
-unicorn({
-  id: 'uni_s_soft_landing', name: 'Soft Landing', type: 'magic', qty: 2, color: '#8bb0c5',
-  text: 'Return a card in your stable to your hand. Then you may bring a Unicorn from the discard pile into your stable.', steps: [{ do: 'return', chooser: 'owner', filter: { kind: 'any', zone: 'own' }, optional: false }, { do: 'fromDiscard', who: 'owner', filter: { types: ['basic', 'magical'], faction: 'unicorns' }, to: 'stable', optional: true }],
+def({
+  id: 'u_canopy', name: 'Starlight Canopy', type: 'upgrade', faction: 'unicorn', qty: 3, color: '#9fb8f5',
+  text: 'At the start of your turn, if there are three or more Unicorns in this stable, DRAW a card.',
+  flavor: 'A roof made of other people\u2019s wishes.',
+  onTurnStart: {
+    steps: [
+      { do: 'countVar', var: 'herd', filter: { kind: 'creature', zone: 'own', faction: 'unicorn' } },
+      { do: 'ifVar', var: 'herd', atLeast: 3, then: [{ do: 'draw', who: 'owner', n: 1 }] },
+    ],
+  },
 });
 
-unicorn({ id: 'uni_i_neigh', name: 'Neigh!', type: 'instant', qty: 13, color: '#c8658e', text: 'Play only when another card is being played. STOP that card and send it to the discard pile.' });
-unicorn({ id: 'uni_i_perfect_timing', name: 'Perfect Timing', type: 'instant', qty: 1, color: '#76558f', text: 'STOP a card being played. This card cannot be stopped.', uncounterable: true });
+def({
+  id: 'u_hearthring', name: 'Hearth Ring', type: 'upgrade', faction: 'unicorn', qty: 2, color: '#f5c99b',
+  text: 'At the start of your turn, you may DISCARD a card to return a card from the discard pile to your hand.',
+  flavor: 'Trade a cold ember for a warm one.',
+  onTurnStart: {
+    steps: [
+      {
+        do: 'costDiscardThen', who: 'owner',
+        then: [{ do: 'fromDiscard', who: 'owner', optional: true }],
+      },
+    ],
+  },
+});
+
+def({
+  id: 'd_glitterfog', name: 'Glitterfog', type: 'downgrade', faction: 'unicorn', qty: 3, color: '#cdb4f6',
+  text: 'At the start of this stable\u2019s turn, its owner DISCARDS a card.',
+  flavor: 'Beautiful. Impossible to see through. Gets everywhere.',
+  onTurnStart: {
+    steps: [
+      { do: 'discard', who: 'owner', n: 1, reasonText: 'Glitterfog' },
+    ],
+  },
+});
+
+def({
+  id: 'd_braid', name: 'Tangled Braid', type: 'downgrade', faction: 'unicorn', qty: 2, color: '#e79ab5',
+  text: 'This stable\u2019s owner cannot play Upgrades.',
+  flavor: 'Someone plaited your whole hoard together.',
+  mods: ['noUpgradesSelf'],
+});
+
+def({
+  id: 's_wellwish', name: 'Well Wishes', type: 'magic', faction: 'unicorn', qty: 2, color: '#ffc2e2',
+  text: 'DRAW two cards, then each other player DRAWS a card.',
+  flavor: 'You cannot be smug alone.',
+  steps: [
+    { do: 'draw', who: 'owner', n: 2 },
+    { do: 'eachPlayer', include: 'others', steps: [{ do: 'draw', who: 'each', n: 1 }] },
+  ],
+});
+
+def({
+  id: 's_mendwing', name: 'Mending Wings', type: 'magic', faction: 'unicorn', qty: 1, color: '#a8e6d0',
+  text: 'Return a card from the discard pile to your hand, then DRAW a card.',
+  flavor: 'Feather by feather, nothing stays broken.',
+  steps: [
+    { do: 'fromDiscard', who: 'owner', optional: true },
+    { do: 'draw', who: 'owner', n: 1 },
+  ],
+});
 
 /* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/* Harmony — ported from the Deck Duel model (archive/deck-duel)        */
+/*                                                                      */
+/* There it read "counts double while a Unicorn shares your stable".    */
+/* Here it is tied to loyalty instead, so it says something about the   */
+/* faction system: a stolen creature fills a slot but keeps nobody      */
+/* company. Symmetric across both factions so the balance test holds.   */
+/* ------------------------------------------------------------------ */
+
+def({
+  id: 'mu_harmony', name: 'Harmony Unicorn', type: 'magical', faction: 'unicorn', qty: 2, color: '#bfe3f0',
+  harmonyBonus: true,
+  text: 'This card counts as TWO creatures while another loyal creature shares your stable.',
+  flavor: 'Sings only in company. Sulks alone.',
+});
+
+def({
+  id: 'm_hearthbound', name: 'Hearthbound Wyrm', type: 'magical', faction: 'dragon', qty: 2, color: '#e0a05c',
+  harmonyBonus: true,
+  text: 'This card counts as TWO creatures while another loyal creature shares your stable.',
+  flavor: 'A hoard of one is just a pile.',
+});
+
+def({
+  id: 'd_discord', name: 'Discord', type: 'downgrade', faction: 'unicorn', qty: 2, color: '#9b8aa8',
+  text: 'Cards in this stable no longer count as two creatures for Harmony.',
+  flavor: 'One flat note, held forever.',
+  mods: ['breakHarmony'],
+});
+
+def({
+  id: 'd_snarlwind', name: 'Snarlwind', type: 'downgrade', faction: 'dragon', qty: 2, color: '#7d6a55',
+  text: 'Cards in this stable no longer count as two creatures for Harmony.',
+  flavor: 'Too loud in here to hear anyone else.',
+  mods: ['breakHarmony'],
+});
 
 export const DEFS = D;
 
 export function isDragonType(type) {
   return type === 'baby' || type === 'basic' || type === 'magical';
 }
+export const isCreatureType = isDragonType;
+
+export function isBabyId(defId) {
+  return DEFS[defId]?.type === 'baby';
+}
 
 // Expanded list of def ids that make up the draw deck (babies excluded).
-export function buildDeckList(factionId = DEFAULT_FACTION_ID) {
-  const faction = getFaction(factionId);
+export function buildDeckList() {
   const list = [];
   for (const card of Object.values(D)) {
     if (card.type === 'baby') continue;
-    if ((card.faction || DEFAULT_FACTION_ID) !== faction.id) continue;
     for (let i = 0; i < card.qty; i++) list.push(card.id);
   }
   return list;
 }
+
+// Expanded list of baby ids that make up the Nest.
+export function buildNestList() {
+  const list = [];
+  for (const card of Object.values(D)) {
+    if (card.type !== 'baby') continue;
+    for (let i = 0; i < card.qty; i++) list.push(card.id);
+  }
+  return list;
+}
+
+export const SUB_LABEL = { wyvern: 'Wyvern', hydra: 'Hydra', pegasus: 'Pegasus' };

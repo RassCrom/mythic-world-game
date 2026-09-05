@@ -1,22 +1,26 @@
 import React from 'react';
-import CardView from '../CardView.jsx';
+import CardView, { FactionGlyph } from '../CardView.jsx';
+import { FACTIONS } from '../../../../shared/cards.js';
 import { useI18n } from '../../i18n/index.jsx';
-import { MOD_BADGES } from './constants.js';
+import { BAD_MODS, MOD_BADGES } from './constants.js';
 
 export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCardPick, candidateSet, onInspect, onInspectEnd }) {
   const { t } = useI18n();
   const isTurn = view.turn?.playerId === player.id;
   const compactStable = !isMe && view.players.length > 3;
   const activeMods = player.mods.filter((mod) => MOD_BADGES[mod]);
+  const faction = FACTIONS[player.faction] || FACTIONS.dragon;
   // Scrying Orb (mods: handVisible) puts this hand in every viewer's `view.hands`,
   // keyed by owner id — including our own. Only opponents need the extra row;
   // our own hand already renders in the main hand tray.
   const revealedHand = !isMe ? view.hands?.[player.id] : null;
+  const wildCount = player.stable.filter((c) => c.wild).length;
 
   return (
     <div
       className={[
         'player-panel',
+        `panel-${player.faction || 'dragon'}`,
         isMe ? 'is-me' : '',
         isTurn ? 'is-turn' : '',
         pickable ? 'is-pickable' : '',
@@ -25,11 +29,12 @@ export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCa
       ].filter(Boolean).join(' ')}
     >
       <header className="player-head">
-        <span className="avatar" style={{ '--seat': player.seat }} aria-hidden="true">
-          {player.name.charAt(0).toUpperCase()}
+        <span className={`avatar avatar-${player.faction || 'dragon'}`} style={{ '--seat': player.seat }} aria-hidden="true">
+          <FactionGlyph faction={player.faction} />
           <i className={`avatar-dot ${player.connected ? 'dot-on' : 'dot-off'}`} />
         </span>
         <span className="player-name">{player.name}{isMe ? t(' (you)') : ''}</span>
+        <span className={`badge badge-faction faction-${player.faction}`} title={t(faction.name)}>{t(faction.creatures)}</span>
         {player.isHost && <span className="badge badge-host">{t('Host')}</span>}
         {player.isBot && (
           <span className="badge badge-bot">
@@ -37,7 +42,8 @@ export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCa
           </span>
         )}
         <span className="player-meta">
-          <span className={`badge badge-dragons badge-faction-${player.factionId}`} title={t('{creatures} / goal', { creatures: player.factionName || 'Creatures' })}>{player.dragons}/{view.winThreshold}</span>
+          <span className="badge badge-dragons" title={t('Creatures / goal')}>{player.creatures}/{view.winThreshold}</span>
+          {wildCount > 0 && <span className="badge badge-wild" title={t('Wild creatures: rival faction, abilities dormant')}>{t('{count} wild', { count: wildCount })}</span>}
           {!isMe && <span className="badge" title={t('Cards in hand')}>{t('{count} cards', { count: player.handCount })}</span>}
         </span>
       </header>
@@ -49,7 +55,7 @@ export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCa
       {activeMods.length > 0 && (
         <div className="player-mods">
           {activeMods.map((mod) => (
-            <span key={mod} className={`badge badge-mod mod-${mod}`} title={t(MOD_BADGES[mod][1])}>{t(MOD_BADGES[mod][0])}</span>
+            <span key={mod} className={`badge badge-mod mod-${mod} ${BAD_MODS.has(mod) ? 'is-bad' : ''}`} title={t(MOD_BADGES[mod][1])}>{t(MOD_BADGES[mod][0])}</span>
           ))}
         </div>
       )}
@@ -66,6 +72,8 @@ export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCa
                 small={!compactStable}
                 mini={compactStable}
                 toad={stableCard.toad}
+                wild={stableCard.wild}
+                tamed={stableCard.tamed}
                 suppressed={stableCard.suppressed}
                 glow={isCandidate ? 'pick' : null}
                 onClick={isCandidate ? () => onCardPick(stableCard.iid) : undefined}

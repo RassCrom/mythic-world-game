@@ -26,8 +26,17 @@
   --ok: #58d68d;
 
   /* type */
-  --font-display: 'Cinzel', 'Times New Roman', serif;
-  --font-body: 'Nunito Sans', system-ui, -apple-system, sans-serif;
+  --font-display: 'Baloo 2', 'Nunito', system-ui, sans-serif;
+  --font-body: 'Nunito', 'Nunito Sans', system-ui, -apple-system, sans-serif;
+
+  /* factions */
+  --dragon: #ff8a4c;
+  --dragon-deep: #b8401a;
+  --dragon-soft: rgba(255, 138, 76, 0.18);
+  --unicorn: #ff7ac8;
+  --unicorn-deep: #a8308a;
+  --unicorn-soft: rgba(255, 122, 200, 0.18);
+  --neutral: #9fb4ff;
 
   /* rhythm */
   --r-sm: 6px;
@@ -335,10 +344,6 @@ html[lang='ru'] .title-un { letter-spacing: 0.18em; }
   min-height: 46px;
 }
 .lobby-player-name { font-weight: 700; }
-.badge-faction { margin-left: auto; }
-.badge-faction-dragons { color: #ffd8b5; border-color: rgba(232, 144, 90, .52); background: rgba(126, 53, 30, .28); }
-.badge-faction-unicorns { color: #ffd7ea; border-color: rgba(217, 111, 152, .58); background: rgba(122, 48, 86, .28); }
-.lobby-deck-note { display: block; color: var(--text-dim); line-height: 1.45; text-align: left; }
 .lobby-players .player-away { opacity: 0.55; }
 .player-empty { color: var(--text-faint); font-style: italic; justify-content: center; border-style: dashed; }
 .lobby-wait { color: var(--text-dim); }
@@ -4504,160 +4509,270 @@ html[data-effects='reduced'] :is(.card, .btn, .medallion, .battlefield-choice) {
   gap: 6px;
 }
 
+
+
 /* ==================================================================
-   Playable factions
+   Mythic World: Dragons vs Unicorns — cute twilight-candy theme
+   Overrides the older dark-fantasy layers above. Rounded shapes,
+   pastel glow, one frame design per card TYPE and a tint per FACTION.
    ================================================================== */
 
-.home { overflow-y: auto; }
-.home-card { width: min(560px, 100%); }
-
-.faction-picker,
-.lobby-faction-picker {
-  min-inline-size: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  text-align: left;
+:root {
+  --bg: #17102b;
+  --bg-raise: #201741;
+  --surface: #2a1f52;
+  --surface-2: #34286a;
+  --line: rgba(255, 255, 255, 0.12);
+  --text: #fff6fb;
+  --text-dim: #d9cfee;
+  --text-faint: #a293c6;
+  --ember: #ffb15c;
+  --ember-strong: #ff8a4c;
+  --gold: #ffd166;
+  --teal: #6ef0d6;
+  --danger: #ff6b8a;
+  --ok: #7ef29c;
+  --r-sm: 10px; --r-md: 14px; --r-lg: 22px;
 }
 
-.faction-picker legend,
-.lobby-faction-picker legend {
-  margin-bottom: 8px;
-  color: var(--text-dim);
-  font-size: .78rem;
-  font-weight: 850;
-  letter-spacing: .09em;
-  text-transform: uppercase;
+body {
+  background:
+    radial-gradient(900px 600px at 12% -10%, rgba(255, 122, 200, 0.16), transparent 60%),
+    radial-gradient(900px 600px at 88% 110%, rgba(255, 138, 76, 0.14), transparent 60%),
+    radial-gradient(600px 400px at 50% 50%, rgba(111, 90, 255, 0.12), transparent 70%),
+    var(--bg);
 }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 800; letter-spacing: 0; }
+.btn { border-radius: 999px; font-family: var(--font-display); font-weight: 700; }
+.btn-primary { background: linear-gradient(135deg, var(--unicorn), var(--dragon)); color: #23102a; border-color: transparent; box-shadow: 0 6px 18px rgba(255, 122, 200, 0.28); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+.field input, .bot-field select { border-radius: 14px; background: rgba(20, 12, 40, .75); border-color: rgba(255, 255, 255, .14); }
+.ember { background: radial-gradient(circle, #fff 0%, #ffd1f0 45%, transparent 75%); }
+.ember:nth-child(even) { background: radial-gradient(circle, #fff 0%, #ffd9a0 45%, transparent 75%); }
 
-.faction-options,
-.lobby-faction-options {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+/* ---------------- Home ---------------- */
+.home-card, .lobby-card { border-radius: 28px; border: 1px solid rgba(255, 255, 255, .14); background: rgba(24, 14, 46, .82); backdrop-filter: blur(14px); }
+.title-un { color: var(--gold); font-size: .95rem; letter-spacing: .5em; font-family: var(--font-display); font-weight: 700; }
+.title-vs { display: flex; align-items: baseline; gap: .35em; flex-wrap: wrap; }
+.title-dragons, .title-unicorns {
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(2.4rem, 5.6vw, 3.9rem); line-height: 1;
+  letter-spacing: -.02em; text-transform: none; -webkit-background-clip: text; background-clip: text; color: transparent;
 }
+.title-dragons { background-image: linear-gradient(180deg, #ffe0b0, var(--dragon) 55%, var(--dragon-deep)); }
+.title-unicorns { background-image: linear-gradient(180deg, #ffe0f4, var(--unicorn) 55%, var(--unicorn-deep)); }
+.title-versus { font-family: var(--font-display); font-weight: 800; font-size: clamp(1rem, 2vw, 1.4rem); color: var(--text-faint); font-style: italic; }
+.tagline { font-family: var(--font-body); color: var(--text-dim); font-size: 1rem; }
+.home-factions { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 6px; }
+.home-factions li { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; font-size: .86rem; color: var(--text-dim); border: 1px solid var(--line); }
+.home-factions .glyph { width: 20px; height: 20px; flex: none; }
+.home-factions .faction-dragon { background: var(--dragon-soft); color: #ffd9b8; }
+.home-factions .faction-unicorn { background: var(--unicorn-soft); color: #ffd6ee; }
+.home-factions .faction-dragon .glyph { color: var(--dragon); }
+.home-factions .faction-unicorn .glyph { color: var(--unicorn); }
 
-.faction-option,
-.lobby-faction-option { position: relative; min-width: 0; cursor: pointer; }
+/* ---------------- Lobby: faction picker ---------------- */
+.lobby-title { color: var(--gold); }
+.faction-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.faction-option {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px 14px 12px;
+  border-radius: 20px; border: 2px solid var(--line); background: rgba(255, 255, 255, .04); color: var(--text); text-align: left;
+  cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.faction-option:hover { transform: translateY(-2px); }
+.faction-option .faction-emblem { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, .08); }
+.faction-option .faction-emblem .glyph { width: 24px; height: 24px; }
+.faction-option .faction-copy { display: flex; flex-direction: column; gap: 3px; }
+.faction-option strong { font-family: var(--font-display); font-size: 1.05rem; }
+.faction-option small { color: var(--text-dim); font-size: .76rem; line-height: 1.35; }
+.faction-option em { font-style: normal; font-size: .7rem; color: var(--text-faint); line-height: 1.3; }
+.faction-option .faction-count { position: absolute; top: 10px; right: 12px; min-width: 24px; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, .1); font-weight: 800; font-size: .78rem; text-align: center; }
+.faction-option.faction-dragon .faction-emblem { color: var(--dragon); }
+.faction-option.faction-unicorn .faction-emblem { color: var(--unicorn); }
+.faction-option.faction-dragon.is-active { border-color: var(--dragon); background: var(--dragon-soft); box-shadow: 0 0 0 4px rgba(255, 138, 76, .18), 0 10px 26px rgba(255, 138, 76, .2); }
+.faction-option.faction-unicorn.is-active { border-color: var(--unicorn); background: var(--unicorn-soft); box-shadow: 0 0 0 4px rgba(255, 122, 200, .18), 0 10px 26px rgba(255, 122, 200, .2); }
+.lobby-faction { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; }
+.lobby-faction .glyph { width: 15px; height: 15px; }
+.lobby-faction.faction-dragon { background: var(--dragon-soft); color: var(--dragon); }
+.lobby-faction.faction-unicorn { background: var(--unicorn-soft); color: var(--unicorn); }
+.lobby-players li { border-radius: 14px; }
+.lobby-players li.row-dragon { border-left: 3px solid var(--dragon); }
+.lobby-players li.row-unicorn { border-left: 3px solid var(--unicorn); }
+.bot-row { flex-wrap: wrap; }
+.toggle-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255, 255, 255, .04); cursor: pointer; }
+.toggle-row input { width: 20px; height: 20px; accent-color: var(--unicorn); }
+.toggle-row span { display: flex; flex-direction: column; }
+.toggle-row strong { font-family: var(--font-display); }
+.toggle-row small { color: var(--text-dim); font-size: .78rem; }
+.lobby-rule { color: var(--gold); font-size: .85rem; margin: 0; }
+@media (max-width: 520px) { .faction-pick { grid-template-columns: 1fr; } }
 
-.faction-option input,
-.lobby-faction-option input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+/* ---------------- Table: player panels ---------------- */
+.player-panel { border-radius: 20px; }
+.player-panel.panel-dragon { --side: var(--dragon); --side-soft: var(--dragon-soft); }
+.player-panel.panel-unicorn { --side: var(--unicorn); --side-soft: var(--unicorn-soft); }
+.player-panel.is-turn { box-shadow: 0 0 0 2px var(--side), 0 0 24px color-mix(in srgb, var(--side) 45%, transparent); }
+.avatar { border-radius: 50%; display: grid; place-items: center; background: var(--side-soft, rgba(255,255,255,.1)); color: var(--side, var(--text)); }
+.avatar .glyph { width: 60%; height: 60%; }
+.badge { border-radius: 999px; }
+.badge-faction { font-weight: 800; letter-spacing: .04em; text-transform: uppercase; font-size: .6rem; }
+.badge-faction.faction-dragon { background: var(--dragon-soft); color: #ffcfae; }
+.badge-faction.faction-unicorn { background: var(--unicorn-soft); color: #ffd0ea; }
+.badge-dragons { background: rgba(255, 209, 102, .18); color: var(--gold); }
+.badge-wild { background: rgba(159, 180, 255, .18); color: #cdd8ff; }
+.badge-mod { background: rgba(110, 240, 214, .14); color: var(--teal); }
+.badge-mod.is-bad { background: rgba(255, 107, 138, .16); color: #ffb3c4; }
+.game.side-dragon .turn-aura { background: radial-gradient(60% 40% at 50% 100%, rgba(255, 138, 76, .35), transparent 70%); }
+.game.side-unicorn .turn-aura { background: radial-gradient(60% 40% at 50% 100%, rgba(255, 122, 200, .35), transparent 70%); }
+.nest-stack { position: relative; }
+.nest-stack .card + .card { position: absolute; left: 10px; top: -8px; transform: rotate(7deg); }
+.nest-stack .card:first-child { transform: rotate(-5deg); }
+.win-banner { display: grid; place-items: center; width: 84px; height: 84px; margin: 0 auto 10px; border-radius: 50%; }
+.win-banner .glyph { width: 48px; height: 48px; }
+.win-banner.faction-dragon { background: var(--dragon-soft); color: var(--dragon); box-shadow: 0 0 40px rgba(255, 138, 76, .45); }
+.win-banner.faction-unicorn { background: var(--unicorn-soft); color: var(--unicorn); box-shadow: 0 0 40px rgba(255, 122, 200, .45); }
+.win-sub { text-align: center; color: var(--text-dim); margin: 0 0 8px; }
+.modal { border-radius: 24px; }
+.type-filters button { border-radius: 999px; }
+.faction-filters button { display: inline-flex; align-items: center; gap: 6px; }
+.faction-filters button .glyph { width: 14px; height: 14px; }
+.faction-filters .filter-dragon.is-active { background: var(--dragon-soft); color: #ffcfae; border-color: var(--dragon); }
+.faction-filters .filter-unicorn.is-active { background: var(--unicorn-soft); color: #ffd0ea; border-color: var(--unicorn); }
+.type-pill.faction-dragon { background: var(--dragon-soft); color: #ffcfae; }
+.type-pill.faction-unicorn { background: var(--unicorn-soft); color: #ffd0ea; }
+
+/* ==================================================================
+   CARD FRAMES — one silhouette per type, one tint per faction
+   ================================================================== */
+.card {
+  --frame: #f2e7ff;
+  --frame-deep: #7a5cff;
+  --plate: rgba(28, 16, 54, .92);
+  --side: var(--neutral);
+  border-radius: clamp(8px, 9cqw, 18px);
+  border: clamp(2px, 2.4cqw, 4px) solid var(--frame);
+  background: linear-gradient(160deg, var(--frame) 0%, var(--frame-deep) 100%);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 8px 20px rgba(0, 0, 0, .45);
   overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  color: var(--text);
 }
+.card.faction-dragon { --side: var(--dragon); --frame: #ffd4b8; --frame-deep: #c9502a; }
+.card.faction-unicorn { --side: var(--unicorn); --frame: #ffd6ef; --frame-deep: #c74aa3; }
+.card.faction-neutral { --side: var(--neutral); --frame: #dfe5ff; --frame-deep: #6a7bd6; }
+.card-art { inset: clamp(4px, 5cqw, 10px); border-radius: clamp(6px, 6cqw, 12px); overflow: hidden; background: #1a1030; }
+.card-art img { object-fit: cover; }
+.card-art-vignette { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 45%, rgba(20, 10, 40, .55) 100%); pointer-events: none; }
+.card-art-placeholder { background: radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--side) 45%, transparent), #1a1030 75%); color: var(--side); }
+.card-ornament, .card-corner { display: none; }
 
-.faction-option-card {
-  min-height: 78px;
-  display: grid;
-  grid-template-columns: 62px minmax(0, 1fr) 22px;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 10px 7px 7px;
-  border: 1px solid var(--line-strong);
-  border-radius: 14px;
-  background: rgba(5, 13, 9, .72);
-  transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+/* Faction emblem seal on the art */
+.card-emblem {
+  position: absolute; z-index: 4; top: clamp(6px, 7cqw, 14px); left: clamp(6px, 7cqw, 14px);
+  width: clamp(14px, 16cqw, 30px); height: clamp(14px, 16cqw, 30px); display: grid; place-items: center;
+  border-radius: 50%; background: var(--plate); color: var(--side); border: 1px solid color-mix(in srgb, var(--side) 65%, white);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .45);
 }
+.card-emblem .glyph { width: 62%; height: 62%; }
 
-.faction-option-art {
-  width: 62px;
-  aspect-ratio: 1;
-  border-radius: 10px;
-  background-position: center 38%;
-  background-size: cover;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.16);
+/* Nameplate + rules panel */
+.card-head {
+  background: var(--plate); border: 1px solid color-mix(in srgb, var(--side) 55%, white);
+  border-radius: 999px; text-align: center; box-shadow: 0 3px 8px rgba(0,0,0,.4);
 }
+.card-name { font-family: var(--font-display); font-weight: 800; color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.6); }
+.card-body { background: rgba(255, 250, 255, .96); color: #2b1a44; border: 1px solid color-mix(in srgb, var(--side) 45%, white); }
+.card-type { display: inline-flex; align-items: center; gap: .35em; color: var(--side-deep, #5a3a7a); font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.card-type .glyph { width: 1.1em; height: 1.1em; }
+.card.faction-dragon .card-type { color: var(--dragon-deep); }
+.card.faction-unicorn .card-type { color: var(--unicorn-deep); }
+.card-text { color: #3b2a55; font-weight: 600; }
 
-.faction-option-copy,
-.lobby-faction-option > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.faction-option-copy strong,
-.lobby-faction-option strong { color: var(--text); font-size: .9rem; }
-.faction-option-copy small,
-.lobby-faction-option small { color: var(--text-faint); font-size: .66rem; line-height: 1.25; }
+/* TYPE 1 — Baby: soft egg frame, dotted pastel border */
+.card-baby { --frame: #fff1c9; --frame-deep: #ffd166; border-style: dotted; border-radius: 40% 40% 34% 34% / 26% 26% 22% 22%; }
+.card-baby .card-art { border-radius: 40% 40% 34% 34% / 26% 26% 22% 22%; }
+.card-baby .card-head { background: #fff7e0; border-color: #f4b860; }
+.card-baby .card-name { color: #7a4a10; text-shadow: none; }
 
-.faction-check {
-  width: 20px;
-  height: 20px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line-strong);
-  border-radius: 50%;
-  color: #130c08;
-  background: transparent;
-}
-.faction-check svg { width: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; opacity: 0; }
+/* TYPE 2 — Basic creature: plain rounded frame, faction gradient rim */
+.card-basic { border-style: solid; }
+.card-basic .card-frame-deco .deco-a { position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 clamp(1px, 1.6cqw, 3px) rgba(255, 255, 255, .35); pointer-events: none; }
 
-.faction-option:hover .faction-option-card { border-color: color-mix(in srgb, var(--option-accent) 65%, white); }
-.faction-option input:checked + .faction-option-card {
-  border-color: color-mix(in srgb, var(--option-accent) 78%, white);
-  background: color-mix(in srgb, var(--option-accent) 16%, rgba(5, 13, 9, .82));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--option-accent) 25%, transparent), 0 8px 22px rgba(0,0,0,.22);
-}
-.faction-option input:checked + .faction-option-card .faction-check { background: var(--option-accent); border-color: color-mix(in srgb, var(--option-accent) 70%, white); }
-.faction-option input:checked + .faction-option-card .faction-check svg { opacity: 1; }
-.faction-option input:focus-visible + .faction-option-card,
-.lobby-faction-option input:focus-visible + span { outline: 3px solid var(--teal); outline-offset: 2px; }
+/* TYPE 3 — Magical creature: glittering double border + sparkle corners */
+.card-magical { border-style: double; border-width: clamp(3px, 3.6cqw, 6px); }
+.card-magical .card-frame-deco .deco { position: absolute; z-index: 5; width: clamp(8px, 9cqw, 16px); height: clamp(8px, 9cqw, 16px); pointer-events: none;
+  background: radial-gradient(circle, #fff 0 18%, transparent 20%), conic-gradient(from 0deg, transparent 0 20%, #fff 25%, transparent 30% 45%, #fff 50%, transparent 55% 70%, #fff 75%, transparent 80% 95%, #fff 100%);
+  border-radius: 50%; opacity: .9; animation: sparkle 2.4s ease-in-out infinite; }
+.card-magical .deco-a { top: 4%; left: 4%; }
+.card-magical .deco-b { top: 4%; right: 4%; animation-delay: .6s; }
+.card-magical .deco-c { bottom: 30%; left: 3%; animation-delay: 1.2s; }
+.card-magical .deco-d { bottom: 30%; right: 3%; animation-delay: 1.8s; }
+@keyframes sparkle { 0%, 100% { transform: scale(.6) rotate(0deg); opacity: .5; } 50% { transform: scale(1) rotate(45deg); opacity: 1; } }
+.card-magical.sub-pegasus .card-head, .card-magical.sub-wyvern .card-head, .card-magical.sub-hydra .card-head { border-style: dashed; }
 
-.lobby-faction-picker { padding: 12px; border: 1px solid var(--line); border-radius: var(--r-md); background: rgba(5,13,9,.44); }
-.lobby-faction-option > span {
-  min-height: 52px;
-  justify-content: center;
-  padding: 7px 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: rgba(5,13,9,.62);
-}
-.lobby-faction-option input:checked + span {
-  border-color: color-mix(in srgb, var(--option-accent) 78%, white);
-  background: color-mix(in srgb, var(--option-accent) 18%, rgba(5,13,9,.8));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--option-accent) 25%, transparent);
-}
-.lobby-faction-option input:disabled + span { cursor: default; }
+/* TYPE 4 — Upgrade: shield-shaped frame, emerald/gold hardware */
+.card-upgrade { --frame: #d8ffe4; --frame-deep: #2f9e63; border-radius: clamp(8px, 9cqw, 18px) clamp(8px, 9cqw, 18px) 50% 50% / clamp(8px, 9cqw, 18px) clamp(8px, 9cqw, 18px) 18% 18%; }
+.card-upgrade .card-art { border-radius: clamp(6px, 6cqw, 12px) clamp(6px, 6cqw, 12px) 45% 45% / clamp(6px, 6cqw, 12px) clamp(6px, 6cqw, 12px) 16% 16%; }
+.card-upgrade .card-head { background: linear-gradient(180deg, #2f9e63, #1c6b42); border-color: #b6ffd1; }
+.card-upgrade .card-type { color: #1c6b42; }
+.card-upgrade .card-frame-deco .deco-a, .card-upgrade .card-frame-deco .deco-b { position: absolute; z-index: 5; top: 3%; width: clamp(5px, 6cqw, 10px); height: clamp(5px, 6cqw, 10px); border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #ffd166 60%, #a06a00); box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+.card-upgrade .deco-a { left: 3%; } .card-upgrade .deco-b { right: 3%; }
 
-.home-faction-unicorns .title-dragons {
-  background: linear-gradient(180deg, #fff2d5, #e69bb6 52%, #a84773);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.home-faction-unicorns .btn-primary,
-.lobby-faction-unicorns .btn-primary {
-  color: #241017;
-  border-color: rgba(241, 176, 204, .58);
-  background: linear-gradient(160deg, #ef9fbd, #bd5d87);
-}
-.home-faction-unicorns::before,
-.lobby-faction-unicorns::before {
-  background-image:
-    linear-gradient(90deg, rgba(11, 7, 18, .9) 0%, rgba(28, 14, 26, .55) 48%, rgba(20, 10, 24, .62) 100%),
-    linear-gradient(0deg, rgba(14, 7, 18, .84), transparent 55%),
-    var(--home-hero);
-}
+/* TYPE 5 — Downgrade: thorny purple frame, jagged chain edge */
+.card-downgrade { --frame: #e9d3ff; --frame-deep: #5a2d8a; border-style: dashed; border-color: #b78cff; }
+.card-downgrade .card-art { filter: saturate(.85); }
+.card-downgrade .card-frame-deco .deco-a { position: absolute; z-index: 5; inset: 0; pointer-events: none; border-radius: inherit;
+  background: repeating-linear-gradient(45deg, transparent 0 8px, rgba(90, 45, 138, .35) 8px 10px); mask: linear-gradient(#000, transparent 12%, transparent 88%, #000); -webkit-mask: linear-gradient(#000, transparent 12%, transparent 88%, #000); }
+.card-downgrade .card-head { background: linear-gradient(180deg, #5a2d8a, #35174f); border-color: #d9b8ff; }
+.card-downgrade .card-type { color: #5a2d8a; }
 
-.faction-filters { display: flex; gap: 6px; flex: none; }
-.faction-filters button {
-  min-height: 38px;
-  padding: 7px 11px;
-  white-space: nowrap;
-  cursor: pointer;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--text-dim);
-  background: rgba(29,43,33,.72);
-  font-size: .72rem;
-  font-weight: 800;
-}
-.faction-filters button.is-active { color: #241507; border-color: #e9a8c2; background: linear-gradient(#ffe2ed, #d77ca2); }
-.faction-filters button:focus-visible { outline: 3px solid var(--teal); outline-offset: 1px; }
+/* TYPE 6 — Magic: parchment scroll body, wavy top and bottom */
+.card-magic { --frame: #fff3d6; --frame-deep: #c98d3a; border-style: solid; }
+.card-magic .card-body { background: #fff8e6; border-color: #e3bd7a; box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3px #e3bd7a; }
+.card-magic .card-head { background: linear-gradient(180deg, #8a5a1c, #5a3a0c); border-color: #ffd9a0; border-radius: 6px; }
+.card-magic .card-type { color: #8a5a1c; }
+.card-magic .card-frame-deco .deco-a, .card-magic .card-frame-deco .deco-b { position: absolute; z-index: 5; left: 6%; right: 6%; height: clamp(4px, 5cqw, 9px); pointer-events: none;
+  background: radial-gradient(circle at 50% 0, transparent 0 40%, #c98d3a 42% 55%, transparent 57%) 0 0 / clamp(8px, 9cqw, 16px) 100% repeat-x; opacity: .85; }
+.card-magic .deco-a { top: 1.5%; } .card-magic .deco-b { bottom: 1.5%; transform: scaleY(-1); }
 
-@media (max-width: 760px) {
-  .faction-options { grid-template-columns: 1fr; }
-  .faction-option-card { min-height: 68px; grid-template-columns: 52px minmax(0, 1fr) 22px; }
-  .faction-option-art { width: 52px; }
-  .codex-tools { flex-wrap: wrap; }
-  .faction-filters { width: 100%; overflow-x: auto; }
+/* TYPE 7 — Instant: electric jagged burst frame in danger red/yellow */
+.card-instant { --frame: #ffe36b; --frame-deep: #ff4d6d; border-style: solid; border-color: #ffe36b; border-radius: clamp(4px, 4cqw, 8px);
+  box-shadow: 0 0 0 clamp(2px, 2cqw, 4px) #ff4d6d, 0 0 18px rgba(255, 77, 109, .55), 0 8px 20px rgba(0,0,0,.45); }
+.card-instant .card-art { border-radius: clamp(3px, 3cqw, 6px); }
+.card-instant .card-frame-deco .deco-a { position: absolute; z-index: 5; inset: 0; pointer-events: none;
+  background: repeating-conic-gradient(from 0deg, #ffe36b 0 4deg, transparent 4deg 22deg); mask: radial-gradient(circle, transparent 62%, #000 63%); -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%); opacity: .35; }
+.card-instant .card-head { background: linear-gradient(180deg, #ff4d6d, #a3153a); border-color: #ffe36b; transform: rotate(-2deg); }
+.card-instant .card-type { color: #a3153a; }
+.card-instant.faction-unicorn .card-head { background: linear-gradient(180deg, #ff5fa8, #8a1d66); }
+.card-instant.faction-unicorn { box-shadow: 0 0 0 clamp(2px, 2cqw, 4px) #ff5fa8, 0 0 18px rgba(255, 95, 168, .55), 0 8px 20px rgba(0,0,0,.45); }
+
+/* Wild creature: desaturated, chained tag */
+.card-wild .card-art img { filter: saturate(.55) contrast(.95); }
+.card-wild .card-emblem { opacity: .55; }
+.card-flag { border-radius: 999px; font-family: var(--font-display); font-weight: 800; }
+.flag-wild { background: #46507a; color: #dfe6ff; }
+.flag-tamed { background: #ffd166; color: #5a3a00; }
+
+/* Glow rings match the action */
+.glow-play { box-shadow: 0 0 0 3px #7ef29c, 0 0 22px rgba(126, 242, 156, .6); }
+.glow-roar { box-shadow: 0 0 0 3px #ff4d6d, 0 0 22px rgba(255, 77, 109, .7); }
+.glow-pick { box-shadow: 0 0 0 3px var(--gold), 0 0 22px rgba(255, 209, 102, .7); }
+
+/* Card backs: candy swirl with both emblems */
+.card-back {
+  border-color: #ffd6ef;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, .12), transparent 40%),
+    repeating-conic-gradient(from 0deg, rgba(255,255,255,.06) 0 12deg, transparent 12deg 24deg),
+    linear-gradient(135deg, #ff7ac8, #7a5cff 50%, #ff8a4c);
 }
+.card-back::before { inset: 6%; border: 2px dashed rgba(255, 255, 255, .55); border-radius: 12px; box-shadow: none; }
+.card-back::after { display: none; }
+.card-back-pattern { display: none; }
+.card-back-rune { width: 46%; aspect-ratio: 1; border-radius: 50%; background: rgba(28, 16, 54, .85); border: 2px solid #fff; display: grid; grid-template-columns: 1fr 1fr; place-items: center; padding: 8%; gap: 2%; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+.card-back-rune .glyph { width: 100%; height: 100%; }
+.back-emblem-dragon { color: var(--dragon); }
+.back-emblem-unicorn { color: var(--unicorn); }
+.card-back-title { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+
+/* Codex / details keep the new frames readable at large size */
+.card-details-copy h2 { font-family: var(--font-display); color: #fff; }
+.card-rules-text { color: #f5eefc; }

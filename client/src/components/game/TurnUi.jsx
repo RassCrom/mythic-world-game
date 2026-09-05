@@ -7,7 +7,7 @@ export function SideRail({ view, isMyTurn, send, me }) {
   const { t, text } = useI18n();
   const foes = view.players.filter((player) => player.id !== view.you);
   const topFoe = foes.reduce((best, player) => (
-    !best || player.dragons > best.dragons ? player : best
+    !best || player.creatures > best.creatures ? player : best
   ), null);
   const canRespond = Boolean(view.window?.canRespond);
 
@@ -16,7 +16,7 @@ export function SideRail({ view, isMyTurn, send, me }) {
       {topFoe && (
         <div className={`rail-score ${view.turn?.playerId === topFoe.id ? 'is-turn' : ''}`}>
           <span className="rail-score-name">{foes.length > 1 ? t('Top rival · {name}', { name: topFoe.name }) : topFoe.name}</span>
-          <strong>{topFoe.dragons}</strong>
+          <strong>{topFoe.creatures}</strong>
           <span className="rail-score-goal">{t('of {goal}', { goal: view.winThreshold })}</span>
         </div>
       )}
@@ -56,7 +56,7 @@ export function SideRail({ view, isMyTurn, send, me }) {
 
       <div className={`rail-score rail-score-you ${isMyTurn ? 'is-turn' : ''}`}>
         <span className="rail-score-name">{t('You')}</span>
-        <strong>{me ? me.dragons : 0}</strong>
+        <strong>{me ? me.creatures : 0}</strong>
         <span className="rail-score-goal">{t('of {goal}', { goal: view.winThreshold })}</span>
       </div>
     </aside>

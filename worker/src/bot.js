@@ -1,4 +1,4 @@
-// Bot players for Unstable Dragons.
+// Bot players for Mythic World: Dragons vs Unicorns.
 // A bot decides from the same personalized view a human client receives
 // (its own hand + public info), so it plays fair — no peeking at hands or
 // the deck. Difficulty changes how much heuristic vs. random behavior it uses.
@@ -15,24 +15,32 @@ const chance = (p) => Math.random() < p;
 /* ---------------- card valuations ---------------- */
 
 // How much a card is worth sitting in a stable (for destroy/steal/sacrifice picks).
-function stableValue(defId) {
+// `wild` marks a Magical creature whose ability is dormant in its current stable.
+function stableValue(defId, wild) {
   const d = DEFS[defId];
   if (!d) return 0;
   if (d.type === 'baby') return 1.5;
   if (d.type === 'basic') return 2;
-  if (d.type === 'magical') return d.countsAs === 2 ? 5 : (d.guardian || d.wouldLeave ? 4 : 3);
+  if (d.type === 'magical') {
+    if (wild) return 2.2;
+    return d.countsAs === 2 ? 5 : (d.guardian || d.wouldLeave ? 4 : 3);
+  }
   if (d.type === 'upgrade') return d.mods?.includes('dragonsSafe') || d.mods?.includes('uncounterable') ? 3.5 : 2.5;
   if (d.type === 'downgrade') return 1; // in an enemy stable a downgrade "value" barely matters
   return 1;
 }
 
 // How much a card is worth held in hand (for discard picks — discard LOW first).
-function handValue(defId) {
+// A rival-faction Magical creature is just a body for us, so it is worth less.
+function handValue(defId, myFaction) {
   const d = DEFS[defId];
   if (!d) return 0;
   switch (d.type) {
     case 'instant': return d.uncounterable ? 6 : 5;
-    case 'magical': return d.countsAs === 2 ? 4.5 : 4;
+    case 'magical': {
+      if (myFaction && d.faction !== myFaction) return 2.8;
+      return d.countsAs === 2 ? 4.5 : 4;
+    }
     case 'basic': return 2.5;
     case 'upgrade': return 3;
     case 'downgrade': return 3;
@@ -48,7 +56,7 @@ function me(view) { return view.players.find((p) => p.id === view.you); }
 
 function leader(view) {
   return others(view).reduce((best, p) =>
-    !best || p.dragons > best.dragons || (p.dragons === best.dragons && p.handCount > best.handCount) ? p : best, null);
+    !best || p.creatures > best.creatures || (p.creatures === best.creatures && p.handCount > best.handCount) ? p : best, null);
 }
 
 function ownerOfCard(view, iid) {
@@ -64,7 +72,21 @@ function defIdOf(view, iid) {
   return inHand ? inHand.defId : null;
 }
 
-function nearWin(view, p) { return p.dragons >= view.winThreshold - 2; }
+function stableCardOf(view, iid) {
+  for (const p of view.players) {
+    const hit = p.stable.find((c) => c.iid === iid);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+// Would this creature be loyal (ability active) once it sits in OUR stable?
+function loyalForMe(view, defId) {
+  const d = DEFS[defId];
+  return !d || !d.faction || d.faction === 'neutral' || d.faction === me(view).faction;
+}
+
+function nearWin(view, p) { return p.creatures >= view.winThreshold - 2; }
 
 /* ---------------- prompt answers ---------------- */
 
@@ -81,7 +103,7 @@ function decideChoose(view, difficulty) {
     const n = pr.n || 1;
     const cands = [...pr.candidates];
     const myHand = view.hands[view.you] || [];
-    const valOf = (iid) => handValue((myHand.find((c) => c.iid === iid) || {}).defId);
+    const valOf = (iid) => handValue((myHand.find((c) => c.iid === iid) || {}).defId, me(view).faction);
     // Optional "pay a card" prompts (phoenix save, discard-to-steal, …):
     // pay with the cheapest card unless everything left is precious.
     if (pr.canSkip) {
@@ -102,7 +124,11 @@ function decideChoose(view, difficulty) {
     });
     const valued = cands.map((iid) => {
       const o = ownerOfCard(view, iid);
-      const v = stableValue(defIdOf(view, iid));
+      const sc = stableCardOf(view, iid);
+      let v = stableValue(defIdOf(view, iid), sc?.wild);
+      // Stealing something that wakes up in our stable is extra sweet.
+      const steal = /steal|swap|tame/i.test(pr.title || '');
+      if (steal && sc?.wild && loyalForMe(view, defIdOf(view, iid))) v += 1.5;
       return { iid, owner: o, v };
     });
     if (mineOnly) {
@@ -137,7 +163,7 @@ function decideChoose(view, difficulty) {
   }
 
   if (pr.kind === 'pickList') {
-    const valued = pr.candidates.map((c) => ({ iid: c.iid, v: handValue(c.defId) }));
+    const valued = pr.candidates.map((c) => ({ iid: c.iid, v: handValue(c.defId, me(view).faction) }));
     const best = valued.reduce((a, b) => (a.v >= b.v ? a : b));
     return { type: 'choose', value: chance(sloppy) ? rand(pr.candidates).iid : best.iid };
   }
@@ -170,7 +196,7 @@ function decideWindow(view, difficulty) {
     (['basic', 'magical'].includes(baseDef.type) && basePlayer && nearWin(view, basePlayer));
 
   const winningBase = ['basic', 'magical'].includes(baseDef.type) && basePlayer &&
-    basePlayer.dragons + (baseDef.countsAs === 2 ? 2 : 1) >= view.winThreshold;
+    basePlayer.creatures + (baseDef.countsAs === 2 ? 2 : 1) >= view.winThreshold;
 
   let roar;
   if (difficulty === 'easy') {
@@ -229,8 +255,10 @@ function decideTurn(view, difficulty) {
     if (d.type === 'basic' || d.type === 'magical') {
       const gain = d.countsAs === 2 ? 2 : 1;
       score = 3 + gain;
-      if (self.dragons + gain >= view.winThreshold) score = 100; // winning play
-      if (d.id === 'm_cataclysm' && self.dragons > (lead?.dragons || 0)) score -= 3;
+      // A loyal Magical creature brings its ability; a wild one is just a body.
+      if (d.type === 'magical') score += loyalForMe(view, defId) ? 0.8 : -0.4;
+      if (self.creatures + gain >= view.winThreshold) score = 100; // winning play
+      if (d.id === 'm_cataclysm' && self.creatures > (lead?.creatures || 0)) score -= 3;
     } else if (d.type === 'upgrade') {
       const mine = legalTargetsFor(view, defId).find((p) => p.id === view.you);
       if (!mine) continue;
@@ -239,13 +267,21 @@ function decideTurn(view, difficulty) {
     } else if (d.type === 'downgrade') {
       const cands = legalTargetsFor(view, defId).filter((p) => p.id !== view.you);
       if (!cands.length) continue;
-      const tgt = cands.includes(lead) ? lead : cands.reduce((a, b) => (a.dragons >= b.dragons ? a : b));
+      const tgt = cands.includes(lead) ? lead : cands.reduce((a, b) => (a.creatures >= b.creatures ? a : b));
       target = tgt.id;
       score = 3 + (nearWin(view, tgt) ? 2 : 0) + (d.id === 'd_toadcurse' && nearWin(view, tgt) ? 3 : 0);
     } else if (d.type === 'magic') {
       if (d.id === 's_venom' || d.id === 's_bargain') {
         score = lead && nearWin(view, lead) ? 6 : 2.6;
         if (d.id === 's_bargain' && self.stable.length <= 1) score = 0.5; // cost too high
+      } else if (d.id === 's_taming') {
+        const wild = self.stable.filter((c) => c.wild && DEFS[c.defId].type === 'magical').length;
+        score = wild ? 3.4 : 0; // only worth it with a dormant Magical creature to wake
+        if (!wild) continue;
+      } else if (d.id === 's_bridge') {
+        const wildMine = self.stable.some((c) => c.wild);
+        const juicy = others(view).some((p) => p.stable.some((c) => c.wild && loyalForMe(view, c.defId)));
+        score = wildMine && juicy ? 3.6 : 1.8;
       } else if (d.id === 's_lucky' || d.id === 's_fate') {
         score = 2.8;
       } else if (d.id === 's_slate') {

@@ -8,7 +8,8 @@ import {
   createGame, addPlayer, markDisconnected, markConnected,
   startGame, restartGame, playCard, drawAction, passWindow, choose,
   forceChoice, forcePass, forceEndTurn, expireTurn, viewFor, addLog,
-  addBotPlayer, removeBotPlayer, botWaitingId, setPlayerFaction,
+  addBotPlayer, removeBotPlayer, botWaitingId, setFaction, setSettings,
+  isReadableSave,
 } from './engine.js';
 import { decideBotAction } from './bot.js';
 
@@ -22,7 +23,16 @@ export class GameRoom {
   }
 
   async loadGame() {
-    if (!this.game) this.game = (await this.state.storage.get('game')) || null;
+    if (this.game) return this.game;
+    const stored = await this.state.storage.get('game');
+    // A room saved by an older engine cannot be resumed — drop it so the code
+    // opens a fresh lobby instead of throwing on an unknown card id.
+    if (stored && !isReadableSave(stored)) {
+      await this.state.storage.delete('game');
+      this.game = null;
+      return null;
+    }
+    this.game = stored || null;
     return this.game;
   }
 
@@ -49,8 +59,8 @@ export class GameRoom {
     if (url.pathname === '/init' && request.method === 'POST') {
       const existing = await this.loadGame();
       if (existing) return new Response('exists', { status: 409 });
-      const { code, factionId } = await request.json();
-      this.game = createGame(code, factionId);
+      const { code } = await request.json();
+      this.game = createGame(code);
       await this.saveGame();
       return Response.json({ ok: true });
     }
@@ -148,9 +158,10 @@ export class GameRoom {
       case 'drawAction': return drawAction(g, pid);
       case 'pass': return passWindow(g, pid);
       case 'choose': return choose(g, pid, msg.value === null ? null : msg.value);
-      case 'addBot': return addBotPlayer(g, pid, String(msg.difficulty || 'medium'));
+      case 'addBot': return addBotPlayer(g, pid, String(msg.difficulty || 'medium'), msg.faction ? String(msg.faction) : undefined);
+      case 'setFaction': return setFaction(g, pid, String(msg.faction || ''));
+      case 'setSettings': return setSettings(g, pid, msg.settings);
       case 'removeBot': return removeBotPlayer(g, pid, String(msg.playerId));
-      case 'setPlayerFaction': return setPlayerFaction(g, pid, String(msg.factionId));
       case 'forceChoice': return forceChoice(g, pid);
       case 'forcePass': return forcePass(g, pid);
       case 'forceEndTurn': return forceEndTurn(g, pid);

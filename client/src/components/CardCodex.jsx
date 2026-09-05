@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFS, FACTIONS, buildDeckList } from '../../../shared/cards.js';
-import CardView, { TYPE_LABEL, TypeGlyph } from './CardView.jsx';
+import CardView, { FactionGlyph, TYPE_LABEL, TypeGlyph, cardKindLabel } from './CardView.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { triggerStableLandingEffect } from './game/useCardFlight.js';
 
 const TYPE_ORDER = ['all', 'baby', 'basic', 'magical', 'upgrade', 'downgrade', 'magic', 'instant'];
+const FACTION_ORDER = ['all', 'dragon', 'unicorn', 'neutral'];
+const TYPE_FILTER_LABEL = { baby: 'Babies', basic: 'Basic', magical: 'Magical', upgrade: 'Upgrades', downgrade: 'Downgrades', magic: 'Magic', instant: 'Instants' };
 const ALL_CARDS = Object.values(DEFS).sort((a, b) => {
   const typeDiff = TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type);
   return typeDiff || a.name.localeCompare(b.name);
@@ -44,7 +46,9 @@ export function CardDetails({ defId, compact = false }) {
         <CardView defId={defId} small={compact} />
       </div>
       <div className="card-details-copy">
-        <span className={`type-pill type-${def.type}`}><TypeGlyph type={def.type} faction={def.faction} /> {t(def.kindLabel || TYPE_LABEL[def.type])}</span>
+        <span className={`type-pill type-${def.type} faction-${def.faction || 'neutral'}`}>
+          {def.faction && def.faction !== 'neutral' ? <FactionGlyph faction={def.faction} /> : <TypeGlyph type={def.type} />} {cardKindLabel(def, t)}
+        </span>
         <h2>{def.name}</h2>
         <p className="card-rules-text">{def.text}</p>
         {def.flavor && <p className="card-flavor">“{def.flavor}”</p>}
@@ -87,8 +91,8 @@ export default function CardCodex({ open, onClose }) {
       .map((original) => card(original.id))
       .filter((item) => (
         (type === 'all' || item.type === type)
-        && (faction === 'all' || (item.faction || 'dragons') === faction)
-        && (!needle || `${item.name} ${item.text} ${t(TYPE_LABEL[item.type])}`.toLowerCase().includes(needle))
+        && (faction === 'all' || (item.faction || 'neutral') === faction)
+        && (!needle || `${item.name} ${item.text} ${cardKindLabel(item, t)}`.toLowerCase().includes(needle))
       ))
       .sort((a, b) => a.name.localeCompare(b.name, locale));
   }, [card, faction, locale, query, t, type]);
@@ -120,9 +124,7 @@ export default function CardCodex({ open, onClose }) {
           <div>
             <span className="eyebrow">{t('The Archivist’s library')}</span>
             <h1 id="codex-title">{t('Card Codex')}</h1>
-            <p>{faction === 'all'
-              ? t('{unique} unique cards · {packs} complete faction packs', { unique: ALL_CARDS.length, packs: Object.keys(FACTIONS).length })
-              : t('{unique} unique cards · {deck}-card draw deck', { unique: cards.length, deck: buildDeckList(faction).length })}</p>
+            <p>{t('{unique} unique cards · {deck}-card draw deck · Babies live in the Nest', { unique: ALL_CARDS.length, deck: buildDeckList().length })}</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('Close card codex')}>
             <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
@@ -135,10 +137,18 @@ export default function CardCodex({ open, onClose }) {
             <span className="sr-only">{t('Search cards')}</span>
             <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('Search by name or effect…')} />
           </label>
-          <div className="faction-filters" role="group" aria-label={t('Filter cards by faction')}>
-            <button type="button" className={faction === 'all' ? 'is-active' : ''} onClick={() => setFaction('all')} aria-pressed={faction === 'all'}>{t('All factions')}</button>
-            {Object.values(FACTIONS).map((item) => (
-              <button type="button" key={item.id} className={faction === item.id ? 'is-active' : ''} onClick={() => setFaction(item.id)} aria-pressed={faction === item.id}>{t(item.name)}</button>
+          <div className="type-filters faction-filters" role="group" aria-label={t('Filter cards by faction')}>
+            {FACTION_ORDER.map((key) => (
+              <button
+                type="button"
+                key={key}
+                className={`${faction === key ? 'is-active' : ''} filter-${key}`}
+                onClick={() => setFaction(key)}
+                aria-pressed={faction === key}
+              >
+                {key !== 'all' && key !== 'neutral' && <FactionGlyph faction={key} />}
+                {key === 'all' ? t('Both sides') : key === 'neutral' ? t('Neutral') : t(FACTIONS[key].name)}
+              </button>
             ))}
           </div>
           <div className="type-filters" role="group" aria-label={t('Filter cards by type')}>
@@ -150,7 +160,7 @@ export default function CardCodex({ open, onClose }) {
                 onClick={() => setType(key)}
                 aria-pressed={type === key}
               >
-                {key === 'all' ? t('All') : t(TYPE_LABEL[key])}
+                {key === 'all' ? t('All') : t(TYPE_FILTER_LABEL[key])}
               </button>
             ))}
           </div>

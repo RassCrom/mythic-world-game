@@ -2,23 +2,20 @@ import React, { useState } from 'react';
 import { sfx } from '../sound.js';
 import { LanguageSwitcher, useI18n } from '../i18n/index.jsx';
 import BattlefieldSettings from './home/BattlefieldSettings.jsx';
-import { DEFAULT_FACTION_ID, FACTIONS } from '../../../shared/cards.js';
+import { FactionGlyph } from './CardView.jsx';
 
 export default function Home({ onCreate, onJoin, busy, onOpenStudio }) {
   const { t } = useI18n();
   const [name, setName] = useState(localStorage.getItem('ud_name') || '');
   const [code, setCode] = useState('');
   const [mode, setMode] = useState(null); // null | 'join'
-  const [factionId, setFactionId] = useState(() => localStorage.getItem('ud_faction') || DEFAULT_FACTION_ID);
-  const selectedFaction = FACTIONS[factionId] || FACTIONS[DEFAULT_FACTION_ID];
 
   const validName = name.trim().length >= 1;
 
   const create = () => {
     if (!validName) return;
     sfx.click();
-    localStorage.setItem('ud_faction', selectedFaction.id);
-    onCreate(name.trim(), selectedFaction.id);
+    onCreate(name.trim());
   };
   const join = (e) => {
     e.preventDefault();
@@ -28,14 +25,23 @@ export default function Home({ onCreate, onJoin, busy, onOpenStudio }) {
   };
 
   return (
-    <main className={`home home-faction-${selectedFaction.id}`} style={{ '--home-hero': `url("${selectedFaction.hero}")`, '--faction-accent': selectedFaction.color }}>
+    <main className="home" style={{ '--home-hero': 'url("/hero-dragons-vs-unicorns.webp")' }}>
       <div className="home-card">
         <LanguageSwitcher />
         <h1 className="title">
-          <span className="title-un">{t('Unstable')}</span>
-          <span className="title-dragons">{t(selectedFaction.name)}</span>
+          <span className="title-un">{t('Mythic World')}</span>
+          <span className="title-vs">
+            <span className="title-dragons">{t('Dragons')}</span>
+            <span className="title-versus">{t('vs')}</span>
+            <span className="title-unicorns">{t('Unicorns')}</span>
+          </span>
         </h1>
-        <p className="tagline">{t(selectedFaction.description)}</p>
+        <p className="tagline">{t('Pledge to a faction, build a stable of 7 creatures, and stop your friends from doing the same.')}</p>
+
+        <ul className="home-factions" aria-label={t('Factions')}>
+          <li className="faction-dragon"><FactionGlyph faction="dragon" /> <span>{t('Dragons burn: destroy a rival card, draw a card.')}</span></li>
+          <li className="faction-unicorn"><FactionGlyph faction="unicorn" /> <span>{t('Unicorns sparkle: lose a loyal creature, draw a card.')}</span></li>
+        </ul>
 
         <label className="field">
           <span>{t('Your name')}</span>
@@ -48,35 +54,6 @@ export default function Home({ onCreate, onJoin, busy, onOpenStudio }) {
             enterKeyHint="done"
           />
         </label>
-
-        {mode !== 'join' && (
-          <fieldset className="faction-picker">
-            <legend>{t('Choose a faction')}</legend>
-            <div className="faction-options">
-              {Object.values(FACTIONS).map((faction) => (
-                <label className="faction-option" key={faction.id} style={{ '--option-accent': faction.color }}>
-                  <input
-                    type="radio"
-                    name="faction"
-                    value={faction.id}
-                    checked={selectedFaction.id === faction.id}
-                    onChange={() => { sfx.click(); setFactionId(faction.id); }}
-                  />
-                  <span className="faction-option-card">
-                    <span className="faction-option-art" style={{ backgroundImage: `url("${faction.hero}")` }} aria-hidden="true" />
-                    <span className="faction-option-copy">
-                      <strong>{t(faction.name)}</strong>
-                      <small>{t(faction.playstyle)}</small>
-                    </span>
-                    <span className="faction-check" aria-hidden="true">
-                      <svg viewBox="0 0 20 20"><path d="m5 10.2 3.1 3.1L15.4 6" /></svg>
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        )}
 
         {mode !== 'join' ? (
           <div className="home-actions">
@@ -120,10 +97,7 @@ export default function Home({ onCreate, onJoin, busy, onOpenStudio }) {
           }}
           title="Open Developer Card & Faction Studio"
         >
-          <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true">
-            <path d="M4 18c2-6 6-9 13-11l3-3-1 5c1 1 2 2 2 4l-4 .5 2 2.5-5 .5c-.5 2.5-2.5 4-5 4l1.5-3L8 18l-1.5-2.5L4 18Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {t('Card & Faction Studio (Dev)')}
+          <span>🛠️</span> {t('Card & Faction Studio (Dev)')}
         </button>
 
         <p className="home-hint">{t('2–8 players · share the room code with the table')}</p>

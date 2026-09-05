@@ -1,4 +1,4 @@
-// Unstable Dragons — authoritative game engine.
+// Mythic World: Dragons vs Unicorns — authoritative game engine.
 // Runs inside the GameRoom Durable Object. All state is a plain serializable
 // object so it survives Durable Object hibernation/restarts via storage.
 //
@@ -7,9 +7,7 @@
 // fed back in and execution resumes. pump() is the single scheduler that
 // advances effects, the instant-response chain, and the turn flow.
 
-import {
-  BABY_COUNT, DEFS, DEFAULT_FACTION_ID, FACTIONS, buildDeckList, getFaction, isDragonType,
-} from '../../shared/cards.js';
+import { DEFS, BABY_IDS, FACTIONS, FACTION_IDS, buildDeckList, buildNestList, isDragonType } from '../../shared/cards.js';
 
 export const HAND_LIMIT = 7;
 export const START_HAND = 5;
@@ -21,21 +19,37 @@ export const TURN_TIME_MS = 60_000;
 // table's own card-frame capacity before it starts scrolling).
 export const STABLE_CAP = 15;
 
+// Bumped whenever saved games stop being readable by this engine. Rooms stored
+// under an older schema are discarded on load rather than migrated: the Deck
+// Duel model (schema 1) kept per-faction draw piles and card ids like
+// `uni_s_stargate` that no longer exist in the database, so there is nothing
+// faithful to convert them into.
+export const SCHEMA = 2;
+
+// A saved game this engine can safely resume. Anything else is from a previous
+// model of the game and would crash on the first defOf() lookup.
+export function isReadableSave(g) {
+  return !!g && g.schema === SCHEMA;
+}
+
 /* ================================================================== */
 /* Construction                                                        */
 /* ================================================================== */
 
-export function createGame(code, factionId = DEFAULT_FACTION_ID) {
+export function createGame(code) {
   return {
     code,
-    // Kept as a default for newly joined players and for safe migration of
-    // rooms created before players could pick decks independently.
-    factionId: getFaction(factionId).id,
+    schema: SCHEMA,
     status: 'lobby', // lobby | playing | ended
     hostId: null,
-    players: [], // { id, token, name, seat, connected, hand:[], stable:[] }
+    players: [], // { id, token, name, seat, faction, connected, hand:[], stable:[] }
     inst: {}, // instId -> defId
-    piles: {}, // factionId -> { deck:[], discard:[], nest:[], reshuffles:0 }
+    tamed: {}, // instId -> true while a wild creature has been tamed (cleared when it changes stable)
+    settings: { factionWar: false }, // factionWar: a win is shared by the whole faction
+    turnSeq: 0,
+    deck: [],
+    discard: [],
+    nest: [],
     turn: null,
     direction: 1,
     chain: [],
@@ -83,39 +97,75 @@ export function addPlayer(g, { token, name }) {
   if (g.status !== 'lobby') return { error: 'Game already started. Only seated players can rejoin.' };
   if (g.players.length >= MAX_PLAYERS) return { error: 'Room is full (8 players max).' };
   const id = 'p' + (g.players.length + 1) + '_' + Math.random().toString(36).slice(2, 7);
+  const faction = balancedFaction(g);
   const p = {
     id, token: playerToken,
-    name: sanitizeName(name) || 'Dragon ' + (g.players.length + 1),
+    name: sanitizeName(name) || FACTIONS[faction].creature + ' ' + (g.players.length + 1),
     seat: g.players.length,
+    faction,
     connected: true,
-    factionId: getFaction(g.factionId).id,
     hand: [],
     stable: [],
   };
   g.players.push(p);
   if (!g.hostId) g.hostId = id;
-  addLog(g, `${p.name} joined the room.`);
+  addLog(g, `${p.name} joined the room and pledged to the ${FACTIONS[faction].name}.`);
   return { playerId: id, reconnected: false };
 }
 
-const BOT_NAMES = ['Cinder', 'Soot', 'Scoria', 'Gnarl', 'Vesper', 'Krakk', 'Nyx'];
+// New seats alternate factions so a table is never one-sided by accident.
+function balancedFaction(g) {
+  const dragons = g.players.filter((p) => p.faction === 'dragon').length;
+  const unicorns = g.players.filter((p) => p.faction === 'unicorn').length;
+  return dragons <= unicorns ? 'dragon' : 'unicorn';
+}
 
-export function addBotPlayer(g, byPid, difficulty) {
+export function setFaction(g, pid, faction) {
+  if (g.status !== 'lobby') return { error: 'Factions are locked once the game starts.' };
+  const p = byId(g, pid);
+  if (!p) return { error: 'Unknown player.' };
+  if (!FACTION_IDS.includes(faction)) return { error: 'Unknown faction.' };
+  if (p.faction === faction) return {};
+  p.faction = faction;
+  addLog(g, `${p.name} pledged to the ${FACTIONS[faction].name}.`);
+  return {};
+}
+
+export function setSettings(g, pid, patch) {
+  if (pid !== g.hostId) return { error: 'Only the host can change the rules.' };
+  if (g.status !== 'lobby') return { error: 'Rules are locked once the game starts.' };
+  if (!patch || typeof patch !== 'object') return { error: 'Bad settings.' };
+  if ('factionWar' in patch) {
+    g.settings.factionWar = !!patch.factionWar;
+    addLog(g, g.settings.factionWar
+      ? 'Faction War enabled — a victory is shared by the whole faction!'
+      : 'Faction War disabled — every keeper fights for themselves.');
+  }
+  return {};
+}
+
+const BOT_NAMES = {
+  dragon: ['Cinder', 'Soot', 'Scoria', 'Gnarl', 'Vesper', 'Krakk', 'Nyx'],
+  unicorn: ['Sprinkle', 'Marshmallow', 'Twinkle', 'Buttercup', 'Sugarplum', 'Glimmer', 'Nimbus'],
+};
+
+export function addBotPlayer(g, byPid, difficulty, wantedFaction) {
   if (byPid !== g.hostId) return { error: 'Only the host can add bots.' };
   if (g.status !== 'lobby') return { error: 'Bots can only be added in the lobby.' };
   if (g.players.length >= MAX_PLAYERS) return { error: 'Room is full (8 players max).' };
   if (!['easy', 'medium', 'hard'].includes(difficulty)) return { error: 'Unknown difficulty.' };
+  const faction = FACTION_IDS.includes(wantedFaction) ? wantedFaction : balancedFaction(g);
   const used = new Set(g.players.map((p) => p.name));
-  const name = BOT_NAMES.find((n) => !used.has(n)) || 'Automaton';
+  const name = BOT_NAMES[faction].find((n) => !used.has(n)) || 'Automaton';
   const id = 'bot' + (g.players.length + 1) + '_' + Math.random().toString(36).slice(2, 7);
   g.players.push({
     id, token: 'bot:' + id, name,
     seat: g.players.length,
+    faction,
     connected: true, isBot: true, difficulty,
-    factionId: getFaction(g.factionId).id,
     hand: [], stable: [],
   });
-  addLog(g, `${name} the automaton (${difficulty}) joined the room.`);
+  addLog(g, `${name} the automaton (${difficulty}) joined the ${FACTIONS[faction].name}.`);
   return { playerId: id };
 }
 
@@ -129,20 +179,6 @@ export function removeBotPlayer(g, byPid, botId) {
   addLog(g, `${bot.name} the automaton was dismissed.`);
   return {};
 }
-
-export function setPlayerFaction(g, byPid, factionId) {
-  if (g.status !== 'lobby') return { error: 'Your deck can only be changed in the lobby.' };
-  if (!FACTIONS[factionId]) return { error: 'Unknown faction.' };
-  const player = byId(g, byPid);
-  if (!player) return { error: 'Unknown player.' };
-  if (player.factionId === factionId) return {};
-  player.factionId = factionId;
-  addLog(g, `${player.name} chose the ${FACTIONS[factionId].name} deck.`);
-  return {};
-}
-
-// Compatibility export for callers that used the old room-wide selector.
-export const setFaction = setPlayerFaction;
 
 // If the game is waiting on a bot (its turn action, a prompt aimed at it, or
 // an open response window that includes it), return that bot's id.
@@ -196,48 +232,32 @@ function defOf(g, iid) { return DEFS[g.inst[iid]]; }
 function stableOwner(g, iid) { return g.players.find((p) => p.stable.includes(iid)); }
 function current(g) { return g.players[g.turn.idx]; }
 function cardName(g, iid) { return defOf(g, iid).name; }
-function normalizePiles(g) {
-  if (!g.piles) {
-    const factionId = getFaction(g.factionId).id;
-    g.piles = {
-      [factionId]: {
-        deck: g.deck || [], discard: g.discard || [], nest: g.nest || [], reshuffles: g.reshuffles || 0,
-      },
-    };
-  }
-  for (const p of g.players) {
-    if (!FACTIONS[p.factionId]) p.factionId = getFaction(g.factionId).id;
-  }
-}
-
-function factionForPlayer(g, pid) {
-  normalizePiles(g);
-  return getFaction(byId(g, pid)?.factionId || g.factionId);
-}
-
-function pileForFaction(g, factionId) {
-  normalizePiles(g);
-  const id = getFaction(factionId).id;
-  if (!g.piles[id]) g.piles[id] = { deck: [], discard: [], nest: [], reshuffles: 0 };
-  return g.piles[id];
-}
-
-function pileForPlayer(g, pid) {
-  return pileForFaction(g, factionForPlayer(g, pid).id);
-}
 
 function stableOf(g, pid, pred) {
   const p = byId(g, pid);
   return p.stable.filter((iid) => (pred ? pred(defOf(g, iid), iid) : true));
 }
 
-// Fog suppresses magical-dragon abilities in that stable.
+// A creature is loyal when it shares its keeper's faction (or has been tamed).
+// Wild Heart makes every creature in the stable wild.
+export function isLoyal(g, iid) {
+  const d = defOf(g, iid);
+  if (!isDragonType(d.type)) return true;
+  const owner = stableOwner(g, iid);
+  if (!owner) return true;
+  if (rawMods(g, owner.id).has('allWild')) return false;
+  return d.faction === owner.faction || !!g.tamed[iid];
+}
+
+// Fog suppresses magical abilities in that stable; wild magical creatures
+// refuse to use theirs for a rival keeper.
 function abilitiesActive(g, iid) {
   const d = defOf(g, iid);
   if (d.type !== 'magical') return true;
   const owner = stableOwner(g, iid);
   if (!owner) return true;
-  return !rawMods(g, owner.id).has('suppress');
+  if (rawMods(g, owner.id).has('suppress')) return false;
+  return isLoyal(g, iid);
 }
 
 // Mods contributed by attached upgrades/downgrades only (never suppressed).
@@ -258,6 +278,7 @@ export function playerMods(g, pid) {
     if (d.type === 'magical' && d.mods && abilitiesActive(g, iid)) d.mods.forEach((m) => set.add(m));
   }
   if (set.has('noInstantsSelf')) set.add('noInstants');
+  if (set.has('noUpgradesSelf')) set.add('noUpgrades');
   return set;
 }
 
@@ -274,20 +295,30 @@ function isDragonCard(g, iid) {
   return true;
 }
 
-export function dragonCount(g, pid) {
+// Harmony: a creature with `harmonyBonus` counts double while at least one
+// other LOYAL creature shares its stable. Tying it to loyalty rather than to
+// raw presence keeps it inside the faction system — a stolen wild creature
+// fills a slot but does not keep anyone company.
+function harmonyActive(g, pid, iid) {
+  const d = defOf(g, iid);
+  if (!d.harmonyBonus || !abilitiesActive(g, iid)) return false;
+  if (rawMods(g, pid).has('breakHarmony')) return false;
+  return byId(g, pid).stable.some(
+    (other) => other !== iid && isDragonCard(g, other) && isLoyal(g, other),
+  );
+}
+
+export function creatureCount(g, pid) {
   let n = 0;
   for (const iid of byId(g, pid).stable) {
     if (!isDragonCard(g, iid)) continue;
     const d = defOf(g, iid);
-    const harmonyActive = d.harmonyBonus && abilitiesActive(g, iid) &&
-      !rawMods(g, pid).has('breakHarmony') && byId(g, pid).stable.some((other) => {
-        if (other === iid || !isDragonCard(g, other)) return false;
-        return (defOf(g, other).faction || DEFAULT_FACTION_ID) === 'unicorns';
-      });
-    n += (d.countsAs === 2 && abilitiesActive(g, iid)) || harmonyActive ? 2 : 1;
+    const double = (d.countsAs === 2 && abilitiesActive(g, iid)) || harmonyActive(g, pid, iid);
+    n += double ? 2 : 1;
   }
   return n;
 }
+export const dragonCount = creatureCount;
 
 export function winThreshold(g) { return g.players.length >= 6 ? 6 : 7; }
 
@@ -296,8 +327,14 @@ function checkWin(g) {
   const need = winThreshold(g);
   const order = turnOrderFrom(g, current(g).id);
   for (const pid of order) {
-    if (dragonCount(g, pid) >= need) {
-      endGame(g, pid, `${byId(g, pid).name} gathered ${need} ${factionForPlayer(g, pid).creaturePlural} and wins!`);
+    if (creatureCount(g, pid) >= need) {
+      const p = byId(g, pid);
+      if (g.settings?.factionWar) {
+        const f = FACTIONS[p.faction];
+        endGame(g, pid, `${p.name} gathered ${need} creatures — the ${f.name} wins the war!`);
+      } else {
+        endGame(g, pid, `${p.name} gathered ${need} creatures and wins!`);
+      }
       return;
     }
   }
@@ -310,6 +347,15 @@ function endGame(g, winnerId, msg) {
   g.prompt = null;
   g.window = null;
   addLog(g, msg, 'win');
+}
+
+// Everyone who shares the victory (the whole faction in Faction War).
+export function winningPlayerIds(g) {
+  if (!g.winnerId) return [];
+  const w = byId(g, g.winnerId);
+  if (!w) return [];
+  if (g.settings?.factionWar) return g.players.filter((p) => p.faction === w.faction).map((p) => p.id);
+  return [w.id];
 }
 
 function turnOrderFrom(g, startPid) {
@@ -326,15 +372,14 @@ function turnOrderFrom(g, startPid) {
 /* Draw / discard / reshuffle                                          */
 /* ================================================================== */
 
-function reshuffleDiscardIntoDeck(g, factionId, countsTowardLimit) {
-  const pile = pileForFaction(g, factionId);
-  if (!pile.discard.length) return false;
-  pile.deck.push(...pile.discard.splice(0));
-  shuffle(pile.deck);
+function reshuffleDiscardIntoDeck(g, countsTowardLimit) {
+  if (!g.discard.length) return false;
+  g.deck.push(...g.discard.splice(0));
+  shuffle(g.deck);
   if (countsTowardLimit) {
-    pile.reshuffles++;
-    addLog(g, `The ${getFaction(factionId).name} deck ran out — its discard pile was shuffled in (${pile.reshuffles}/2).`, 'shuffle');
-    if (pile.reshuffles >= 2) {
+    g.reshuffles++;
+    addLog(g, `The deck ran out — discard pile shuffled in (${g.reshuffles}/2).`, 'shuffle');
+    if (g.reshuffles >= 2) {
       endByDeckOut(g);
       return true;
     }
@@ -348,22 +393,21 @@ function endByDeckOut(g) {
   let best = -1;
   let winner = null;
   for (const pid of turnOrderFrom(g, current(g).id)) {
-    const n = dragonCount(g, pid);
+    const n = creatureCount(g, pid);
     if (n > best) { best = n; winner = pid; }
   }
-  endGame(g, winner, `A deck ran out twice — ${byId(g, winner).name} wins with the most creatures (${best}).`);
+  endGame(g, winner, `The deck ran out twice — ${byId(g, winner).name} wins with the most creatures (${best}).`);
 }
 
 function drawCards(g, pid, n, quiet) {
   const p = byId(g, pid);
-  const pile = pileForPlayer(g, pid);
   let drawn = 0;
   for (let i = 0; i < n; i++) {
-    if (!pile.deck.length) {
-      if (!reshuffleDiscardIntoDeck(g, p.factionId, true)) break;
+    if (!g.deck.length) {
+      if (!reshuffleDiscardIntoDeck(g, true)) break;
       if (g.status !== 'playing') return drawn;
     }
-    const iid = pile.deck.pop();
+    const iid = g.deck.pop();
     if (!iid) break;
     p.hand.push(iid);
     drawn++;
@@ -374,9 +418,8 @@ function drawCards(g, pid, n, quiet) {
 
 function toDiscard(g, iid) {
   const d = defOf(g, iid);
-  const pile = pileForFaction(g, d.faction || DEFAULT_FACTION_ID);
-  if (d.type === 'baby') pile.nest.push(iid);
-  else pile.discard.push(iid);
+  if (d.type === 'baby') g.nest.push(iid);
+  else g.discard.push(iid);
 }
 
 /* ================================================================== */
@@ -401,8 +444,8 @@ function enterStable(g, iid, pid, opts = {}) {
   }
 
   if (isDragonType(d.type)) {
-    // Cramped Cave: over 5 dragons forces a sacrifice.
-    if (rawMods(g, pid).has('maxFive') && dragonCount(g, pid) > 5) {
+    // Cramped Cave: over 5 creatures forces a sacrifice.
+    if (rawMods(g, pid).has('maxFive') && creatureCount(g, pid) > 5) {
       pushFrame(g, {
         owner: pid, source: iid,
         steps: [{ do: 'sacrifice', who: 'owner', filter: { kind: 'dragon' }, optional: false, reasonText: 'Cramped Cave' }],
@@ -421,27 +464,33 @@ function enterStable(g, iid, pid, opts = {}) {
   checkWin(g);
 }
 
-// Remove a card from its stable. reason: 'destroy' | 'sacrifice' | 'purify' | 'return' | 'move'
+// Remove a card from its stable. reason: 'destroy' | 'sacrifice' | 'return' | 'move'
 // Destination handling: destroy/sacrifice -> discard (babies -> nest);
 // 'return' -> owner's hand (babies -> nest); 'move' -> caller places it.
-function removeFromStable(g, iid, reason) {
+// byPid: the player whose effect caused it (drives the faction passives).
+function removeFromStable(g, iid, reason, byPid) {
   const p = stableOwner(g, iid);
   if (!p) return false;
   const d = defOf(g, iid);
+  const wasLoyal = isLoyal(g, iid);
+  const leaveActive = d.onLeave && d.type === 'magical' && abilitiesActive(g, iid);
   p.stable = p.stable.filter((x) => x !== iid);
+  delete g.tamed[iid];
 
-  if (reason === 'destroy' || reason === 'sacrifice' || reason === 'purify') {
+  if (reason === 'destroy' || reason === 'sacrifice') {
     toDiscard(g, iid);
-    const verb = reason === 'destroy' ? 'destroyed' : reason === 'purify' ? 'purified away' : 'sacrificed';
-    addLog(g, `${d.name} was ${verb} (${p.name}).`, 'destroy');
-    // Leave ability (Spiteclaw / Seraph).
-    if (d.onLeave && d.type === 'magical' && !rawMods(g, p.id).has('suppress')) {
+    addLog(g, `${d.name} was ${reason === 'destroy' ? 'destroyed' : 'sacrificed'} (${p.name}).`, 'destroy');
+    // Leave ability (Spiteclaw / Seraph / Hydra).
+    if (leaveActive) {
       pushFrame(g, { owner: p.id, source: iid, steps: d.onLeave });
+    }
+    if (reason === 'destroy' && byPid && byPid !== p.id) {
+      factionPassivesOnDestroy(g, byPid, p, wasLoyal && isDragonType(d.type));
     }
   } else if (reason === 'return') {
     if (d.type === 'baby') {
-      pileForFaction(g, d.faction || DEFAULT_FACTION_ID).nest.push(iid);
-      addLog(g, `${d.name} was returned to the ${d.faction === 'unicorns' ? 'Meadow' : 'Nest'}.`);
+      g.nest.push(iid);
+      addLog(g, `${d.name} was returned to the Nest.`);
     } else {
       p.hand.push(iid);
       addLog(g, `${d.name} was returned to ${p.name}'s hand.`);
@@ -466,14 +515,35 @@ function moveBetweenStables(g, iid, toPid, opts = {}) {
   return true;
 }
 
+// Faction passives, each once per turn:
+//   Ember (dragons):   destroying another player's card draws a card.
+//   Sparkle (unicorns): losing a loyal creature to another player draws a card.
+function factionPassivesOnDestroy(g, byPid, victim, victimWasLoyalCreature) {
+  if (!g.turn) return;
+  const attacker = byId(g, byPid);
+  if (attacker && attacker.faction === 'dragon' && !g.turn.emberUsed && !rawMods(g, attacker.id).has('allWild')) {
+    g.turn.emberUsed = true;
+    addLog(g, `Ember: ${attacker.name} draws a card from the ashes.`, 'draw');
+    drawCards(g, attacker.id, 1, true);
+  }
+  if (victim.faction === 'unicorn' && victimWasLoyalCreature && victim.sparkleTurn !== g.turnSeq &&
+      !rawMods(g, victim.id).has('allWild')) {
+    victim.sparkleTurn = g.turnSeq;
+    addLog(g, `Sparkle: ${victim.name} draws a card in consolation.`, 'draw');
+    drawCards(g, victim.id, 1, true);
+  }
+}
+
 /* ================================================================== */
 /* Target filtering                                                    */
 /* ================================================================== */
 
-// filter: { kind: 'dragon'|'basicDragon'|'upgrade'|'downgrade'|'upDown'|'any', zone: 'any'|'others'|'own'|'each' }
-// context: { chooser, byMagic, forDestroy, forSacrifice, forSteal, eachPid }
+// filter: { kind: 'creature'|'basicDragon'|'baby'|'upgrade'|'downgrade'|'upDown'|'any',
+//           zone: 'any'|'others'|'own'|'each', faction?, loyal?, wild? }
+// context: { chooser, byMagic, forDestroy, forSacrifice, forSteal, forReturn, eachPid }
 function legalStableTargets(g, filter, ctx) {
   const out = [];
+  const kind = filter.kind === 'dragon' ? 'creature' : filter.kind;
   for (const p of g.players) {
     if (filter.zone === 'others' && p.id === ctx.chooser) continue;
     if (filter.zone === 'own' && p.id !== ctx.chooser) continue;
@@ -481,22 +551,30 @@ function legalStableTargets(g, filter, ctx) {
     const mods = rawMods(g, p.id);
     for (const iid of p.stable) {
       const d = defOf(g, iid);
-      const dragon = isDragonCard(g, iid);
-      if (filter.kind === 'dragon' && !dragon) continue;
-      if (filter.kind === 'basicDragon' && !(dragon && d.type === 'basic')) continue;
-      if (filter.kind === 'upgrade' && d.type !== 'upgrade') continue;
-      if (filter.kind === 'downgrade' && d.type !== 'downgrade') continue;
-      if (filter.kind === 'upDown' && d.type !== 'upgrade' && d.type !== 'downgrade') continue;
+      const creature = isDragonCard(g, iid);
+      if (kind === 'creature' && !creature) continue;
+      if (kind === 'basicDragon' && !(creature && d.type === 'basic')) continue;
+      if (kind === 'baby' && d.type !== 'baby') continue;
+      if (kind === 'upgrade' && d.type !== 'upgrade') continue;
+      if (kind === 'downgrade' && d.type !== 'downgrade') continue;
+      if (kind === 'upDown' && d.type !== 'upgrade' && d.type !== 'downgrade') continue;
+      if (filter.faction && d.faction !== filter.faction) continue;
+      if (filter.loyal && !isLoyal(g, iid)) continue;
+      if (filter.wild && (!isDragonType(d.type) || isLoyal(g, iid))) continue;
       if (ctx.forDestroy || ctx.forSacrifice) {
         if (d.protected && abilitiesActive(g, iid)) continue; // Stray Whelp
       }
       if (ctx.forDestroy) {
         if (isDragonType(d.type) && mods.has('dragonsSafe')) continue; // Dragonscale Ward
-        if (ctx.byMagic && isDragonType(d.type) &&
-            (d.faction || DEFAULT_FACTION_ID) === 'unicorns' && mods.has('unicornMagicSafe')) continue;
         if (ctx.byMagic && d.noMagicDestroy && abilitiesActive(g, iid)) continue; // Spellscale
+        if (ctx.byMagic && isDragonType(d.type) && isLoyal(g, iid) && playerMods(g, p.id).has('magicWard')) continue; // Shieldhorn
       }
-      if (ctx.forSteal && dragon && d.type === 'basic' && queensDecreeBlocks(g, ctx.chooser)) continue;
+      if (ctx.forSteal) {
+        if (creature && d.type === 'basic' && queensDecreeBlocks(g, ctx.chooser)) continue;
+        if (d.flying || (d.rooted && abilitiesActive(g, iid))) continue; // Pegasi fly off; Moonlit stays put
+        if (isDragonType(d.type) && mods.has('noStealFrom')) continue; // Rainbow Mane
+      }
+      if (ctx.forReturn && d.rooted && abilitiesActive(g, iid)) continue;
       out.push(iid);
     }
   }
@@ -603,26 +681,6 @@ function execStep(g, frame, step, choice) {
       return 'done';
     }
 
-    case 'purify': {
-      const chooser = resolveWho(g, frame, step.who);
-      const cands = legalStableTargets(g, step.filter || { kind: 'downgrade', zone: 'own' }, { chooser });
-      if (!cands.length) return 'done';
-      if (choice === undefined) {
-        setPrompt(g, {
-          playerId: chooser,
-          kind: 'pickCard',
-          title: 'Purify a Downgrade',
-          candidates: cands,
-          canSkip: !!step.optional,
-        });
-        return 'wait';
-      }
-      if (choice === null) return 'done';
-      removeFromStable(g, choice, 'purify');
-      addLog(g, `${byId(g, chooser).name} restored a little sparkle to the stable.`, 'play');
-      return 'done';
-    }
-
     case 'sacrifice': {
       const pid = resolveWho(g, frame, step.who);
       const cands = legalStableTargets(g, { ...step.filter, zone: 'own' }, { chooser: pid, forSacrifice: true });
@@ -652,10 +710,11 @@ function execStep(g, frame, step, choice) {
     }
 
     case 'massSacUpDown': {
+      const types = step.types || ['upgrade', 'downgrade'];
       for (const p of [...g.players].reverse()) {
         for (const iid of [...p.stable].reverse()) {
           const d = defOf(g, iid);
-          if (d.type === 'upgrade' || d.type === 'downgrade') {
+          if (types.includes(d.type)) {
             pushFrame(g, { owner: p.id, source: iid, steps: [{ do: '_resolveSacrifice', target: iid }] });
           }
         }
@@ -684,6 +743,69 @@ function execStep(g, frame, step, choice) {
       return 'done';
     }
 
+    case 'tame': {
+      const chooser = frame.owner;
+      const cands = legalStableTargets(g, { kind: 'creature', zone: 'own', wild: true }, { chooser })
+        .filter((iid) => !rawMods(g, chooser).has('allWild'));
+      if (!cands.length) return 'done';
+      if (choice === undefined) {
+        setPrompt(g, {
+          playerId: chooser, kind: 'pickCard',
+          title: 'Tame a wild creature in your stable',
+          candidates: cands, canSkip: !!step.optional,
+        });
+        return 'wait';
+      }
+      if (choice === null) return 'done';
+      g.tamed[choice] = true;
+      addLog(g, `${cardName(g, choice)} was tamed — it is now loyal to ${byId(g, chooser).name}.`, 'enter');
+      // A newly loyal Magical creature wakes up: its entrance ability fires.
+      const d = defOf(g, choice);
+      if (d.onEnter && abilitiesActive(g, choice)) {
+        pushFrame(g, { owner: chooser, source: choice, steps: d.onEnter });
+      }
+      checkWin(g);
+      return 'done';
+    }
+
+    case 'swapCreatures': {
+      // Rainbow Bridge: pick one of yours, then one of theirs; they trade stables.
+      const chooser = step.chooser === 'owner' ? frame.owner : resolveWho(g, frame, step.chooser);
+      const stage = frame.vars[vkey];
+      if (!stage) {
+        const mine = legalStableTargets(g, { kind: 'creature', zone: 'own' }, { chooser, forReturn: true });
+        const theirs = legalStableTargets(g, { kind: 'creature', zone: 'others' }, { chooser, forSteal: true });
+        if (!mine.length || !theirs.length) return 'done';
+        if (choice === undefined) {
+          setPrompt(g, { playerId: chooser, kind: 'pickCard', title: 'Swap which creature of yours?', candidates: mine, canSkip: !!step.optional });
+          return 'wait';
+        }
+        if (choice === null) return 'done';
+        frame.vars[vkey] = { mine: choice };
+        setPrompt(g, { playerId: chooser, kind: 'pickCard', title: `Swap ${cardName(g, choice)} with which creature?`, candidates: theirs });
+        return 'wait';
+      }
+      const a = stage.mine;
+      const b = choice;
+      const ownerA = stableOwner(g, a);
+      const ownerB = stableOwner(g, b);
+      if (!ownerA || !ownerB || ownerA.id !== chooser || ownerB.id === chooser) return 'done';
+      ownerA.stable[ownerA.stable.indexOf(a)] = b;
+      ownerB.stable[ownerB.stable.indexOf(b)] = a;
+      delete g.tamed[a];
+      delete g.tamed[b];
+      addLog(g, `${cardName(g, a)} and ${cardName(g, b)} crossed the Rainbow Bridge and traded stables.`, 'play');
+      checkWin(g);
+      return 'done';
+    }
+
+    case 'countVar': {
+      const chooser = frame.owner;
+      const cands = legalStableTargets(g, { zone: 'own', ...step.filter }, { chooser });
+      frame.vars[step.var] = cands.length;
+      return 'done';
+    }
+
     case 'snareSteal': {
       const chooser = frame.owner;
       const cands = legalStableTargets(g, { kind: 'dragon', zone: 'others' }, { chooser, forSteal: true });
@@ -706,7 +828,7 @@ function execStep(g, frame, step, choice) {
 
     case 'return': {
       const chooser = step.chooser === 'owner' ? frame.owner : resolveWho(g, frame, step.chooser);
-      const cands = legalStableTargets(g, { ...step.filter }, { chooser, eachPid: frame.vars.each });
+      const cands = legalStableTargets(g, { ...step.filter }, { chooser, eachPid: frame.vars.each, forReturn: true });
       if (!cands.length) return 'done';
       if (choice === undefined) {
         setPrompt(g, {
@@ -746,8 +868,7 @@ function execStep(g, frame, step, choice) {
 
     case 'searchDeck': {
       const pid = resolveWho(g, frame, step.who);
-      const pile = pileForPlayer(g, pid);
-      const cands = pile.deck.filter((iid) => matchesDeckFilter(g, iid, step.filter));
+      const cands = g.deck.filter((iid) => matchesDeckFilter(g, iid, step.filter));
       if (!cands.length) return 'done';
       if (choice === undefined) {
         setPrompt(g, {
@@ -757,18 +878,17 @@ function execStep(g, frame, step, choice) {
         });
         return 'wait';
       }
-      if (choice === null) { shuffle(pile.deck); return 'done'; }
-      pile.deck = pile.deck.filter((x) => x !== choice);
+      if (choice === null) { shuffle(g.deck); return 'done'; }
+      g.deck = g.deck.filter((x) => x !== choice);
       byId(g, pid).hand.push(choice);
-      shuffle(pile.deck);
+      shuffle(g.deck);
       addLog(g, `${byId(g, pid).name} searched the deck and took ${cardName(g, choice)}.`, 'draw');
       return 'done';
     }
 
     case 'fromDiscard': {
       const pid = resolveWho(g, frame, step.who);
-      const pile = pileForPlayer(g, pid);
-      const cands = pile.discard.filter((iid) => matchesDeckFilter(g, iid, step.filter));
+      const cands = g.discard.filter((iid) => matchesDeckFilter(g, iid, step.filter));
       if (!cands.length) return 'done';
       if (choice === undefined) {
         setPrompt(g, {
@@ -779,7 +899,7 @@ function execStep(g, frame, step, choice) {
         return 'wait';
       }
       if (choice === null) return 'done';
-      pile.discard = pile.discard.filter((x) => x !== choice);
+      g.discard = g.discard.filter((x) => x !== choice);
       if (step.to === 'stable') {
         addLog(g, `${byId(g, pid).name} raised ${cardName(g, choice)} from the discard pile!`, 'play');
         enterStable(g, choice, pid);
@@ -905,14 +1025,14 @@ function execStep(g, frame, step, choice) {
       const chooser = frame.owner;
       const sourceOwner = stableOwner(g, frame.source);
       if (!sourceOwner || sourceOwner.id !== chooser) return 'done';
-      const cands = legalStableTargets(g, { kind: 'dragon', zone: 'others' }, { chooser })
+      const cands = legalStableTargets(g, { kind: 'creature', zone: 'others' }, { chooser, forSteal: true })
         .filter((iid) => canAttachOrEnter(g, iid, chooser));
       if (!cands.length) return 'done';
       if (choice === undefined) {
         setPrompt(g, {
           playerId: chooser,
           kind: 'pickCard',
-          title: 'Swap Riftcoil Dragon with which Dragon?',
+          title: 'Swap Riftcoil Dragon with which creature?',
           candidates: cands,
           canSkip: !!step.optional,
         });
@@ -923,23 +1043,24 @@ function execStep(g, frame, step, choice) {
       if (!targetOwner || targetOwner.id === chooser) return 'done';
       sourceOwner.stable[sourceOwner.stable.indexOf(frame.source)] = choice;
       targetOwner.stable[targetOwner.stable.indexOf(choice)] = frame.source;
+      delete g.tamed[choice];
       addLog(g, `${cardName(g, frame.source)} and ${cardName(g, choice)} traded stables.`, 'play');
+      checkWin(g);
       return 'done';
     }
 
     case 'shuffleDiscardIntoDeck': {
-      reshuffleDiscardIntoDeck(g, factionForPlayer(g, frame.owner).id, false);
+      reshuffleDiscardIntoDeck(g, false);
       return 'done';
     }
 
     case 'moltHand': {
       const pid = resolveWho(g, frame, step.who);
       const p = byId(g, pid);
-      const pile = pileForPlayer(g, pid);
-      pile.deck.push(...p.hand.splice(0));
-      pile.deck.push(...pile.discard.splice(0));
-      shuffle(pile.deck);
-      addLog(g, `${p.name} shuffled their hand and their faction discard pile into the deck.`, 'shuffle');
+      g.deck.push(...p.hand.splice(0));
+      g.deck.push(...g.discard.splice(0));
+      shuffle(g.deck);
+      addLog(g, `${p.name} shuffled their hand and the discard pile into the deck.`, 'shuffle');
       drawCards(g, pid, 5);
       return 'done';
     }
@@ -948,12 +1069,17 @@ function execStep(g, frame, step, choice) {
       const chooser = step.chooser === 'owner' ? frame.owner : resolveWho(g, frame, step.chooser);
       const stage = frame.vars[vkey];
       if (!stage) {
-        const cands = legalStableTargets(g, { kind: 'upDown', zone: 'any' }, { chooser });
+        const cands = legalStableTargets(g, { kind: 'upDown', zone: 'any', ...(step.filter || {}) }, { chooser });
         if (!cands.length) return 'done';
         if (choice === undefined) {
-          setPrompt(g, { playerId: chooser, kind: 'pickCard', title: 'Move which Upgrade or Downgrade?', candidates: cands });
+          setPrompt(g, {
+            playerId: chooser, kind: 'pickCard',
+            title: `Move which ${describeFilter({ kind: 'upDown', ...(step.filter || {}) })}?`,
+            candidates: cands, canSkip: !!step.optional,
+          });
           return 'wait';
         }
+        if (choice === null) return 'done';
         const holder = stableOwner(g, choice);
         const defId = g.inst[choice];
         const dests = g.players
@@ -1035,25 +1161,24 @@ function execStep(g, frame, step, choice) {
 
     case 'babyFromNest': {
       const pid = resolveWho(g, frame, step.who);
-      const pile = pileForPlayer(g, pid);
       const max = step.n || 1;
       const stage = frame.vars[vkey] || { taken: 0 };
-      if (!pile.nest.length || stage.taken >= max) return 'done';
+      if (!g.nest.length || stage.taken >= max) return 'done';
       if (step.optional && choice === undefined) {
         setPrompt(g, {
           playerId: pid, kind: 'yesno',
           title: max > 1
-            ? `Bring a ${cardName(g, pile.nest[pile.nest.length - 1])} from the ${factionForPlayer(g, pid).id === 'unicorns' ? 'Meadow' : 'Nest'} into your stable? (${stage.taken}/${max} taken)`
-            : `Bring a ${cardName(g, pile.nest[pile.nest.length - 1])} from the ${factionForPlayer(g, pid).id === 'unicorns' ? 'Meadow' : 'Nest'} into your stable?`,
+            ? `Bring a Baby from the Nest into your stable? (${stage.taken}/${max} taken)`
+            : 'Bring a Baby from the Nest into your stable?',
         });
         return 'wait';
       }
       if (step.optional && !choice) return 'done';
-      const iid = pile.nest.pop();
+      const iid = takeBabyFromNest(g, byId(g, pid).faction);
       enterStable(g, iid, pid);
       const taken = stage.taken + 1;
       frame.vars[vkey] = { taken };
-      if (taken < max && pile.nest.length) return execStep(g, frame, step, undefined);
+      if (taken < max && g.nest.length) return execStep(g, frame, step, undefined);
       return 'done';
     }
 
@@ -1067,7 +1192,11 @@ function execStep(g, frame, step, choice) {
     }
 
     case 'ifVar': {
-      const branch = frame.vars[step.var] ? step.then : step.else;
+      const v = frame.vars[step.var];
+      let ok = !!v;
+      if (step.atLeast !== undefined) ok = Number(v || 0) >= step.atLeast;
+      if (step.atMost !== undefined) ok = Number(v || 0) <= step.atMost;
+      const branch = ok ? step.then : step.else;
       if (branch && branch.length) {
         pushFrame(g, { owner: frame.owner, source: frame.source, vars: frame.vars, steps: branch });
       }
@@ -1079,12 +1208,12 @@ function execStep(g, frame, step, choice) {
       const src = frame.source;
       const stage = frame.vars[vkey];
       if (!stage) {
-        const cands = legalStableTargets(g, { kind: 'dragon', zone: 'own' }, { chooser: pid, forSacrifice: true })
+        const cands = legalStableTargets(g, { kind: 'creature', zone: 'own' }, { chooser: pid, forSacrifice: true })
           .filter((iid) => iid !== src);
         if (!cands.length) return 'done';
         setPrompt(g, {
           playerId: pid, kind: 'yesno',
-          title: 'Sacrifice all other Dragons in your stable? Destroy 2 cards for each one sacrificed.',
+          title: 'Sacrifice all other creatures in your stable? Destroy 2 cards for each one sacrificed.',
         });
         frame.vars[vkey] = { cands };
         return 'wait';
@@ -1117,17 +1246,6 @@ function execStep(g, frame, step, choice) {
       return 'done';
     }
 
-    case 'harmonyDraw': {
-      const pid = frame.owner;
-      const unicorns = stableOf(g, pid, (d, iid) => isDragonCard(g, iid) &&
-        (d.faction || DEFAULT_FACTION_ID) === 'unicorns').length;
-      if (unicorns >= 2 && !rawMods(g, pid).has('breakHarmony')) {
-        drawCards(g, pid, 1);
-        addLog(g, `${byId(g, pid).name}'s Unicorns found Harmony and drew a card.`, 'draw');
-      }
-      return 'done';
-    }
-
     /* ---- internal resolution steps (destroy/sacrifice with saves) ---- */
 
     case '_resolveDestroy': {
@@ -1139,12 +1257,17 @@ function execStep(g, frame, step, choice) {
       // Re-validate (state may have changed since targeting).
       if ((d.protected && abilitiesActive(g, target)) ||
           (isDragonType(d.type) && rawMods(g, owner.id).has('dragonsSafe')) ||
-          (step.byMagic && isDragonType(d.type) &&
-            (d.faction || DEFAULT_FACTION_ID) === 'unicorns' && rawMods(g, owner.id).has('unicornMagicSafe')) ||
-          (step.byMagic && d.noMagicDestroy && abilitiesActive(g, target))) {
+          (step.byMagic && d.noMagicDestroy && abilitiesActive(g, target)) ||
+          (step.byMagic && isDragonType(d.type) && isLoyal(g, target) && playerMods(g, owner.id).has('magicWard'))) {
         return 'done';
       }
-      // Guardian Dragon: owner may sacrifice it instead.
+      // Dawnwing Pegasus: flies back to its owner's hand instead.
+      if (d.wouldLeave === 'returnInstead' && abilitiesActive(g, target)) {
+        addLog(g, `${d.name} flutters out of reach and returns to ${owner.name}'s hand!`, 'enter');
+        removeFromStable(g, target, 'return');
+        return 'done';
+      }
+      // Guardian: owner may sacrifice it instead.
       if (!stage.guardianAsked && isDragonType(d.type)) {
         const guardian = owner.stable.find((iid) =>
           iid !== target && defOf(g, iid).guardian && abilitiesActive(g, iid));
@@ -1152,7 +1275,7 @@ function execStep(g, frame, step, choice) {
           if (choice === undefined) {
             setPrompt(g, {
               playerId: owner.id, kind: 'yesno',
-              title: `Sacrifice Guardian Dragon to save ${d.name}?`,
+              title: `Sacrifice ${cardName(g, guardian)} to save ${d.name}?`,
             });
             frame.vars[vkey] = { ...stage, guardianAsked: true, guardian };
             return 'wait';
@@ -1162,15 +1285,18 @@ function execStep(g, frame, step, choice) {
       } else if (stage.guardianAsked && stage.guardian && !stage.guardianDone) {
         frame.vars[vkey] = { ...stage, guardianDone: true };
         if (choice === true) {
+          const gName = cardName(g, stage.guardian);
           removeFromStable(g, stage.guardian, 'sacrifice');
-          addLog(g, `Guardian Dragon took the blow — ${d.name} survives!`, 'destroy');
+          addLog(g, `${gName} took the blow — ${d.name} survives!`, 'destroy');
           return 'done';
         }
-        choice = undefined; // fall through to phoenix check with a fresh prompt
+        choice = undefined; // fall through to the discard-to-save check with a fresh prompt
       }
-      // Phoenix: owner may discard a card instead.
+      // Phoenix (always) / Lucky Horseshoe (vs Magic): owner may discard a card instead.
       const st2 = frame.vars[vkey] || {};
-      if (d.wouldLeave === 'discardInstead' && abilitiesActive(g, target) && owner.hand.length > 0 && !st2.phoenixDone) {
+      const canPayToSave = (d.wouldLeave === 'discardInstead' && abilitiesActive(g, target)) ||
+        (step.byMagic && isDragonType(d.type) && rawMods(g, owner.id).has('luckyShoe'));
+      if (canPayToSave && owner.hand.length > 0 && !st2.phoenixDone) {
         if (choice === undefined) {
           setPrompt(g, {
             playerId: owner.id, kind: 'pickHand', n: 1,
@@ -1185,10 +1311,10 @@ function execStep(g, frame, step, choice) {
         const iid = Array.isArray(choice) ? choice[0] : choice;
         owner.hand = owner.hand.filter((x) => x !== iid);
         toDiscard(g, iid);
-        addLog(g, `${owner.name} discarded ${cardName(g, iid)} — ${d.name} bursts back into flame!`);
+        addLog(g, `${owner.name} discarded ${cardName(g, iid)} — ${d.name} is saved!`);
         return 'done';
       }
-      removeFromStable(g, target, 'destroy');
+      removeFromStable(g, target, 'destroy', frame.owner);
       return 'done';
     }
 
@@ -1198,6 +1324,11 @@ function execStep(g, frame, step, choice) {
       if (!owner) return 'done';
       const d = defOf(g, target);
       if (d.protected && abilitiesActive(g, target)) return 'done';
+      if (d.wouldLeave === 'returnInstead' && abilitiesActive(g, target)) {
+        addLog(g, `${d.name} flutters out of reach and returns to ${owner.name}'s hand!`, 'enter');
+        removeFromStable(g, target, 'return');
+        return 'done';
+      }
       const stage = frame.vars[vkey] || {};
       if (d.wouldLeave === 'discardInstead' && abilitiesActive(g, target) && owner.hand.length > 0 && !stage.phoenixDone) {
         if (choice === undefined) {
@@ -1228,8 +1359,10 @@ function execStep(g, frame, step, choice) {
 
 function describeFilter(filter) {
   switch (filter && filter.kind) {
-    case 'dragon': return 'Dragon';
-    case 'basicDragon': return 'Basic Dragon';
+    case 'dragon':
+    case 'creature': return 'creature';
+    case 'basicDragon': return 'Basic creature';
+    case 'baby': return 'Baby';
     case 'upgrade': return 'Upgrade';
     case 'downgrade': return 'Downgrade';
     case 'upDown': return 'Upgrade or Downgrade';
@@ -1237,12 +1370,22 @@ function describeFilter(filter) {
   }
 }
 
+// Prefer a baby of the keeper's own faction; fall back to whatever is left.
+function takeBabyFromNest(g, faction) {
+  const wanted = BABY_IDS[faction];
+  let idx = -1;
+  for (let i = g.nest.length - 1; i >= 0; i--) {
+    if (g.inst[g.nest[i]] === wanted) { idx = i; break; }
+  }
+  if (idx === -1) idx = g.nest.length - 1;
+  return g.nest.splice(idx, 1)[0];
+}
+
 function matchesDeckFilter(g, iid, filter) {
   const d = defOf(g, iid);
   if (!filter) return true;
   if (filter.types && !filter.types.includes(d.type)) return false;
   if (filter.sub && d.sub !== filter.sub) return false;
-  if (filter.faction && (d.faction || DEFAULT_FACTION_ID) !== filter.faction) return false;
   return true;
 }
 
@@ -1287,7 +1430,7 @@ function resolveChain(g) {
   const p = byId(g, base.playerId);
   if (base.negated) {
     toDiscard(g, base.iid);
-    addLog(g, `${d.name} was STOPPED by a Roar and discarded!`, 'roar');
+    addLog(g, `${d.name} was STOPPED and discarded!`, 'roar');
     return;
   }
   if (d.type === 'basic' || d.type === 'magical') {
@@ -1302,7 +1445,7 @@ function resolveChain(g) {
       enterStable(g, base.iid, target.id);
     }
   } else if (d.type === 'magic') {
-    toDiscard(g, base.iid); // to discard first, so shuffle effects include it
+    g.discard.push(base.iid); // to discard first, so shuffle effects include it
     addLog(g, `${p.name} cast ${d.name}.`, 'magic');
     if (d.steps) pushFrame(g, { owner: base.playerId, source: base.iid, steps: d.steps });
   }
@@ -1313,6 +1456,7 @@ function resolveChain(g) {
 /* ================================================================== */
 
 function initTurn(g, idx) {
+  g.turnSeq = (g.turnSeq || 0) + 1;
   g.turn = {
     idx,
     phase: 'start',
@@ -1322,6 +1466,7 @@ function initTurn(g, idx) {
     skipToEnd: false,
     startQueue: null,
     endStage: 0,
+    emberUsed: false,
   };
   const p = g.players[idx];
   addLog(g, `— ${p.name}'s turn —`, 'turn');
@@ -1371,7 +1516,11 @@ function advanceFlow(g) {
       return true;
     }
     case 'draw': {
-      drawCards(g, p.id, 1);
+      if (rawMods(g, p.id).has('noDrawPhase')) {
+        addLog(g, `${p.name} dozes through their Draw phase (Slumber Spell).`);
+      } else {
+        drawCards(g, p.id, 1);
+      }
       t.phase = 'action';
       return true;
     }
@@ -1501,17 +1650,13 @@ export function startGame(g, pid) {
   g.inst = {};
   let n = 0;
   const mk = (defId) => { const iid = 'c' + (++n); g.inst[iid] = defId; return iid; };
-  g.piles = {};
-  const selectedFactions = [...new Set(g.players.map((p) => getFaction(p.factionId).id))];
-  for (const factionId of selectedFactions) {
-    const faction = getFaction(factionId);
-    const pile = pileForFaction(g, factionId);
-    pile.nest = [];
-    for (let i = 0; i < BABY_COUNT; i++) pile.nest.push(mk(faction.starterId));
-    pile.deck = shuffle(buildDeckList(factionId).map(mk));
-    pile.discard = [];
-    pile.reshuffles = 0;
-  }
+  g.nest = buildNestList().map(mk);
+  g.tamed = {};
+  g.turnSeq = 0;
+  if (!g.settings) g.settings = { factionWar: false };
+  g.deck = shuffle(buildDeckList().map(mk));
+  g.discard = [];
+  g.reshuffles = 0;
   g.winnerId = null;
   g.endReason = null;
   g.chain = [];
@@ -1523,14 +1668,18 @@ export function startGame(g, pid) {
   g.status = 'playing';
 
   for (const p of g.players) {
+    if (!FACTION_IDS.includes(p.faction)) p.faction = balancedFaction(g);
     p.hand = [];
     p.stable = [];
-    const baby = pileForPlayer(g, p.id).nest.pop();
+    p.sparkleTurn = 0;
+    const baby = takeBabyFromNest(g, p.faction);
     p.stable.push(baby);
   }
   for (const p of g.players) drawCards(g, p.id, START_HAND, true);
 
-  addLog(g, `The faction showdown begins! Each player starts with their faction’s Baby card and ${START_HAND} cards. First to ${winThreshold(g)} creatures wins.`, 'play');
+  const dragons = g.players.filter((p) => p.faction === 'dragon').length;
+  const unicorns = g.players.length - dragons;
+  addLog(g, `The game begins! ${dragons} Dragon keeper${dragons === 1 ? '' : 's'} vs ${unicorns} Unicorn keeper${unicorns === 1 ? '' : 's'}. Each player starts with a Baby and ${START_HAND} cards. First to ${winThreshold(g)} creatures wins${g.settings.factionWar ? ' — for their whole faction' : ''}.`, 'play');
   initTurn(g, Math.floor(Math.random() * g.players.length));
   pump(g);
   return {};
@@ -1558,7 +1707,7 @@ function playValidation(g, pid, iid, targetPlayerId) {
     case 'instant':
       return 'Instants can only be played in response to another card.';
     case 'basic':
-      if (queensDecreeBlocks(g, pid)) return 'Queen Dragon forbids Basic Dragons from entering your stable.';
+      if (queensDecreeBlocks(g, pid)) return 'Queen Dragon forbids Basic creatures from entering your stable.';
       return null;
     case 'magical':
       return null;
@@ -1579,6 +1728,7 @@ function playValidation(g, pid, iid, targetPlayerId) {
       return null;
     }
     case 'magic':
+      if (mods.has('noMagic')) return 'Muddy Hooves: you cannot play Magic cards.';
       return null;
     default:
       return 'This card cannot be played.';
@@ -1767,10 +1917,7 @@ export function expireTurn(g, now = Date.now()) {
 /* ================================================================== */
 
 export function viewFor(g, pid) {
-  normalizePiles(g);
   const me = byId(g, pid);
-  const myFaction = factionForPlayer(g, pid);
-  const myPile = pileForPlayer(g, pid);
   const visibleHands = {};
   for (const p of g.players) {
     if (p.id === pid || (g.status === 'playing' && rawMods(g, p.id).has('handVisible'))) {
@@ -1782,21 +1929,26 @@ export function viewFor(g, pid) {
     id: p.id,
     name: p.name,
     seat: p.seat,
+    faction: p.faction,
     connected: p.connected,
     isBot: !!p.isBot,
     difficulty: p.isBot ? p.difficulty : undefined,
-    factionId: getFaction(p.factionId).id,
-    factionName: getFaction(p.factionId).name,
     isHost: p.id === g.hostId,
     handCount: p.hand.length,
-    dragons: g.status !== 'lobby' ? dragonCount(g, p.id) : 0,
+    creatures: g.status !== 'lobby' ? creatureCount(g, p.id) : 0,
     mods: g.status === 'playing' ? [...playerMods(g, p.id)] : [],
-    stable: p.stable.map((iid) => ({
-      iid,
-      defId: g.inst[iid],
-      suppressed: defOf(g, iid).type === 'magical' && !abilitiesActive(g, iid),
-      toad: isDragonType(defOf(g, iid).type) && rawMods(g, p.id).has('toads'),
-    })),
+    stable: p.stable.map((iid) => {
+      const d = defOf(g, iid);
+      const creature = isDragonType(d.type);
+      return {
+        iid,
+        defId: g.inst[iid],
+        suppressed: d.type === 'magical' && !abilitiesActive(g, iid),
+        toad: creature && rawMods(g, p.id).has('toads'),
+        wild: creature && !isLoyal(g, iid),
+        tamed: !!g.tamed[iid],
+      };
+    }),
   }));
 
   // Playable cards for this viewer right now.
@@ -1840,16 +1992,13 @@ export function viewFor(g, pid) {
     you: pid,
     code: g.code,
     status: g.status,
-    faction: myFaction,
-    factionId: myFaction.id,
-    starterDefId: myFaction.starterId,
     hostId: g.hostId,
     youAreHost: pid === g.hostId,
     players,
     hands: visibleHands,
-    deckCount: myPile.deck.length,
-    discard: myPile.discard.map((iid) => ({ iid, defId: g.inst[iid] })),
-    nestCount: myPile.nest.length,
+    deckCount: g.deck.length,
+    discard: g.discard.map((iid) => ({ iid, defId: g.inst[iid] })),
+    nestCount: g.nest.length,
     turn: g.turn ? {
       playerId: g.status === 'playing' || g.status === 'ended' ? current(g).id : null,
       playerName: current(g).name,
@@ -1870,8 +2019,16 @@ export function viewFor(g, pid) {
     playable,
     canDraw,
     winThreshold: winThreshold(g),
-    reshuffles: myPile.reshuffles,
-    winner: g.winnerId ? { id: g.winnerId, name: byId(g, g.winnerId)?.name, reason: g.endReason } : null,
+    reshuffles: g.reshuffles,
+    settings: { factionWar: !!g.settings?.factionWar },
+    winner: g.winnerId ? {
+      id: g.winnerId,
+      name: byId(g, g.winnerId)?.name,
+      faction: byId(g, g.winnerId)?.faction,
+      reason: g.endReason,
+      sharedWith: winningPlayerIds(g),
+      youWon: winningPlayerIds(g).includes(pid),
+    } : null,
     log: g.log.slice(-80),
   };
 }

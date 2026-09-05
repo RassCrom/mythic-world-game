@@ -3,6 +3,10 @@ import { sfx } from '../sound.js';
 import { useI18n } from '../i18n/index.jsx';
 import { FACTIONS, FACTION_IDS } from '../../../shared/cards.js';
 import { FactionGlyph } from './CardView.jsx';
+import { FACTION_LORE } from '../../../shared/lore.js';
+import { FactionLoreCard } from './LorePanel.jsx';
+import SceneVideo from './SceneVideo.jsx';
+import { HOLLOW_POSTER, HOLLOW_VIDEO } from '../preferences.js';
 
 export default function Lobby({ view, send, onLeave, showToast }) {
   const { t } = useI18n();
@@ -32,6 +36,7 @@ export default function Lobby({ view, send, onLeave, showToast }) {
 
   return (
     <main className="lobby">
+      <SceneVideo sources={HOLLOW_VIDEO} poster={HOLLOW_POSTER.large} posterSmall={HOLLOW_POSTER.small} />
       <div className="lobby-card">
         <h1 className="lobby-title">{t('The Roost')}</h1>
         <p className="lobby-sub">{t('Pick a side, gather your players, then let the sparks fly.')}</p>
@@ -57,6 +62,7 @@ export default function Lobby({ view, send, onLeave, showToast }) {
                 <span className="faction-emblem"><FactionGlyph faction={id} /></span>
                 <span className="faction-copy">
                   <strong>{t(f.name)}</strong>
+                  <span className="faction-motto">“{t(FACTION_LORE[id].motto)}”</span>
                   <small>{t(f.blurb)}</small>
                   <em>{t(f.passiveName)}: {t(f.passive)}</em>
                 </span>
@@ -65,6 +71,13 @@ export default function Lobby({ view, send, onLeave, showToast }) {
             );
           })}
         </section>
+
+        {me?.faction && (
+          <details className="lobby-lore">
+            <summary>{t('Read the legend')}</summary>
+            <FactionLoreCard faction={me.faction} showPassive />
+          </details>
+        )}
 
         <ul className="lobby-players" aria-label={t('Players in the room')}>
           {view.players.map((p) => (
@@ -117,6 +130,17 @@ export default function Lobby({ view, send, onLeave, showToast }) {
               </button>
             </div>
 
+            <label className="field bot-field deck-mode">
+              <span>{t('Draw pile')}</span>
+              <select
+                value={view.settings?.deckMode || 'shared'}
+                onChange={(e) => { sfx.click(); send({ type: 'setSettings', settings: { deckMode: e.target.value } }); }}
+              >
+                <option value="shared">{t('Shared deck — one mixed pile for everyone')}</option>
+                <option value="faction">{t('Faction decks — draw only your own faction’s cards')}</option>
+              </select>
+            </label>
+
             <label className="toggle-row">
               <input
                 type="checkbox"
@@ -132,6 +156,9 @@ export default function Lobby({ view, send, onLeave, showToast }) {
         )}
         {!view.youAreHost && view.settings?.factionWar && (
           <p className="lobby-rule">{t('Faction War is on: a win is shared by the whole faction.')}</p>
+        )}
+        {!view.youAreHost && view.settings?.deckMode === 'faction' && (
+          <p className="lobby-rule">{t('Faction decks: you draw only your own faction’s cards; neutral Magic is shared out.')}</p>
         )}
 
         {view.youAreHost ? (

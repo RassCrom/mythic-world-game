@@ -4,11 +4,11 @@ name: Deploy
 # shared/cards.js is bundled into both, so shipping one without the other leaves
 # the server and the browser disagreeing about the deck.
 #
-# Only this branch deploys. main still holds the archived Deck Duel design, and
+# main is the live branch (the Deck Duel design lives on archive/deck-duel), and
 # deploying it would overwrite production with an older, incompatible engine.
 on:
   push:
-    branches: [claude/gallant-wozniak-ftxskm]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useI18n } from '../../i18n/index.jsx';
 import { AMBIENCES, BATTLEFIELDS, loadPreferences, savePreferences } from '../../preferences.js';
 import { isMuted, setMuted, sfx } from '../../sound.js';
+import { BATTLEFIELD_LORE } from '../../../../shared/lore.js';
 
 function SettingsIcon() {
   return (
@@ -61,7 +62,7 @@ export default function BattlefieldSettings() {
           <legend>{t('Battlefield')}</legend>
           <div className="battlefield-options">
             {BATTLEFIELDS.map((battlefield) => (
-              <label className="battlefield-option" key={battlefield.id}>
+              <label className="battlefield-option" key={battlefield.id} title={t(BATTLEFIELD_LORE[battlefield.id]?.description || '')}>
                 <input
                   type="radio"
                   name="battlefield"
@@ -77,11 +78,15 @@ export default function BattlefieldSettings() {
                   >
                     <span className="battlefield-check"><CheckIcon /></span>
                   </span>
-                  <span>{t(battlefield.name)}</span>
+                  <span className="battlefield-name">
+                    {t(battlefield.name)}
+                    <small className="battlefield-tagline">{t(BATTLEFIELD_LORE[battlefield.id]?.tagline || '')}</small>
+                  </span>
                 </span>
               </label>
             ))}
           </div>
+          <p className="battlefield-lore">{t(BATTLEFIELD_LORE[preferences.battlefield]?.description || '')}</p>
         </fieldset>
 
         <label className="settings-select">

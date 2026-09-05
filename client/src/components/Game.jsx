@@ -11,6 +11,8 @@ import { SideRail, TurnTracker } from './game/TurnUi.jsx';
 import { PHASE_LABEL } from './game/constants.js';
 import { useCardFlight } from './game/useCardFlight.js';
 import BattlefieldAmbience from './game/BattlefieldAmbience.jsx';
+import SceneVideo from './SceneVideo.jsx';
+import { BATTLEFIELDS, loadPreferences } from '../preferences.js';
 
 export default function Game({ view, send, onLeave }) {
   const { t, text, card } = useI18n();
@@ -203,7 +205,7 @@ export default function Game({ view, send, onLeave }) {
     }
     if (view.window) {
       return view.window.canRespond
-        ? t('{player} is playing {card} — {shout} or pass!', { player: view.window.topPlayer, card: text(view.window.topName), shout: t(me?.faction === 'unicorn' ? 'NEIGH' : 'ROAR') })
+        ? t('{player} is playing {card} — {shout} or pass!', { player: view.window.topPlayer, card: text(view.window.topName), shout: t({ unicorn: 'NEIGH', llama: 'SPIT' }[me?.faction] || 'ROAR') })
         : t('Waiting for responses to {card}… ({players})', { card: text(view.window.topName), players: view.window.awaiting.join(', ') });
     }
     if (prompt && !prompt.mine) return `${prompt.waitingOn} ${text(prompt.title)}`;
@@ -222,8 +224,11 @@ export default function Game({ view, send, onLeave }) {
   // battlefield owns the screen while someone else is thinking.
   const handIdle = !yourTurnLive && !view.window?.canRespond && !myPrompt;
 
+  const battlefield = BATTLEFIELDS.find((b) => b.id === loadPreferences().battlefield);
+
   return (
     <main className={`game ${yourTurnLive ? 'is-my-turn' : ''} ${view.window?.canRespond ? 'is-my-response' : ''}`}>
+      {battlefield?.video && <SceneVideo sources={battlefield.video} poster={battlefield.image} posterSmall={battlefield.imageSmall} />}
       <BattlefieldAmbience />
       {(yourTurnLive || view.window?.canRespond) && <div className="turn-aura" aria-hidden="true" />}
       {turnFlash > 0 && yourTurnLive && (

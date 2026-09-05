@@ -71,14 +71,26 @@ export function TypeGlyph({ type }) {
       );
     case 'unicorn':
       return <FactionGlyph faction="unicorn" />;
+    case 'llama':
+      return <FactionGlyph faction="llama" />;
     default:
       return <FactionGlyph faction="dragon" />;
   }
 }
 
-// Faction emblems: a curling flame for the Dragon Clan, a horn-and-star for the Herd.
+// Faction emblems: a curling flame for the Dragon Clan, a horn-and-star for the Herd,
+// and a long-necked head with two tall ears for the Llama Caravan.
 export function FactionGlyph({ faction, className = 'glyph' }) {
   const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  if (faction === 'llama') {
+    return (
+      <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+        <path {...common} d="M7 21.5v-6c0-3.2 1.8-5.4 4.5-6.2V6l1.6 2 1.6-2v3.3c2.3.7 3.8 2.4 3.8 4.7v1.3c0 1-.7 1.7-1.7 1.7h-3.3" />
+        <path {...common} d="M14.8 12.6h.01" strokeWidth={2.6} />
+        <path {...common} d="M10 21.5v-4" />
+      </svg>
+    );
+  }
   if (faction === 'unicorn') {
     return (
       <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
@@ -132,6 +144,7 @@ export default function CardView({
           <span className="card-back-rune">
             <FactionGlyph faction="dragon" className="glyph back-emblem-dragon" />
             <FactionGlyph faction="unicorn" className="glyph back-emblem-unicorn" />
+            <FactionGlyph faction="llama" className="glyph back-emblem-llama" />
           </span>
           <span className="card-back-title">Mythic<br />World</span>
         </div>

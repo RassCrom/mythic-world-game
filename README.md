@@ -1,15 +1,17 @@
 # Mythic World: Dragons vs Unicorns
 
 A cute, chaotic 2–8 player online card game in the spirit of *Unstable
-Unicorns*: pledge to the **Dragon Clan** or the **Unicorn Herd**, build a
-stable of 7 creatures, and stop your friends from doing the same. Original
+Unicorns*: pledge to the **Dragon Clan**, the **Unicorn Herd** or the
+**Llama Caravan**, build a stable of 7 creatures, and stop your friends from
+doing the same. Original
 card set (all names, rules text and illustrations are original to this
 project) over classic take-that card-game mechanics.
 
 ## Dragons vs Unicorns — the faction rules
 
-- **Pledge** in the lobby: every keeper is a Dragon or a Unicorn (seats
-  alternate by default; bots can be assigned or auto-balanced).
+- **Pledge** in the lobby: every keeper is a Dragon, a Unicorn or a Llama
+  (seats rotate through the factions by default; bots can be assigned or
+  auto-balanced).
 - **Loyal vs wild.** Every creature card belongs to a faction. In a stable of
   its own faction it is *loyal*; in a rival stable it is *wild*. Wild creatures
   still count toward the goal, but **Magical creatures only use their
@@ -19,27 +21,40 @@ project) over classic take-that card-game mechanics.
 - **Taming.** *Taming Bond* and *Whisperhorn Unicorn* make a wild creature
   loyal to you. *Wild Heart* (downgrade) makes every creature in a stable wild.
 - **Pegasi** (winged unicorns) are *Flying*: they can never be stolen or
-  swapped away. *Wyverns* and *Hydras* are the dragon sub-kinds.
+  swapped away. *Wyverns* and *Hydras* are the dragon sub-kinds. *Alpacas*
+  are the llama sub-kind and are *Woolly*: Magic cards cannot destroy them,
+  loyal or wild.
 - **Faction passives** (once per turn each):
   - 🐉 **Ember** — the first time each turn a Dragon keeper DESTROYS another
     player's card, they DRAW a card.
   - 🦄 **Sparkle** — the first time each turn another player destroys one of
     a Unicorn keeper's loyal creatures, the Unicorn keeper DRAWS a card.
-- **Instants:** dragons *Roar!*, unicorns *Neigh!* — both stop a card.
-  *Primordial Roar* / *Super Neigh* cannot be stopped.
-- **The Nest** holds 8 Baby Dragons and 8 Baby Unicorns; you always hatch a
-  baby of your own faction when one is available.
+  - 🦙 **Cud** — the first time each turn a Llama keeper DISCARDS a card by
+    choice or effect, they DRAW a card. End-of-turn hand-limit discards do not
+    count.
+- **Instants:** dragons *Roar!*, unicorns *Neigh!*, llamas *Spit!* — all
+  stop a card. *Primordial Roar* / *Super Neigh* / *Great Spit* cannot be
+  stopped.
+- **The Nest** holds 8 Baby Dragons, 8 Baby Unicorns and 8 Baby Llamas; you
+  always hatch a baby of your own faction when one is available.
 - **Even factions.** Because Magical abilities only work while loyal, the deck
   is balanced per faction-sensitive type — equal magicals, upgrades,
-  downgrades, magic and instants on each side (204 cards in all) — so neither
-  faction draws a live ability more often than the other. `engine.test.js`
+  downgrades, magic and instants on each side (302 cards in all) — so no
+  faction draws a live ability more often than another. `engine.test.js`
   asserts the split, so an unbalanced addition fails the build.
-- **Harmony.** *Harmony Unicorn* and *Hearthbound Wyrm* count as **two**
+- **Harmony.** *Harmony Unicorn*, *Hearthbound Wyrm* and *Braided Alpaca* count as **two**
   creatures while another **loyal** creature shares their stable — a stolen wild
-  creature fills a slot but keeps nobody company. *Discord* and *Snarlwind*
-  (downgrades) switch Harmony off for the stable they sit in.
+  creature fills a slot but keeps nobody company. *Discord*, *Snarlwind* and
+  *Matted Wool* (downgrades) switch Harmony off for the stable they sit in.
 - **Faction War** (host toggle): when any keeper reaches the goal, their whole
   faction shares the victory.
+- **Draw pile** (host setting): *Shared deck* is the default, one mixed pile.
+  *Faction decks* gives every faction at the table its own pile built only
+  from that faction’s cards; neutral Magic is dealt round-robin between the
+  piles, the discard pile stays shared, and when a pile runs dry only that
+  faction’s cards (plus neutrals) are reshuffled back into it. Cards of
+  factions nobody pledged to are left out entirely. The two-reshuffle
+  deck-out rule counts reshuffles of any pile.
 
 - **Frontend:** React (plain JavaScript), static site → Cloudflare Pages
 - **Backend:** Cloudflare Worker + one **Durable Object per room** (keyed by
@@ -179,7 +194,7 @@ pass it inline, the syntax differs per shell: bash/zsh
 
 ```bash
 curl https://unstable-dragons.<you>.workers.dev/api/version
-# {"cards":131,"deck":204,"hash":"f7e9100c"}
+# {"cards":189,"deck":302,"hash":"3467a402"}
 ```
 
 Compare it with `npm run fingerprint` in `worker/` from the checkout you meant
@@ -233,7 +248,7 @@ as a build-time environment variable there.
   made when a card *resolves* (after the Roar window), exactly like the
   tabletop flow.
 
-The full 165-card deck (+16 babies) with quantities lives in
+The full 278-card deck (+24 babies) with quantities lives in
 [shared/cards.js](shared/cards.js) — every mechanic (steal, sacrifice,
 destroy-protection, ability suppression, hand-reveal, forced discards, deck
 searches, resurrection, the wandering whelp, guardians, phoenix saves, …) is
@@ -257,6 +272,22 @@ action instead of stalling.
 
 ## Notes
 
+- **Story and lore:** the setting lives in [shared/lore.js](shared/lore.js):
+  the legend of the Hollow, both faction origin stories, the Nest and one
+  description per battlefield. Every card in `shared/cards.js` carries a
+  one-line `flavor`. The client shows the legend on the home screen and in
+  the Codex, faction mottos and stories in the lobby, and battlefield
+  taglines in Settings. Russian copy for all of it is in
+  `client/src/i18n/ru-cards.js` and `client/src/i18n/ru-lore.js`.
+- **Animated battlefields:** all seven battlefields are 10-second looping
+  videos (generated with Higgsfield from a painted still used as both first
+  and last frame). Each ships in two tiers, AV1 with an H.264 fallback:
+  1080p (or 1440p for *The Hollow*) for large screens and 720p for narrow
+  viewports and slow or Save-Data connections. `battlefield-<id>.webp` and
+  `-sm.webp` are the poster and still fallback. `SceneVideo.jsx` plays the
+  chosen field behind the game table and *The Hollow* behind the home screen
+  and lobby, skips video entirely under "Reduced visual effects" or
+  `prefers-reduced-motion`, and pauses while the tab is hidden.
 - **Card art:** every card has an illustration at `/cards/<defId>.webp`
   (generated with Higgsfield in one consistent cute storybook style); a
   tinted procedural placeholder appears if a file is ever missing. Card

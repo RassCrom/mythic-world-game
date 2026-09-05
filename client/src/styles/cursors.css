@@ -1,8 +1,10 @@
-/* Restrained custom cursors for fine pointers; touch keeps native behavior. */
+/* Storybook cursors for fine pointers: indigo arrow, cream outline, gold-to-lava
+   inner light, an aurora-teal star on anything clickable and a gold burst when
+   pressed. Touch devices keep native behavior. */
 @media (hover: hover) and (pointer: fine) {
   html,
   body {
-    cursor: url('/cursors/dragon-default.svg') 3 2, default;
+    cursor: url('/cursors/dragon-default.svg') 3 3, default;
   }
 
   html body :is(
@@ -22,7 +24,7 @@
     .room-code,
     .animal-option
   ) {
-    cursor: url('/cursors/dragon-pointer.svg') 3 2, pointer;
+    cursor: url('/cursors/dragon-pointer.svg') 3 3, pointer;
   }
 
   html body :is(input:not(:disabled), textarea:not(:disabled), [contenteditable='true']) {
@@ -45,7 +47,7 @@
     .room-code,
     .animal-option
   ):active {
-    cursor: url('/cursors/dragon-active.svg') 3 2, pointer;
+    cursor: url('/cursors/dragon-active.svg') 3 3, pointer;
   }
 
   html body :is(:disabled, [aria-disabled='true']) {

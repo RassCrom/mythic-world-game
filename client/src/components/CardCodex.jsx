@@ -3,9 +3,10 @@ import { DEFS, FACTIONS, buildDeckList } from '../../../shared/cards.js';
 import CardView, { FactionGlyph, TYPE_LABEL, TypeGlyph, cardKindLabel } from './CardView.jsx';
 import { useI18n } from '../i18n/index.jsx';
 import { triggerStableLandingEffect } from './game/useCardFlight.js';
+import WorldLore from './LorePanel.jsx';
 
 const TYPE_ORDER = ['all', 'baby', 'basic', 'magical', 'upgrade', 'downgrade', 'magic', 'instant'];
-const FACTION_ORDER = ['all', 'dragon', 'unicorn', 'neutral'];
+const FACTION_ORDER = ['all', 'dragon', 'unicorn', 'llama', 'neutral'];
 const TYPE_FILTER_LABEL = { baby: 'Babies', basic: 'Basic', magical: 'Magical', upgrade: 'Upgrades', downgrade: 'Downgrades', magic: 'Magic', instant: 'Instants' };
 const ALL_CARDS = Object.values(DEFS).sort((a, b) => {
   const typeDiff = TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type);
@@ -125,6 +126,7 @@ export default function CardCodex({ open, onClose }) {
             <span className="eyebrow">{t('The Archivist’s library')}</span>
             <h1 id="codex-title">{t('Card Codex')}</h1>
             <p>{t('{unique} unique cards · {deck}-card draw deck · Babies live in the Nest', { unique: ALL_CARDS.length, deck: buildDeckList().length })}</p>
+            <WorldLore className="codex-lore" />
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('Close card codex')}>
             <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
@@ -147,7 +149,7 @@ export default function CardCodex({ open, onClose }) {
                 aria-pressed={faction === key}
               >
                 {key !== 'all' && key !== 'neutral' && <FactionGlyph faction={key} />}
-                {key === 'all' ? t('Both sides') : key === 'neutral' ? t('Neutral') : t(FACTIONS[key].name)}
+                {key === 'all' ? t('All sides') : key === 'neutral' ? t('Neutral') : t(FACTIONS[key].name)}
               </button>
             ))}
           </div>

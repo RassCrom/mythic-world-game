@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DEFS, buildDeckList } from '../../shared/cards.js';
+import { BABY_COUNT, BABY_IDS, DEFS, FACTION_IDS, buildDeckList } from '../../shared/cards.js';
 import {
   addPlayer,
   choose,
@@ -75,11 +75,11 @@ test('setup gives every player five cards and a Baby Dragon before the first man
   assert.equal(secondPlayer.hand.length, 5);
   for (const player of game.players) {
     assert.equal(player.stable.length, 1);
-    assert.equal(game.inst[player.stable[0]], player.faction === 'dragon' ? 'baby_dragon' : 'baby_unicorn');
+    assert.equal(game.inst[player.stable[0]], BABY_IDS[player.faction]);
   }
   assert.equal(firstPlayer.faction, 'dragon', 'seats alternate factions: first is a dragon keeper');
   assert.equal(secondPlayer.faction, 'unicorn');
-  assert.equal(game.nest.length, 14);
+  assert.equal(game.nest.length, BABY_COUNT - 2);
 });
 
 test('drawing in the action phase draws once and immediately ends the turn', () => {
@@ -585,7 +585,8 @@ test('Faction War shares the victory with every keeper of the winning faction', 
   const game = createGame('WAR');
   const a = addPlayer(game, { token: 'a', name: 'A' }).playerId; // dragon
   const b = addPlayer(game, { token: 'b', name: 'B' }).playerId; // unicorn
-  const c = addPlayer(game, { token: 'c', name: 'C' }).playerId; // dragon
+  const c = addPlayer(game, { token: 'c', name: 'C' }).playerId; // llama by rotation
+  assert.deepEqual(setFaction(game, c, 'dragon'), {}); // join the Clan for the war
   assert.deepEqual(setSettings(game, a, { factionWar: true }), {});
   const originalRandom = Math.random;
   Math.random = () => 0;
@@ -602,7 +603,7 @@ test('Faction War shares the victory with every keeper of the winning faction', 
   assert.deepEqual(viewFor(game, b).winner.youWon, false);
 });
 
-test('faction-sensitive card types are balanced between the two factions', () => {
+test('faction-sensitive card types are balanced between all factions', () => {
   // Magical abilities only work while LOYAL, so an uneven split of the
   // faction-sensitive types hands one faction a live ability more often than
   // the other. Basics and instants are already symmetric; keep them that way.
@@ -611,14 +612,14 @@ test('faction-sensitive card types are balanced between the two factions', () =>
     const card = DEFS[id];
     const faction = card.faction || 'neutral';
     if (faction === 'neutral') continue;
-    counts[card.type] ??= { dragon: 0, unicorn: 0 };
-    counts[card.type][faction] += 1;
+    counts[card.type] ??= {};
+    counts[card.type][faction] = (counts[card.type][faction] || 0) + 1;
   }
   for (const [type, split] of Object.entries(counts)) {
-    assert.equal(
-      split.dragon,
-      split.unicorn,
-      `${type}: ${split.dragon} dragon vs ${split.unicorn} unicorn cards in the deck`,
+    const perFaction = FACTION_IDS.map((f) => split[f] || 0);
+    assert.ok(
+      perFaction.every((n) => n === perFaction[0]),
+      `${type}: ${FACTION_IDS.map((f, i) => `${perFaction[i]} ${f}`).join(' vs ')} cards in the deck`,
     );
   }
 });
@@ -782,4 +783,118 @@ test('saved games from a previous engine are not readable', () => {
   assert.equal(DEFS.uni_s_stargate, undefined, 'and its card ids really are gone');
   assert.equal(isReadableSave(null), false);
   assert.equal(isReadableSave({ ...game, schema: 1 }), false);
+});
+
+/* ================================================================== */
+/* The Llama Caravan                                                   */
+/* ================================================================== */
+
+test('seats rotate through all three factions', () => {
+  const game = createGame('TRIO');
+  const ids = ['a', 'b', 'c', 'd'].map((token) => addPlayer(game, { token, name: token }).playerId);
+  assert.deepEqual(ids.map((id) => playerOf(game, id).faction), ['dragon', 'unicorn', 'llama', 'dragon']);
+});
+
+test('Cud: a Llama keeper draws once after discarding by effect', () => {
+  const { game, first } = startedGameAs('llama');
+  const me = playerOf(game, first);
+  const iid = pullCard(game, 'l_caravan'); // draw 2, then discard 1
+  me.hand.push(iid);
+  const before = me.hand.length;
+  assert.deepEqual(playCard(game, first, iid), {});
+  passAllResponses(game);
+  assert.equal(game.prompt?.playerId, first, 'Caravan Master asks which card to discard');
+  assert.deepEqual(choose(game, first, [game.prompt.candidates[0]]), {});
+  // −1 played, +2 drawn, −1 discarded, +1 from Cud.
+  assert.equal(me.hand.length, before + 1);
+  assert.match(JSON.stringify(game.log), /Cud: /);
+});
+
+test('Cud does not fire for the end-of-turn hand limit', () => {
+  const { game, first } = startedGameAs('llama');
+  const me = playerOf(game, first);
+  while (me.hand.length < 9) me.hand.push(game.deck.pop());
+  assert.deepEqual(drawAction(game, first), {});
+  assert.equal(game.prompt?.playerId, first, 'must discard down to seven');
+  assert.deepEqual(choose(game, first, game.prompt.candidates.slice(0, game.prompt.n)), {});
+  assert.equal(me.hand.length, 7, 'no Cud draw on top of the hand limit');
+});
+
+test('Woolly alpacas cannot be destroyed by Magic, even while wild', () => {
+  const { game, first, second } = startedGameAs('dragon');
+  const them = playerOf(game, second);
+  const alpaca = pullCard(game, 'l_alp_cozy');
+  them.stable.push(alpaca); // a llama in a unicorn stable is wild
+  assert.equal(isLoyal(game, alpaca), false);
+  const venom = pullCard(game, 's_venom');
+  playerOf(game, first).hand.push(venom);
+  assert.deepEqual(playCard(game, first, venom), {});
+  passAllResponses(game);
+  if (game.prompt?.playerId === first) {
+    assert.ok(!game.prompt.candidates.includes(alpaca), 'the alpaca is not a legal Magic target');
+    assert.deepEqual(choose(game, first, game.prompt.candidates[0]), {});
+  }
+  assert.ok(them.stable.includes(alpaca), 'the alpaca is still standing');
+});
+
+test('Woolmountain Llama stops its keeper from playing Magic', () => {
+  const { game, first } = startedGameAs('llama');
+  const me = playerOf(game, first);
+  me.stable.push(pullCard(game, 'l_woolmountain'));
+  const hay = pullCard(game, 's_pasture');
+  me.hand.push(hay);
+  assert.match(playCard(game, first, hay).error || '', /Magic/);
+  assert.equal(creatureCount(game, first), 3, 'the baby plus a creature that counts as two');
+});
+
+/* ================================================================== */
+/* Faction decks                                                       */
+/* ================================================================== */
+
+test('faction decks: each keeper draws only their own faction (or neutral) cards', () => {
+  const game = createGame('DECK');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId; // dragon
+  const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId; // unicorn
+  assert.deepEqual(setSettings(game, first, { deckMode: 'faction' }), {});
+  assert.deepEqual(setSettings(game, first, { deckMode: 'hexagonal' }), { error: 'Unknown deck mode.' });
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try { assert.deepEqual(startGame(game, first), {}); } finally { Math.random = originalRandom; }
+
+  assert.deepEqual(Object.keys(game.piles).sort(), ['dragon', 'unicorn'], 'one pile per faction at the table');
+  assert.equal(game.deck.length, 0, 'the shared pile is unused');
+  const factionOf = (iid) => DEFS[game.inst[iid]].faction || 'neutral';
+  assert.ok(game.piles.dragon.every((iid) => ['dragon', 'neutral'].includes(factionOf(iid))));
+  assert.ok(game.piles.unicorn.every((iid) => ['unicorn', 'neutral'].includes(factionOf(iid))));
+  const everywhere = [...game.piles.dragon, ...game.piles.unicorn, ...game.players.flatMap((p) => p.hand)];
+  assert.ok(!everywhere.some((iid) => factionOf(iid) === 'llama'), 'no llama cards at a table with no llama keeper');
+  for (const iid of playerOf(game, first).hand) assert.ok(['dragon', 'neutral'].includes(factionOf(iid)));
+  for (const iid of playerOf(game, second).hand) assert.ok(['unicorn', 'neutral'].includes(factionOf(iid)));
+
+  assert.equal(viewFor(game, first).deckCount, game.piles.dragon.length, 'each keeper sees their own pile');
+  assert.equal(viewFor(game, second).deckCount, game.piles.unicorn.length);
+  assert.equal(viewFor(game, first).settings.deckMode, 'faction');
+});
+
+test('faction decks: a dry pile reshuffles only its own cards back from the shared discard', () => {
+  const game = createGame('DRY');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
+  const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId;
+  assert.deepEqual(setSettings(game, first, { deckMode: 'faction' }), {});
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try { assert.deepEqual(startGame(game, first), {}); } finally { Math.random = originalRandom; }
+  const factionOf = (iid) => DEFS[game.inst[iid]].faction || 'neutral';
+
+  // Move the whole dragon pile to the discard, plus a few unicorn cards.
+  game.discard.push(...game.piles.dragon.splice(0));
+  game.discard.push(...game.piles.unicorn.splice(0, 3));
+  const unicornInDiscard = game.discard.filter((iid) => factionOf(iid) === 'unicorn').length;
+  assert.equal(unicornInDiscard, 3);
+
+  assert.deepEqual(drawAction(game, first), {});
+  assert.equal(game.reshuffles, 1, 'a dry pile counts toward the deck-out limit');
+  assert.ok(game.piles.dragon.length > 0, 'the dragon pile refilled');
+  assert.ok(game.piles.dragon.every((iid) => factionOf(iid) !== 'unicorn'), 'unicorn cards stayed in the discard');
+  assert.equal(game.discard.filter((iid) => factionOf(iid) === 'unicorn').length, unicornInDiscard);
 });

@@ -1,10 +1,35 @@
+// The Hollow is the animated field: a looping video with the WebP as poster
+// and still fallback. Everything else is a static image.
+export const HOLLOW_VIDEO = Object.freeze({
+  hd: { av1: '/battlefield-hollow-1440p.av1.mp4', h264: '/battlefield-hollow-1440p.h264.mp4' },
+  sd: { av1: '/battlefield-hollow-720p.av1.mp4', h264: '/battlefield-hollow-720p.h264.mp4' },
+});
+export const HOLLOW_POSTER = Object.freeze({ large: '/battlefield-hollow.webp', small: '/battlefield-hollow-sm.webp' });
+
+// Every battlefield is a 10-second loop with the WebP as poster and still
+// fallback. `video` carries two tiers, each as AV1 with an H.264 fallback.
+function field(id, name, file, ambience) {
+  return {
+    id,
+    name,
+    image: `/battlefield-${file}.webp`,
+    imageSmall: `/battlefield-${file}-sm.webp`,
+    ambience,
+    video: Object.freeze({
+      hd: { av1: `/battlefield-${file}-1080p.av1.mp4`, h264: `/battlefield-${file}-1080p.h264.mp4` },
+      sd: { av1: `/battlefield-${file}-720p.av1.mp4`, h264: `/battlefield-${file}-720p.h264.mp4` },
+    }),
+  };
+}
+
 export const BATTLEFIELDS = Object.freeze([
-  { id: 'ancient-grove', name: 'Ancient Grove', image: '/battlefield-arena.webp', ambience: 'fireflies' },
-  { id: 'ember-peaks', name: 'Ember Peaks', image: '/battlefield-ember-peaks.webp', ambience: 'ash' },
-  { id: 'moonlit-ruins', name: 'Moonlit Ruins', image: '/battlefield-moonlit-ruins.webp', ambience: 'snow' },
-  { id: 'celestial-observatory', name: 'Celestial Observatory', image: '/battlefield-celestial-observatory.webp', ambience: 'aurora' },
-  { id: 'sunken-sanctum', name: 'Sunken Sanctum', image: '/battlefield-sunken-sanctum.webp', ambience: 'underwater' },
-  { id: 'clockwork-garden', name: 'Clockwork Garden', image: '/battlefield-clockwork-garden.webp', ambience: 'rain' },
+  { id: 'the-hollow', name: 'The Hollow', image: '/battlefield-hollow.webp', imageSmall: '/battlefield-hollow-sm.webp', ambience: 'fireflies', video: HOLLOW_VIDEO },
+  field('ancient-grove', 'Ancient Grove', 'arena', 'fireflies'),
+  field('ember-peaks', 'Ember Peaks', 'ember-peaks', 'ash'),
+  field('moonlit-ruins', 'Moonlit Ruins', 'moonlit-ruins', 'snow'),
+  field('celestial-observatory', 'Celestial Observatory', 'celestial-observatory', 'aurora'),
+  field('sunken-sanctum', 'Sunken Sanctum', 'sunken-sanctum', 'underwater'),
+  field('clockwork-garden', 'Clockwork Garden', 'clockwork-garden', 'rain'),
 ]);
 
 export const AMBIENCES = Object.freeze([

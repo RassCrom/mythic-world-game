@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { sfx } from '../sound.js';
 import { LanguageSwitcher, useI18n } from '../i18n/index.jsx';
 import BattlefieldSettings from './home/BattlefieldSettings.jsx';
+import WorldLore from './LorePanel.jsx';
+import SceneVideo from './SceneVideo.jsx';
+import { HOLLOW_POSTER, HOLLOW_VIDEO } from '../preferences.js';
 import { FactionGlyph } from './CardView.jsx';
 
 export default function Home({ onCreate, onJoin, busy, onOpenStudio }) {
@@ -26,6 +29,7 @@ export default function Home({ onCreate, onJoin, busy, onOpenStudio }) {
 
   return (
     <main className="home" style={{ '--home-hero': 'url("/hero-dragons-vs-unicorns.webp")' }}>
+      <SceneVideo sources={HOLLOW_VIDEO} poster={HOLLOW_POSTER.large} posterSmall={HOLLOW_POSTER.small} />
       <div className="home-card">
         <LanguageSwitcher />
         <h1 className="title">
@@ -41,6 +45,7 @@ export default function Home({ onCreate, onJoin, busy, onOpenStudio }) {
         <ul className="home-factions" aria-label={t('Factions')}>
           <li className="faction-dragon"><FactionGlyph faction="dragon" /> <span>{t('Dragons burn: destroy a rival card, draw a card.')}</span></li>
           <li className="faction-unicorn"><FactionGlyph faction="unicorn" /> <span>{t('Unicorns sparkle: lose a loyal creature, draw a card.')}</span></li>
+          <li className="faction-llama"><FactionGlyph faction="llama" /> <span>{t('Llamas chew: discard a card, draw a card.')}</span></li>
         </ul>
 
         <label className="field">
@@ -85,6 +90,8 @@ export default function Home({ onCreate, onJoin, busy, onOpenStudio }) {
             <button className="btn btn-ghost" type="button" onClick={() => setMode(null)}>{t('Back')}</button>
           </form>
         )}
+
+        <WorldLore />
 
         <BattlefieldSettings />
 

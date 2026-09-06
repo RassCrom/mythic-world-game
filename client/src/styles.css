@@ -851,7 +851,7 @@ button { -webkit-tap-highlight-color: transparent; }
   background-image:
     linear-gradient(90deg, rgba(12, 8, 26, .93) 0%, rgba(16, 11, 32, .6) 46%, rgba(24, 12, 36, .66) 100%),
     linear-gradient(0deg, rgba(17, 11, 34, .9), transparent 52%),
-    var(--home-hero, url('/hero-image-menu.png'));
+    var(--home-hero, url('/hero-dragons-vs-unicorns.webp'));
   background-size: cover;
   background-position: center;
   transform: scale(1.02);

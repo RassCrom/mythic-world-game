@@ -45,8 +45,9 @@ export function createGame(code) {
     players: [], // { id, token, name, seat, faction, connected, hand:[], stable:[] }
     inst: {}, // instId -> defId
     tamed: {}, // instId -> true while a wild creature has been tamed (cleared when it changes stable)
-    settings: { factionWar: false, deckMode: 'shared' }, // factionWar: shared win; deckMode: 'shared' | 'faction' draw piles
+    settings: { factionWar: false, deckMode: 'faction' }, // factionWar: shared win; deckMode: 'faction' (default) | 'shared' draw piles
     piles: {}, // deckMode 'faction': one draw pile per faction at the table; g.deck stays empty
+    pileReshuffles: {}, // deckMode 'faction': deck-out count per faction pile
     turnSeq: 0,
     deck: [],
     discard: [],
@@ -132,6 +133,9 @@ export function setFaction(g, pid, faction) {
   if (!p) return { error: 'Unknown player.' };
   if (!FACTION_IDS.includes(faction)) return { error: 'Unknown faction.' };
   if (p.faction === faction) return {};
+  // A placeholder name ("Dragon 2") follows the keeper to their new faction.
+  const placeholder = new RegExp(`^${FACTIONS[p.faction]?.creature} ([0-9]+)$`).exec(p.name);
+  if (placeholder && !p.isBot) p.name = `${FACTIONS[faction].creature} ${placeholder[1]}`;
   p.faction = faction;
   addLog(g, `${p.name} pledged to the ${FACTIONS[faction].name}.`);
   return {};
@@ -151,16 +155,20 @@ export function setSettings(g, pid, patch) {
     if (!DECK_MODES.includes(patch.deckMode)) return { error: 'Unknown deck mode.' };
     g.settings.deckMode = patch.deckMode;
     addLog(g, patch.deckMode === 'faction'
-      ? 'Faction decks — every keeper draws only their own faction’s cards (neutral Magic is shared out).'
-      : 'Shared deck — everyone draws from one mixed pile.');
+      ? 'Faction decks — every keeper draws only their own faction’s cards.'
+      : 'Shared deck (classic) — everyone draws from one mixed pile of every faction.');
   }
   return {};
 }
 
-export const DECK_MODES = ['shared', 'faction'];
+export const DECK_MODES = ['faction', 'shared'];
+export const DEFAULT_DECK_MODE = 'faction';
 
-// deckMode 'faction': each keeper draws from their faction’s pile; the discard
-// pile stays shared. 'shared' (default): one mixed pile in g.deck.
+// deckMode 'faction' (default): each keeper draws from their own faction’s
+// pile, built only from that faction’s cards — neutral cards stay out of the
+// game. Keepers of the same faction share that pile; the discard pile is
+// shared by everyone. 'shared' (classic): one mixed pile of every card in
+// g.deck.
 function factionDecks(g) {
   return g.settings?.deckMode === 'faction';
 }
@@ -420,11 +428,13 @@ function turnOrderFrom(g, startPid) {
 
 function reshuffleDiscardIntoDeck(g, countsTowardLimit, pid) {
   if (!g.discard.length) return false;
+  let pileFaction = null;
   if (factionDecks(g)) {
     if (pid) {
       // Only this keeper’s faction (plus neutrals) comes back; the rest waits
       // in the discard pile for its own faction to run dry.
       const f = byId(g, pid).faction;
+      pileFaction = f;
       const mine = g.discard.filter((iid) => [f, 'neutral', undefined].includes(DEFS[g.inst[iid]].faction));
       if (!mine.length) return false;
       g.discard = g.discard.filter((iid) => !mine.includes(iid));
@@ -439,9 +449,19 @@ function reshuffleDiscardIntoDeck(g, countsTowardLimit, pid) {
     shuffle(g.deck);
   }
   if (countsTowardLimit) {
-    g.reshuffles++;
-    addLog(g, `The deck ran out — discard pile shuffled in (${g.reshuffles}/2).`, 'shuffle');
-    if (g.reshuffles >= 2) {
+    let count;
+    if (pileFaction) {
+      // Each faction pile has its own deck-out count, so a faction with more
+      // keepers (drawing faster) doesn't end the game early for everyone.
+      g.pileReshuffles ??= {};
+      count = g.pileReshuffles[pileFaction] = (g.pileReshuffles[pileFaction] || 0) + 1;
+      g.reshuffles = Math.max(g.reshuffles, count);
+      addLog(g, `The ${FACTIONS[pileFaction].name} pile ran out — their discards were shuffled back in (${count}/2).`, 'shuffle');
+    } else {
+      count = ++g.reshuffles;
+      addLog(g, `The deck ran out — discard pile shuffled in (${count}/2).`, 'shuffle');
+    }
+    if (count >= 2) {
       endByDeckOut(g);
       return true;
     }
@@ -458,7 +478,7 @@ function endByDeckOut(g) {
     const n = creatureCount(g, pid);
     if (n > best) { best = n; winner = pid; }
   }
-  endGame(g, winner, `The deck ran out twice — ${byId(g, winner).name} wins with the most creatures (${best}).`);
+  endGame(g, winner, `A draw pile ran out twice — ${byId(g, winner).name} wins with the most creatures (${best}).`);
 }
 
 function drawCards(g, pid, n, quiet) {
@@ -1078,8 +1098,11 @@ function execStep(g, frame, step, choice) {
       const cands = legalStableTargets(g, { kind: 'dragon', zone: 'any' }, { chooser })
         .filter((iid) => {
           const d = defOf(g, iid);
-          return iid !== frame.source && d.type === 'magical' && d.id !== 'm_mirrorwing' &&
-            Array.isArray(d.onEnter) && d.onEnter.length > 0 && abilitiesActive(g, iid);
+          // Copiers (Mirrorwing, Mirrormane, Echo Llama) can't copy each other:
+          // copying a copier would offer the same choice again, forever.
+          return iid !== frame.source && d.type === 'magical' &&
+            Array.isArray(d.onEnter) && d.onEnter.length > 0 &&
+            !d.onEnter.some((s) => s.do === 'copyEntrance') && abilitiesActive(g, iid);
         });
       if (!cands.length) return 'done';
       if (choice === undefined) {
@@ -1741,16 +1764,16 @@ export function startGame(g, pid) {
   g.nest = buildNestList().map(mk);
   g.tamed = {};
   g.turnSeq = 0;
-  if (!g.settings) g.settings = { factionWar: false, deckMode: 'shared' };
-  if (!DECK_MODES.includes(g.settings.deckMode)) g.settings.deckMode = 'shared';
+  if (!g.settings) g.settings = { factionWar: false, deckMode: DEFAULT_DECK_MODE };
+  if (!DECK_MODES.includes(g.settings.deckMode)) g.settings.deckMode = DEFAULT_DECK_MODE;
+  // Settle every keeper's faction before any pile is built from it.
+  for (const p of g.players) if (!FACTION_IDS.includes(p.faction)) p.faction = balancedFaction(g);
   g.piles = {};
+  g.pileReshuffles = {};
   if (factionDecks(g)) {
     for (const p of g.players) g.piles[p.faction] ??= [];
-    const all = buildDeckList().map(mk).filter((iid) => {
-      const f = DEFS[g.inst[iid]].faction;
-      return !f || f === 'neutral' || g.piles[f];
-    });
-    dealIntoPiles(g, shuffle(all));
+    // Only the pledged factions' own cards: no neutrals, no unclaimed factions.
+    dealIntoPiles(g, buildDeckList().filter((id) => !!g.piles[DEFS[id].faction]).map(mk));
     for (const f of Object.keys(g.piles)) shuffle(g.piles[f]);
     g.deck = [];
   } else {
@@ -1769,8 +1792,6 @@ export function startGame(g, pid) {
   g.status = 'playing';
 
   for (const p of g.players) {
-    if (!FACTION_IDS.includes(p.faction)) p.faction = balancedFaction(g);
-    if (factionDecks(g)) g.piles[p.faction] ??= [];
     p.hand = [];
     p.stable = [];
     p.sparkleTurn = 0;
@@ -2103,7 +2124,7 @@ export function viewFor(g, pid) {
     players,
     hands: visibleHands,
     deckCount: pileFor(g, pid).length,
-    deckMode: g.settings?.deckMode || 'shared',
+    deckMode: g.settings?.deckMode || DEFAULT_DECK_MODE,
     discard: g.discard.map((iid) => ({ iid, defId: g.inst[iid] })),
     nestCount: g.nest.length,
     turn: g.turn ? {
@@ -2126,8 +2147,9 @@ export function viewFor(g, pid) {
     playable,
     canDraw,
     winThreshold: winThreshold(g),
-    reshuffles: g.reshuffles,
-    settings: { factionWar: !!g.settings?.factionWar, deckMode: g.settings?.deckMode || 'shared' },
+    // The viewer's own pile: in faction mode each pile keeps its own count.
+    reshuffles: factionDecks(g) && me ? (g.pileReshuffles?.[me.faction] || 0) : g.reshuffles,
+    settings: { factionWar: !!g.settings?.factionWar, deckMode: g.settings?.deckMode || DEFAULT_DECK_MODE },
     winner: g.winnerId ? {
       id: g.winnerId,
       name: byId(g, g.winnerId)?.name,

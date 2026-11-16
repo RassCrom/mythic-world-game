@@ -2042,8 +2042,21 @@ html[data-ambience='aurora'] .ambience-particle {
 .opponents .player-head .player-name,
 .my-area .player-head .player-name {
   flex: 0 1 auto;
-  min-width: 0;
+  min-width: min(6em, 40%);
   font-size: .8rem;
+}
+/* The avatar already shows the faction, so its badge gives up room before the
+   name does (names were being cut to two or three letters). */
+.opponents .player-head .badge-faction,
+.my-area .player-head .badge-faction {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 1180px) {
+  .opponents .player-head .badge-faction { display: none; }
 }
 .opponents .player-head .player-meta,
 .my-area .player-head .player-meta {

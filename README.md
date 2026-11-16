@@ -48,13 +48,16 @@ project) over classic take-that card-game mechanics.
   *Matted Wool* (downgrades) switch Harmony off for the stable they sit in.
 - **Faction War** (host toggle): when any keeper reaches the goal, their whole
   faction shares the victory.
-- **Draw pile** (host setting): *Shared deck* is the default, one mixed pile.
-  *Faction decks* gives every faction at the table its own pile built only
-  from that faction’s cards; neutral Magic is dealt round-robin between the
-  piles, the discard pile stays shared, and when a pile runs dry only that
-  faction’s cards (plus neutrals) are reshuffled back into it. Cards of
-  factions nobody pledged to are left out entirely. The two-reshuffle
-  deck-out rule counts reshuffles of any pile.
+- **Your faction is your deck.** Every keeper draws only from their own
+  faction’s pile: 98 cards — that faction’s basics, magicals, upgrades,
+  downgrades, Magic and instants. Keepers who pledge to the same faction share
+  its pile. The 8 neutral Magic cards and the cards of factions nobody pledged
+  to stay out of the game. The discard pile is shared; when a pile runs dry,
+  only its own faction’s cards are shuffled back in. Each pile keeps its own
+  deck-out count — the game ends when any one pile has run dry twice, and the
+  keeper with the most creatures wins.
+- **Shared deck (classic)** — host setting: one mixed 302-card pile for
+  everyone, neutral Magic included, as the game was played before.
 
 - **Frontend:** React (plain JavaScript), static site → Cloudflare Pages
 - **Backend:** Cloudflare Worker + one **Durable Object per room** (keyed by

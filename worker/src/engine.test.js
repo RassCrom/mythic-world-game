@@ -20,8 +20,16 @@ import {
   viewFor,
 } from './engine.js';
 
+// Card-rule tests reach into one mixed pile for whichever card they need, so
+// they run on the classic shared deck; faction decks have their own tests.
+function classicGame(code) {
+  const game = createGame(code);
+  game.settings.deckMode = 'shared';
+  return game;
+}
+
 function startedGame() {
-  const game = createGame('TEST');
+  const game = classicGame('TEST');
   const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
   const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId;
   const originalRandom = Math.random;
@@ -137,7 +145,7 @@ test('a Magical Dragon resolves its enter effect and consumes the action', () =>
 });
 
 test('Chronodrake reverses the next-player direction', () => {
-  const game = createGame('TIME');
+  const game = classicGame('TIME');
   const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
   addPlayer(game, { token: 'second', name: 'Bramble' });
   const third = addPlayer(game, { token: 'third', name: 'Cinder' }).playerId;
@@ -172,6 +180,28 @@ test('Mirrorwing copies another Magical Dragon entrance ability', () => {
   assert.deepEqual(choose(game, first, hoardwing), {});
 
   assert.equal(player.hand.length, 6, 'copied Hoardwing ability draws one card');
+});
+
+test('a copier never offers another copier (Mirrormane, Echo Llama) — that would loop forever', () => {
+  const { game, first, second } = startedGame();
+  const player = game.players.find((candidate) => candidate.id === first);
+  const rival = game.players.find((candidate) => candidate.id === second); // unicorn keeper
+  const take = (defId) => {
+    const iid = game.deck.find((candidate) => game.inst[candidate] === defId);
+    game.deck = game.deck.filter((candidate) => candidate !== iid);
+    return iid;
+  };
+  const hoardwing = take('m_hoardwing');
+  const mirrormane = take('mu_mirror');
+  player.stable.push(hoardwing);
+  rival.stable.push(mirrormane); // loyal, so its ability is active
+  const mirrorwing = putInActiveHand(game, 'm_mirrorwing');
+
+  assert.deepEqual(playCard(game, first, mirrorwing), {});
+  passAllResponses(game);
+  assert.equal(game.prompt?.kind, 'pickCard');
+  assert.ok(game.prompt.candidates.includes(hoardwing));
+  assert.ok(!game.prompt.candidates.includes(mirrormane), 'Mirrormane is a copier and cannot be copied');
 });
 
 test('Riftcoil swaps itself with an opposing Dragon without retriggering either card', () => {
@@ -386,7 +416,7 @@ function pullFromDeck(game, defId) {
 }
 
 test('factions can be changed in the lobby and are locked afterwards', () => {
-  const game = createGame('FACT');
+  const game = classicGame('FACT');
   const first = addPlayer(game, { token: 'a', name: 'Aster' }).playerId;
   addPlayer(game, { token: 'b', name: 'Bramble' });
   assert.deepEqual(setFaction(game, first, 'unicorn'), {});
@@ -582,7 +612,7 @@ test('Blossom Unicorn draws two only with three loyal Unicorns', () => {
 });
 
 test('Faction War shares the victory with every keeper of the winning faction', () => {
-  const game = createGame('WAR');
+  const game = classicGame('WAR');
   const a = addPlayer(game, { token: 'a', name: 'A' }).playerId; // dragon
   const b = addPlayer(game, { token: 'b', name: 'B' }).playerId; // unicorn
   const c = addPlayer(game, { token: 'c', name: 'C' }).playerId; // llama by rotation
@@ -649,7 +679,7 @@ test('every card effect uses a step the engine implements', () => {
 
 // A started two-player game whose first seat is pledged to `faction`.
 function startedGameAs(faction) {
-  const game = createGame('BAL');
+  const game = classicGame('BAL');
   const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
   const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId;
   assert.deepEqual(setFaction(game, first, faction), {});
@@ -851,11 +881,11 @@ test('Woolmountain Llama stops its keeper from playing Magic', () => {
 /* Faction decks                                                       */
 /* ================================================================== */
 
-test('faction decks: each keeper draws only their own faction (or neutral) cards', () => {
+test('faction decks are the default: each keeper draws only their own faction’s cards', () => {
   const game = createGame('DECK');
   const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId; // dragon
   const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId; // unicorn
-  assert.deepEqual(setSettings(game, first, { deckMode: 'faction' }), {});
+  assert.equal(viewFor(game, first).settings.deckMode, 'faction', 'a new room uses faction decks');
   assert.deepEqual(setSettings(game, first, { deckMode: 'hexagonal' }), { error: 'Unknown deck mode.' });
   const originalRandom = Math.random;
   Math.random = () => 0;
@@ -864,23 +894,43 @@ test('faction decks: each keeper draws only their own faction (or neutral) cards
   assert.deepEqual(Object.keys(game.piles).sort(), ['dragon', 'unicorn'], 'one pile per faction at the table');
   assert.equal(game.deck.length, 0, 'the shared pile is unused');
   const factionOf = (iid) => DEFS[game.inst[iid]].faction || 'neutral';
-  assert.ok(game.piles.dragon.every((iid) => ['dragon', 'neutral'].includes(factionOf(iid))));
-  assert.ok(game.piles.unicorn.every((iid) => ['unicorn', 'neutral'].includes(factionOf(iid))));
+  assert.ok(game.piles.dragon.every((iid) => factionOf(iid) === 'dragon'));
+  assert.ok(game.piles.unicorn.every((iid) => factionOf(iid) === 'unicorn'));
+  for (const iid of playerOf(game, first).hand) assert.equal(factionOf(iid), 'dragon');
+  for (const iid of playerOf(game, second).hand) assert.equal(factionOf(iid), 'unicorn');
   const everywhere = [...game.piles.dragon, ...game.piles.unicorn, ...game.players.flatMap((p) => p.hand)];
-  assert.ok(!everywhere.some((iid) => factionOf(iid) === 'llama'), 'no llama cards at a table with no llama keeper');
-  for (const iid of playerOf(game, first).hand) assert.ok(['dragon', 'neutral'].includes(factionOf(iid)));
-  for (const iid of playerOf(game, second).hand) assert.ok(['unicorn', 'neutral'].includes(factionOf(iid)));
+  assert.ok(!everywhere.some((iid) => ['llama', 'neutral'].includes(factionOf(iid))), 'no llama or neutral cards in play');
+  const perFaction = buildDeckList().filter((id) => DEFS[id].faction === 'dragon').length;
+  assert.equal(everywhere.filter((iid) => factionOf(iid) === 'dragon').length, perFaction, 'the whole dragon set is in play');
 
   assert.equal(viewFor(game, first).deckCount, game.piles.dragon.length, 'each keeper sees their own pile');
   assert.equal(viewFor(game, second).deckCount, game.piles.unicorn.length);
-  assert.equal(viewFor(game, first).settings.deckMode, 'faction');
+});
+
+test('the classic shared deck can still be chosen by the host', () => {
+  const game = createGame('MIX');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
+  addPlayer(game, { token: 'second', name: 'Bramble' });
+  assert.deepEqual(setSettings(game, first, { deckMode: 'shared' }), {});
+  assert.deepEqual(startGame(game, first), {});
+  assert.deepEqual(game.piles, {});
+  assert.equal(game.deck.length + game.players.reduce((n, p) => n + p.hand.length, 0), buildDeckList().length);
+});
+
+test('two keepers of one faction share that faction’s pile', () => {
+  const game = createGame('PAIR');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
+  const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId;
+  assert.deepEqual(setFaction(game, second, 'dragon'), {});
+  assert.deepEqual(startGame(game, first), {});
+  assert.deepEqual(Object.keys(game.piles), ['dragon']);
+  assert.equal(viewFor(game, first).deckCount, viewFor(game, second).deckCount);
 });
 
 test('faction decks: a dry pile reshuffles only its own cards back from the shared discard', () => {
   const game = createGame('DRY');
   const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId;
   const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId;
-  assert.deepEqual(setSettings(game, first, { deckMode: 'faction' }), {});
   const originalRandom = Math.random;
   Math.random = () => 0;
   try { assert.deepEqual(startGame(game, first), {}); } finally { Math.random = originalRandom; }
@@ -893,8 +943,44 @@ test('faction decks: a dry pile reshuffles only its own cards back from the shar
   assert.equal(unicornInDiscard, 3);
 
   assert.deepEqual(drawAction(game, first), {});
-  assert.equal(game.reshuffles, 1, 'a dry pile counts toward the deck-out limit');
+  assert.equal(game.pileReshuffles.dragon, 1, 'a dry pile counts toward its own deck-out limit');
+  assert.equal(viewFor(game, first).reshuffles, 1);
+  assert.equal(viewFor(game, second).reshuffles, 0, 'the unicorn pile has not run dry');
   assert.ok(game.piles.dragon.length > 0, 'the dragon pile refilled');
   assert.ok(game.piles.dragon.every((iid) => factionOf(iid) !== 'unicorn'), 'unicorn cards stayed in the discard');
   assert.equal(game.discard.filter((iid) => factionOf(iid) === 'unicorn').length, unicornInDiscard);
+});
+
+test('faction decks: each pile has its own deck-out count', () => {
+  const game = createGame('OUT');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId; // dragon
+  const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId; // unicorn
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try { assert.deepEqual(startGame(game, first), {}); } finally { Math.random = originalRandom; }
+
+  // Each pile runs dry once: two reshuffles in total, but one per pile.
+  game.discard.push(...game.piles.dragon.splice(0));
+  assert.deepEqual(drawAction(game, first), {});
+  game.discard.push(...game.piles.unicorn.splice(0));
+  assert.deepEqual(drawAction(game, second), {});
+  assert.equal(game.status, 'playing', 'one reshuffle per pile does not end the game');
+  assert.deepEqual(game.pileReshuffles, { dragon: 1, unicorn: 1 });
+
+  // The dragon pile running dry a second time ends it.
+  game.discard.push(...game.piles.dragon.splice(0));
+  assert.deepEqual(drawAction(game, first), {});
+  assert.equal(game.status, 'ended');
+});
+
+test('a placeholder name follows its keeper to a new faction; a chosen name stays', () => {
+  const game = createGame('NAME');
+  const anon = addPlayer(game, { token: 'anon' }).playerId;
+  const named = addPlayer(game, { token: 'named', name: 'Dragon Slayer' }).playerId;
+  assert.equal(playerOf(game, anon).name, 'Dragon 1');
+  assert.deepEqual(setFaction(game, anon, 'llama'), {});
+  assert.equal(playerOf(game, anon).name, 'Llama 1');
+  assert.deepEqual(setFaction(game, named, 'dragon'), {});
+  assert.deepEqual(setFaction(game, named, 'llama'), {});
+  assert.equal(playerOf(game, named).name, 'Dragon Slayer');
 });

@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { sfx } from '../sound.js';
 import { useI18n } from '../i18n/index.jsx';
-import { FACTIONS, FACTION_IDS } from '../../../shared/cards.js';
+import { FACTIONS, FACTION_IDS, DEFS, buildDeckList } from '../../../shared/cards.js';
 import { FactionGlyph } from './CardView.jsx';
 import { FACTION_LORE } from '../../../shared/lore.js';
 import { FactionLoreCard } from './LorePanel.jsx';
 import SceneVideo from './SceneVideo.jsx';
 import { HOLLOW_POSTER, HOLLOW_VIDEO } from '../preferences.js';
+
+// How many cards each faction brings to its own draw pile (faction decks).
+const FACTION_DECK_SIZE = Object.fromEntries(FACTION_IDS.map((f) => [f, buildDeckList().filter((id) => DEFS[id].faction === f).length]));
 
 export default function Lobby({ view, send, onLeave, showToast }) {
   const { t } = useI18n();
@@ -16,6 +19,7 @@ export default function Lobby({ view, send, onLeave, showToast }) {
   const canStart = view.youAreHost && view.players.length >= 2;
   const roomFull = view.players.length >= 8;
   const me = view.players.find((p) => p.id === view.you);
+  const deckMode = view.settings?.deckMode || 'faction';
   const counts = Object.fromEntries(FACTION_IDS.map((f) => [f, view.players.filter((p) => p.faction === f).length]));
 
   const copy = async () => {
@@ -71,6 +75,14 @@ export default function Lobby({ view, send, onLeave, showToast }) {
             );
           })}
         </section>
+
+        {me?.faction && (
+          <p className="lobby-rule lobby-deck-note">
+            {deckMode === 'faction'
+              ? t('You will draw only {faction} cards — a deck of {count}.', { faction: t(FACTIONS[me.faction].name), count: FACTION_DECK_SIZE[me.faction] })
+              : t('Shared deck: everyone draws from one mixed pile of every faction.')}
+          </p>
+        )}
 
         {me?.faction && (
           <details className="lobby-lore">
@@ -133,11 +145,11 @@ export default function Lobby({ view, send, onLeave, showToast }) {
             <label className="field bot-field deck-mode">
               <span>{t('Draw pile')}</span>
               <select
-                value={view.settings?.deckMode || 'shared'}
+                value={deckMode}
                 onChange={(e) => { sfx.click(); send({ type: 'setSettings', settings: { deckMode: e.target.value } }); }}
               >
-                <option value="shared">{t('Shared deck — one mixed pile for everyone')}</option>
                 <option value="faction">{t('Faction decks — draw only your own faction’s cards')}</option>
+                <option value="shared">{t('Shared deck (classic) — one mixed pile of every faction')}</option>
               </select>
             </label>
 
@@ -156,9 +168,6 @@ export default function Lobby({ view, send, onLeave, showToast }) {
         )}
         {!view.youAreHost && view.settings?.factionWar && (
           <p className="lobby-rule">{t('Faction War is on: a win is shared by the whole faction.')}</p>
-        )}
-        {!view.youAreHost && view.settings?.deckMode === 'faction' && (
-          <p className="lobby-rule">{t('Faction decks: you draw only your own faction’s cards; neutral Magic is shared out.')}</p>
         )}
 
         {view.youAreHost ? (

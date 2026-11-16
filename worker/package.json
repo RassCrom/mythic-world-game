@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "node --test src/engine.test.js src/index.test.js",
+    "test": "node --test src/engine.test.js src/index.test.js src/soak.test.js",
+    "soak": "node src/soak.js",
+    "balance": "node src/soak.js balance",
     "fingerprint": "node -e \"import('./src/index.js').then(m=>console.log(JSON.stringify(m.deckFingerprint())))\""
   },
   "devDependencies": {

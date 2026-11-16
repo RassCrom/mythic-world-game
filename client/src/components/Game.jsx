@@ -1,15 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import CardView, { FactionGlyph, TypeGlyph } from './CardView.jsx';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import CardView, { TypeGlyph } from './CardView.jsx';
 import { DEFS, FACTIONS } from '../../../shared/cards.js';
-import { sfx, playLogSound, isMuted, setMuted } from '../sound.js';
+import { sfx, isMuted, setMuted } from '../sound.js';
 import { useI18n } from '../i18n/index.jsx';
 import ChronicleEntry from './game/ChronicleEntry.jsx';
+import GameModals from './game/GameModals.jsx';
 import { HostTools, hostToolsNeeded } from './game/HostTools.jsx';
-import { CardCursorPopup, Modal, PlayedCardFlash } from './game/Overlays.jsx';
+import { CardCursorPopup, PlayedCardFlash } from './game/Overlays.jsx';
 import PlayerPanel from './game/PlayerPanel.jsx';
 import { SideRail, TurnTracker } from './game/TurnUi.jsx';
 import { PHASE_LABEL } from './game/constants.js';
 import { useCardFlight } from './game/useCardFlight.js';
+import { useCardPreview } from './game/useCardPreview.js';
+import { useTableFeedback } from './game/useTableFeedback.js';
 import BattlefieldAmbience from './game/BattlefieldAmbience.jsx';
 import SceneVideo from './SceneVideo.jsx';
 import { BATTLEFIELDS, loadPreferences } from '../preferences.js';
@@ -20,18 +23,13 @@ export default function Game({ view, send, onLeave }) {
   const [pendingTarget, setPendingTarget] = useState(null); // hand card awaiting a stable choice
   const [showLog, setShowLog] = useState(false);
   const [showDiscard, setShowDiscard] = useState(false);
-  const [cardPreview, setCardPreview] = useState(null);
-  const [playedFlash, setPlayedFlash] = useState(null);
   const [poppedIid, setPoppedIid] = useState(null); // hand card lifted out of the fan
-  const [turnFlash, setTurnFlash] = useState(0); // bumped once each time the turn becomes ours
   const [muted, setMutedState] = useState(isMuted());
-  const lastLogRef = useRef(0);
-  const lastTurnRef = useRef(null);
-  const lastPlayedRef = useRef(0);
-  const previewTimerRef = useRef(null);
   const logEndRef = useRef(null);
 
   useCardFlight(view);
+  const { turnFlash, playedFlash } = useTableFeedback(view);
+  const { preview: cardPreview, show: showCardPreview, hide: hideCardPreview } = useCardPreview();
 
   const me = view.players.find((p) => p.id === view.you);
   const myHand = view.hands[view.you] || [];
@@ -46,23 +44,6 @@ export default function Game({ view, send, onLeave }) {
     [myPrompt],
   );
 
-  // Sounds from new log entries + turn chime.
-  useEffect(() => {
-    for (const entry of view.log) {
-      if (entry.n > lastLogRef.current) {
-        lastLogRef.current = entry.n;
-        if (entry.sound) playLogSound(entry.sound);
-      }
-    }
-    if (view.turn && view.turn.playerId !== lastTurnRef.current) {
-      lastTurnRef.current = view.turn.playerId;
-      if (view.turn.playerId === view.you && view.status === 'playing') {
-        sfx.turn();
-        setTurnFlash((n) => n + 1);
-      }
-    }
-  }, [view]);
-
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ block: 'end' });
   }, [view.log, showLog]);
@@ -70,57 +51,9 @@ export default function Game({ view, send, onLeave }) {
   // Reset transient selections when the server state moves on.
   useEffect(() => { setSelected([]); }, [prompt && prompt.kind, prompt && prompt.title]);
 
-  useEffect(() => () => clearTimeout(previewTimerRef.current), []);
-
-  useEffect(() => {
-    if (!turnFlash) return undefined;
-    const timer = setTimeout(() => setTurnFlash(0), 2_000);
-    return () => clearTimeout(timer);
-  }, [turnFlash]);
-
   // A card leaving or entering the hand invalidates whichever card was lifted.
   const handKey = myHand.map((c) => c.iid).join(',');
   useEffect(() => { setPoppedIid(null); }, [handKey]);
-
-  useEffect(() => {
-    const play = view.lastPlayed;
-    if (!play || play.n <= lastPlayedRef.current) return;
-    lastPlayedRef.current = play.n;
-    if (view.serverNow - play.at > 5_000) return;
-    setPlayedFlash(play);
-    const timer = setTimeout(() => setPlayedFlash((currentPlay) => (
-      currentPlay?.n === play.n ? null : currentPlay
-    )), 2_300);
-    return () => clearTimeout(timer);
-  }, [view.lastPlayed?.n]);
-
-  // Only the anchor point travels with the preview; the popup measures itself
-  // and picks a side, so a touch on a phone reads beside the card it came from.
-  const showCardPreview = useCallback((defId, event) => {
-    if (!defId || !DEFS[defId]) return;
-    clearTimeout(previewTimerRef.current);
-    const rect = event?.currentTarget?.getBoundingClientRect?.();
-    const cursorX = Number.isFinite(event?.clientX) && event.clientX > 0
-      ? event.clientX : (rect ? rect.right : window.innerWidth / 2);
-    const cursorY = Number.isFinite(event?.clientY) && event.clientY > 0
-      ? event.clientY : (rect ? rect.top : window.innerHeight / 2);
-    setCardPreview({
-      defId,
-      x: cursorX,
-      y: cursorY,
-      anchor: rect
-        ? { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }
-        : null,
-    });
-    if (event?.type === 'click') {
-      previewTimerRef.current = setTimeout(() => setCardPreview(null), 4_500);
-    }
-  }, []);
-
-  const hideCardPreview = useCallback(() => {
-    clearTimeout(previewTimerRef.current);
-    setCardPreview(null);
-  }, []);
 
   const toggleMute = () => {
     const m = !muted;
@@ -284,7 +217,7 @@ export default function Game({ view, send, onLeave }) {
       <section className="table-center" aria-label={t('Table')}>
         <div className="arena-piles">
           <div className="pile" data-zone="deck" title={t('Draw pile — {count} cards', { count: view.deckCount })}>
-            <CardView faceDown small count={view.deckCount} backFaction="neutral" />
+            <CardView faceDown small count={view.deckCount} backFaction={view.settings?.deckMode === 'faction' ? me?.faction : 'neutral'} />
             <span className="pile-label">{t('Draw pile')}{view.reshuffles > 0 ? t(' · {count}/2 reshuffles', { count: view.reshuffles }) : ''}</span>
           </div>
 
@@ -413,85 +346,21 @@ export default function Game({ view, send, onLeave }) {
         </div>
       </section>
 
-      {/* overlays */}
-      {pendingTarget && (
-        <Modal title={t('Play {card} on which stable?', { card: card(pendingTarget.defId).name })} onClose={() => setPendingTarget(null)}>
-          <div className="player-choices">
-            {view.players.map((p) => {
-              const ok = targetPickable.has(p.id);
-              return (
-                <button key={p.id} className="btn player-choice" disabled={!ok} onClick={() => choosePlayer(p.id)}>
-                  {p.name}{p.id === view.you ? t(' (you)') : ''}{!ok ? t(' — not allowed') : ''}
-                </button>
-              );
-            })}
-          </div>
-        </Modal>
-      )}
-
-      {myPrompt && myPrompt.kind === 'yesno' && (
-        <Modal title={text(myPrompt.title)}>
-          <div className="modal-actions">
-            <button className="btn btn-primary" onClick={() => { sfx.click(); send({ type: 'choose', value: true }); }}>{t('Yes')}</button>
-            <button className="btn" onClick={() => { sfx.click(); send({ type: 'choose', value: false }); }}>{t('No')}</button>
-          </div>
-        </Modal>
-      )}
-
-      {myPrompt && myPrompt.kind === 'pickPlayer' && (
-        <Modal title={text(myPrompt.title)}>
-          <div className="player-choices">
-            {myPrompt.candidates.map((pid) => {
-              const p = view.players.find((x) => x.id === pid);
-              return (
-                <button key={pid} className="btn player-choice" onClick={() => choosePlayer(pid)}>
-                  {p ? p.name : pid}
-                </button>
-              );
-            })}
-          </div>
-          {myPrompt.canSkip && <button className="btn btn-ghost" onClick={skipPrompt}>{t('Skip')}</button>}
-        </Modal>
-      )}
-
-      {myPrompt && myPrompt.kind === 'pickList' && (
-        <Modal title={text(myPrompt.title)} wide>
-          <div className="card-grid">
-            {myPrompt.candidates.map((c) => (
-              <CardView key={c.iid} defId={c.defId} small onClick={() => { sfx.click(); send({ type: 'choose', value: c.iid }); }} onInspect={showCardPreview} onInspectEnd={hideCardPreview} touchInspectFirst glow="pick" />
-            ))}
-          </div>
-          {myPrompt.canSkip && <button className="btn btn-ghost" onClick={skipPrompt}>{t('Take nothing')}</button>}
-        </Modal>
-      )}
-
-      {showDiscard && (
-        <Modal title={t('Discard pile ({count})', { count: view.discard.length })} onClose={() => setShowDiscard(false)} wide>
-          {view.discard.length ? (
-            <div className="card-grid">
-              {[...view.discard].reverse().map((c) => <CardView key={c.iid} defId={c.defId} small onInspect={showCardPreview} onInspectEnd={hideCardPreview} />)}
-            </div>
-          ) : <p className="muted-text">{t('Nothing here yet.')}</p>}
-        </Modal>
-      )}
-
-      {view.winner && (
-        <Modal title={view.winner.youWon ? t('Victory!') : t('Defeat…')}>
-          <div className={`win-banner faction-${view.winner.faction || 'dragon'}`} aria-hidden="true">
-            <FactionGlyph faction={view.winner.faction} />
-          </div>
-          <p className="win-text">{text(view.winner.reason)}</p>
-          {view.settings?.factionWar && view.winner.faction && (
-            <p className="win-sub">{t('The {faction} share the victory.', { faction: t(FACTIONS[view.winner.faction].name) })}</p>
-          )}
-          <div className="modal-actions">
-            {view.youAreHost && (
-              <button className="btn btn-primary" onClick={() => { sfx.click(); send({ type: 'restart' }); }}>{t('Rematch')}</button>
-            )}
-            <button className="btn" onClick={onLeave}>{t('Leave room')}</button>
-          </div>
-        </Modal>
-      )}
+      <GameModals
+        view={view}
+        myPrompt={myPrompt}
+        send={send}
+        onLeave={onLeave}
+        skipPrompt={skipPrompt}
+        pendingTarget={pendingTarget}
+        setPendingTarget={setPendingTarget}
+        targetPickable={targetPickable}
+        choosePlayer={choosePlayer}
+        showDiscard={showDiscard}
+        setShowDiscard={setShowDiscard}
+        onInspect={showCardPreview}
+        onInspectEnd={hideCardPreview}
+      />
 
       {/* game log drawer */}
       <aside className={`log-drawer ${showLog ? 'open' : ''}`} aria-label={t('Game chronicle')} aria-hidden={!showLog}>

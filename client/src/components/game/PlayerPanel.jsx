@@ -44,7 +44,6 @@ export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCa
         <span className="player-meta">
           <span className="badge badge-dragons" title={t('Creatures / goal')}>{player.creatures}/{view.winThreshold}</span>
           {wildCount > 0 && <span className="badge badge-wild" title={t('Wild creatures: rival faction, abilities dormant')}>{t('{count} wild', { count: wildCount })}</span>}
-          {!isMe && <span className="badge" title={t('Cards in hand')}>{t('{count} cards', { count: player.handCount })}</span>}
         </span>
       </header>
 
@@ -87,24 +86,57 @@ export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCa
         </div>
       </div>
 
-      {revealedHand && revealedHand.length > 0 && (
+      {!isMe && (
+        <FoeHand
+          revealed={revealedHand}
+          count={player.handCount}
+          backFaction={view.settings?.deckMode === 'faction' ? player.faction : 'neutral'}
+          onInspect={onInspect}
+          onInspectEnd={onInspectEnd}
+        />
+      )}
+    </div>
+  );
+}
+
+// Past ten the fan stops reading as individual cards; the exact number stays on
+// the badge in the header.
+const FOE_HAND_MAX = 10;
+
+// The mirror of the local hand: a fan hanging from the top edge of the rank.
+// Face-down normally, face-up while a Scrying Orb keeps the hand revealed.
+function FoeHand({ revealed, count, backFaction, onInspect, onInspectEnd }) {
+  const { t } = useI18n();
+  const cards = revealed && revealed.length ? revealed.slice(0, FOE_HAND_MAX) : null;
+  const size = cards ? cards.length : Math.min(count, FOE_HAND_MAX);
+  if (size <= 0) return null;
+
+  return (
+    <div
+      className={`foe-hand ${cards ? 'is-revealed' : ''}`}
+      style={{ '--n': size }}
+      aria-label={cards ? t('Hand revealed by Scrying Orb') : t('{count} cards in hand', { count })}
+      title={cards ? t('Hand revealed by Scrying Orb') : undefined}
+    >
+      {Array.from({ length: size }, (_, index) => (
         <div
-          className="revealed-hand"
-          aria-label={t('Hand revealed by Scrying Orb')}
-          title={t('Hand revealed by Scrying Orb')}
+          key={cards ? cards[index].iid : index}
+          className="foe-slot"
+          style={{ '--k': index - (size - 1) / 2, zIndex: index + 1 }}
         >
-          {revealedHand.map((c) => (
+          {cards ? (
             <CardView
-              key={c.iid}
-              iid={c.iid}
-              defId={c.defId}
-              mini
+              iid={cards[index].iid}
+              defId={cards[index].defId}
+              small
               onInspect={onInspect}
               onInspectEnd={onInspectEnd}
             />
-          ))}
+          ) : (
+            <CardView faceDown small backFaction={backFaction} />
+          )}
         </div>
-      )}
+      ))}
     </div>
   );
 }

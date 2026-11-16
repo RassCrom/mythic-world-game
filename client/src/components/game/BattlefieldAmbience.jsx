@@ -15,7 +15,9 @@ const random = seededRandom(0xD12A60);
 const range = (min, max) => min + random() * (max - min);
 const signed = (amount) => range(-amount, amount);
 
-const PARTICLES = Array.from({ length: 64 }, (_, index) => {
+// Every particle is its own compositor layer running an infinite animation, so
+// the count is the main cost of the weather. 44 still reads as a full sky.
+const PARTICLES = Array.from({ length: 44 }, (_, index) => {
   const depth = range(.12, 1);
   const bubble = random() < .2;
   const rainDuration = range(.72, 1.42) + (1 - depth) * .42;

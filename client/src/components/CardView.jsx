@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { DEFS, FACTIONS, SUB_LABEL } from '../../../shared/cards.js';
 import { useI18n } from '../i18n/index.jsx';
 
@@ -109,15 +109,54 @@ export function FactionGlyph({ faction, className = 'glyph' }) {
   );
 }
 
+// The back is drawn, not photographed: one 5:7 vector ornament that stays
+// crisp from a 34px mini card up to the codex preview, tinted per faction by
+// the stylesheet. Ray angles are fixed, so the array is built once.
+const BACK_RAYS = Array.from({ length: 12 }, (_, index) => index * 30);
+const BACK_SPARKS = [[17, 21], [83, 21], [17, 119], [83, 119]];
+const SPARK_PATH = 'M0,-4.4 C0.7,-1.3 1.3,-0.7 4.4,0 C1.3,0.7 0.7,1.3 0,4.4 C-0.7,1.3 -1.3,0.7 -4.4,0 C-1.3,-0.7 -0.7,-1.3 0,-4.4 Z';
+
+function CardBackArt() {
+  return (
+    <svg className="card-back-art" viewBox="0 0 100 140" aria-hidden="true" focusable="false">
+      <rect className="back-frame-outer" x="3.2" y="3.2" width="93.6" height="133.6" rx="11" />
+      <rect className="back-frame-inner" x="8.5" y="8.5" width="83" height="123" rx="7" />
+
+      <g className="back-rays">
+        {BACK_RAYS.map((angle) => (
+          <path key={angle} d="M48.7,31 L47.1,20 L52.9,20 L51.3,31 Z" transform={`rotate(${angle} 50 60)`} />
+        ))}
+      </g>
+
+      <circle className="back-halo" cx="50" cy="60" r="25.6" />
+      <circle className="back-halo-thin" cx="50" cy="60" r="28.4" />
+
+      <g className="back-sparks">
+        {BACK_SPARKS.map(([x, y]) => (
+          <path key={`${x}-${y}`} d={SPARK_PATH} transform={`translate(${x} ${y})`} />
+        ))}
+      </g>
+
+      <g className="back-rule">
+        <path d="M22,112 H45 M55,112 H78" />
+        <path d="M50,108.6 L53.4,112 L50,115.4 L46.6,112 Z" />
+      </g>
+      <text className="back-wordmark" x="50" y="124.6" textAnchor="middle">MYTHIC WORLD</text>
+    </svg>
+  );
+}
+
 export default function CardView({
   defId, cardDef, faceDown, onClick, onInspect, onInspectEnd, actionLabel, glow, selected, dimmed, small, mini,
   suppressed, toad, wild, tamed, stopped, count, title, iid, style, touchInspectFirst, backFaction,
 }) {
   const { t, card } = useI18n();
   const [imgOk, setImgOk] = useState(true);
+  const tiltFrame = useRef(0);
   const def = cardDef || (defId ? card(defId) : null);
 
   useEffect(() => setImgOk(true), [defId, cardDef]);
+  useEffect(() => () => cancelAnimationFrame(tiltFrame.current), []);
 
   const faction = def?.faction && FACTIONS[def.faction] ? def.faction : 'neutral';
 
@@ -137,16 +176,22 @@ export default function CardView({
   ].filter(Boolean).join(' ');
 
   if (faceDown) {
+    const backSide = FACTIONS[backFaction] ? backFaction : 'neutral';
     return (
       <article className={cls} data-iid={iid} title={title} aria-label={title || t('Face-down card')} style={style}>
         <div className="card-back-frame" aria-hidden="true">
-          <div className="card-back-pattern"><TypeGlyph type="magic" /></div>
-          <span className="card-back-rune">
-            <FactionGlyph faction="dragon" className="glyph back-emblem-dragon" />
-            <FactionGlyph faction="unicorn" className="glyph back-emblem-unicorn" />
-            <FactionGlyph faction="llama" className="glyph back-emblem-llama" />
+          <CardBackArt />
+          <span className={`card-back-seal ${backSide === 'neutral' ? 'is-trio' : ''}`}>
+            {backSide === 'neutral' ? (
+              <>
+                <FactionGlyph faction="dragon" className="glyph back-emblem-dragon" />
+                <FactionGlyph faction="unicorn" className="glyph back-emblem-unicorn" />
+                <FactionGlyph faction="llama" className="glyph back-emblem-llama" />
+              </>
+            ) : (
+              <FactionGlyph faction={backSide} className={`glyph back-emblem-${backSide}`} />
+            )}
           </span>
-          <span className="card-back-title">Mythic<br />World</span>
         </div>
         {count != null && <span className="card-count">{count}</span>}
         {onClick && <button type="button" className="card-action-hit" onClick={onClick} aria-label={actionLabel || title || t('Select card')} />}
@@ -159,24 +204,32 @@ export default function CardView({
   const primaryAction = onClick || (onInspect ? inspect : null);
   const kindLabel = cardKindLabel(def, t);
 
+  // getBoundingClientRect forces layout, so the tilt is measured at most once
+  // per frame rather than once per pointer sample.
   const handleMouseMove = (event) => {
     if (mini) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const px = Math.max(0, Math.min(100, (x / rect.width) * 100));
-    const py = Math.max(0, Math.min(100, (y / rect.height) * 100));
-    const rx = ((y - rect.height / 2) / (rect.height / 2)) * -8;
-    const ry = ((x - rect.width / 2) / (rect.width / 2)) * 8;
-    event.currentTarget.style.setProperty('--tilt-x', `${rx.toFixed(2)}deg`);
-    event.currentTarget.style.setProperty('--tilt-y', `${ry.toFixed(2)}deg`);
-    event.currentTarget.style.setProperty('--glare-x', `${px.toFixed(1)}%`);
-    event.currentTarget.style.setProperty('--glare-y', `${py.toFixed(1)}%`);
-    event.currentTarget.style.setProperty('--glare-opacity', '1');
+    const element = event.currentTarget;
+    const { clientX, clientY } = event;
+    cancelAnimationFrame(tiltFrame.current);
+    tiltFrame.current = requestAnimationFrame(() => {
+      const rect = element.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const px = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      const py = Math.max(0, Math.min(100, (y / rect.height) * 100));
+      const rx = ((y - rect.height / 2) / (rect.height / 2)) * -8;
+      const ry = ((x - rect.width / 2) / (rect.width / 2)) * 8;
+      element.style.setProperty('--tilt-x', `${rx.toFixed(2)}deg`);
+      element.style.setProperty('--tilt-y', `${ry.toFixed(2)}deg`);
+      element.style.setProperty('--glare-x', `${px.toFixed(1)}%`);
+      element.style.setProperty('--glare-y', `${py.toFixed(1)}%`);
+      element.style.setProperty('--glare-opacity', '1');
+    });
   };
 
   const handleMouseLeave = (event) => {
+    cancelAnimationFrame(tiltFrame.current);
     event.currentTarget.style.setProperty('--tilt-x', '0deg');
     event.currentTarget.style.setProperty('--tilt-y', '0deg');
     event.currentTarget.style.setProperty('--glare-opacity', '0');
@@ -211,6 +264,7 @@ export default function CardView({
             width="512"
             height="768"
             loading="lazy"
+            decoding="async"
             onError={() => setImgOk(false)}
           />
         ) : (

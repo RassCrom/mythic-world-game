@@ -936,81 +936,10 @@
 }
 
 /* Color swatch presets row */
-.studio-color-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-
-.studio-color-swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  padding: 0;
-  outline: none;
-}
-
-.studio-color-swatch:hover {
-  transform: scale(1.15);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
-}
-
-.studio-color-swatch.active {
-  border-color: #fff;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
-}
 
 /* Faction live preview banner */
-.studio-faction-preview-banner {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 20px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 16px;
-  position: relative;
-  overflow: hidden;
-}
-
-.studio-faction-preview-banner::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: var(--preview-color, #e67e22);
-}
-
-.studio-faction-preview-banner .preview-icon {
-  font-size: 36px;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
-}
-
-.studio-faction-preview-banner .preview-name {
-  font-size: 20px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.studio-faction-preview-banner .preview-sub {
-  font-size: 12px;
-  color: #94a3b8;
-}
 
 /* Inline validation error */
-.studio-field-error {
-  font-size: 11px;
-  color: #e74c3c;
-  margin-top: 4px;
-  animation: shakeError 0.3s ease-out;
-}
 
 @keyframes shakeError {
   0%, 100% { transform: translateX(0); }
@@ -1098,53 +1027,5 @@
 }
 
 /* Emoji grid for faction icon picker */
-.studio-emoji-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
-  gap: 4px;
-  max-height: 160px;
-  overflow-y: auto;
-  background: rgba(10, 13, 19, 0.7);
-  padding: 8px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.studio-emoji-btn {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  border: 2px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.studio-emoji-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  transform: scale(1.1);
-}
-
-.studio-emoji-btn.active {
-  border-color: #e67e22;
-  background: rgba(230, 126, 34, 0.2);
-}
 
 /* Stats count badge */
-.studio-count-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 11px;
-  font-size: 11px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-}

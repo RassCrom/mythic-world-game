@@ -3,6 +3,9 @@ import { sfx } from '../../sound.js';
 import { useI18n } from '../../i18n/index.jsx';
 import { PHASE_LABEL } from './constants.js';
 
+const TURN_LENGTH_MS = 60_000;
+const MAX_PIPS = 9;
+
 export function SideRail({ view, isMyTurn, send, me }) {
   const { t, text } = useI18n();
   const foes = view.players.filter((player) => player.id !== view.you);
@@ -14,20 +17,21 @@ export function SideRail({ view, isMyTurn, send, me }) {
   return (
     <aside className="side-rail" aria-label={t('Score and turn actions')}>
       {topFoe && (
-        <div className={`rail-score ${view.turn?.playerId === topFoe.id ? 'is-turn' : ''}`}>
-          <span className="rail-score-name">{foes.length > 1 ? t('Top rival · {name}', { name: topFoe.name }) : topFoe.name}</span>
-          <strong>{topFoe.creatures}</strong>
-          <span className="rail-score-goal">{t('of {goal}', { goal: view.winThreshold })}</span>
-        </div>
+        <RailScore
+          name={foes.length > 1 ? t('Top rival · {name}', { name: topFoe.name }) : topFoe.name}
+          creatures={topFoe.creatures}
+          goal={view.winThreshold}
+          faction={topFoe.faction}
+          isTurn={view.turn?.playerId === topFoe.id}
+        />
       )}
 
       <div className="rail-middle">
-        <div className="rail-action">
-          <TurnTimer turn={view.turn} serverNow={view.serverNow} isMyTurn={isMyTurn} />
+        <TurnDial turn={view.turn} serverNow={view.serverNow} isMyTurn={isMyTurn}>
           {canRespond ? (
             <button
               type="button"
-              className="medallion medallion-pass"
+              className="coin coin-pass"
               aria-label={t('Pass — let {card} resolve', { card: text(view.window.topName) })}
               onClick={() => { sfx.click(); send({ type: 'pass' }); }}
             >
@@ -37,7 +41,7 @@ export function SideRail({ view, isMyTurn, send, me }) {
           ) : view.canDraw ? (
             <button
               type="button"
-              className="medallion medallion-draw"
+              className="coin coin-draw"
               aria-label={t('Draw a card and end your turn')}
               onClick={() => { sfx.click(); send({ type: 'drawAction' }); }}
             >
@@ -45,32 +49,58 @@ export function SideRail({ view, isMyTurn, send, me }) {
               <strong>{t('DRAW')}</strong>
             </button>
           ) : (
-            <div className={`medallion medallion-idle ${isMyTurn ? 'is-you' : ''}`} aria-hidden="true">
+            <div className={`coin coin-idle ${isMyTurn ? 'is-you' : ''}`} aria-hidden="true">
               <strong>{view.winThreshold}</strong>
               <em>{t('to win')}</em>
             </div>
           )}
-        </div>
+        </TurnDial>
         <span className={`rail-turn ${isMyTurn ? 'is-you' : ''}`}>{isMyTurn ? t('Your move') : t("{name}'s move", { name: view.turn?.playerName ?? '—' })}</span>
       </div>
 
-      <div className={`rail-score rail-score-you ${isMyTurn ? 'is-turn' : ''}`}>
-        <span className="rail-score-name">{t('You')}</span>
-        <strong>{me ? me.creatures : 0}</strong>
-        <span className="rail-score-goal">{t('of {goal}', { goal: view.winThreshold })}</span>
-      </div>
+      <RailScore
+        name={t('You')}
+        creatures={me ? me.creatures : 0}
+        goal={view.winThreshold}
+        faction={me?.faction}
+        isTurn={isMyTurn}
+        isYou
+      />
     </aside>
   );
 }
 
-const TIMER_SEGMENTS = 20;
-
-// A Gwent-style rune bar: a tapered vertical column of discrete pips that
-// burn out from the top as the clock runs down, with the count beneath it.
-function TurnTimer({ turn, serverNow, isMyTurn }) {
+// The score reads as a numeral over a row of crystal pips — one per creature
+// still needed — so progress toward the goal is legible without arithmetic.
+function RailScore({ name, creatures, goal, faction, isTurn, isYou }) {
   const { t } = useI18n();
-  const initial = Math.max(0, (turn?.deadline || 0) - (serverNow || Date.now()));
-  const [remaining, setRemaining] = useState(initial);
+  const pips = goal <= MAX_PIPS ? goal : 0;
+  return (
+    <div
+      className={`rail-score ${isYou ? 'rail-score-you' : ''} ${isTurn ? 'is-turn' : ''} score-${faction || 'neutral'}`}
+      aria-label={t('{name}: {count} of {goal} creatures', { name, count: creatures, goal })}
+    >
+      <span className="rail-score-name">{name}</span>
+      <strong aria-hidden="true">{creatures}</strong>
+      {pips ? (
+        <span className="rail-pips" aria-hidden="true">
+          {Array.from({ length: pips }, (_, index) => (
+            <i key={index} className={index < creatures ? 'is-lit' : ''} />
+          ))}
+        </span>
+      ) : (
+        <span className="rail-score-goal" aria-hidden="true">{t('of {goal}', { goal })}</span>
+      )}
+    </div>
+  );
+}
+
+// A round clock face: the coin sits in the middle and the remaining time drains
+// anticlockwise out of the ring around it, so the action and its deadline are
+// one object instead of two competing widgets.
+function TurnDial({ turn, serverNow, isMyTurn, children }) {
+  const { t } = useI18n();
+  const [remaining, setRemaining] = useState(() => Math.max(0, (turn?.deadline || 0) - (serverNow || Date.now())));
 
   useEffect(() => {
     if (!turn?.deadline) {
@@ -84,30 +114,28 @@ function TurnTimer({ turn, serverNow, isMyTurn }) {
     return () => clearInterval(interval);
   }, [turn?.deadline, serverNow]);
 
-  if (!turn?.deadline) return null;
+  if (!turn?.deadline) return <div className="turn-dial is-blank">{children}</div>;
+
   const seconds = Math.ceil(remaining / 1000);
-  const progress = Math.max(0, Math.min(1, remaining / 60_000));
-  const litCount = remaining > 0 ? Math.max(1, Math.ceil(progress * TIMER_SEGMENTS)) : 0;
+  const progress = Math.max(0, Math.min(1, remaining / TURN_LENGTH_MS));
   const urgency = seconds <= 10 ? 'is-urgent' : seconds <= 20 ? 'is-warning' : '';
+
   return (
     <div
-      className={`turn-timer ${isMyTurn ? 'is-you' : ''} ${urgency}`}
-      role="timer"
-      aria-label={t("{seconds} seconds remaining in {name}'s turn", { seconds, name: turn.playerName })}
-      style={{ '--timer-progress': progress }}
+      className={`turn-dial ${isMyTurn ? 'is-you' : ''} ${urgency}`}
+      style={{ '--dial-progress': progress }}
     >
-      <span className="timer-rail" aria-hidden="true">
-        <span className="timer-column">
-          <span className="timer-segments">
-            {Array.from({ length: TIMER_SEGMENTS }, (_, index) => (
-              <i key={index} className={TIMER_SEGMENTS - index <= litCount ? 'is-lit' : ''} />
-            ))}
-          </span>
-        </span>
-        <span className="timer-gem" />
+      <span className="dial-track" aria-hidden="true" />
+      <span className="dial-sweep" aria-hidden="true" />
+      <span className="dial-notches" aria-hidden="true" />
+      {children}
+      <span
+        className="dial-clock"
+        role="timer"
+        aria-label={t("{seconds} seconds remaining in {name}'s turn", { seconds, name: turn.playerName })}
+      >
+        {seconds}
       </span>
-      <strong className="timer-number">{seconds}</strong>
-      <span className="timer-unit">{t(seconds <= 10 ? 'Hurry' : 'seconds')}</span>
     </div>
   );
 }
@@ -120,7 +148,7 @@ export function TurnTracker({ turn, isMyTurn }) {
     <div className={`turn-tracker ${isMyTurn ? 'is-you' : ''}`} aria-label={t('Turn phase: {phase}', { phase: t(PHASE_LABEL[turn.phase]) })}>
       {['Start', 'Draw', 'Action', 'End'].map((label, index) => (
         <span key={label} className={index < phaseIndex ? 'is-done' : index === phaseIndex ? 'is-current' : ''}>
-          <i>{index + 1}</i><b>{t(label)}</b>
+          <i aria-hidden="true" /><b>{t(label)}</b>
         </span>
       ))}
     </div>

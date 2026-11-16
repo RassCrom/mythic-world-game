@@ -78,13 +78,18 @@ export function CardDetails({ defId, compact = false }) {
   );
 }
 
-export default function CardCodex({ open, onClose }) {
+export default function CardCodex({ open, onClose, initialFaction = null }) {
   const { locale, t, card } = useI18n();
   const [query, setQuery] = useState('');
   const [type, setType] = useState('all');
   const [faction, setFaction] = useState('all');
   const [selected, setSelected] = useState('baby_dragon');
   const searchRef = useRef(null);
+
+  // Opened from the lobby's "Browse your deck": show just that faction.
+  useEffect(() => {
+    if (open && initialFaction) { setFaction(initialFaction); setType('all'); setQuery(''); }
+  }, [open, initialFaction]);
 
   const cards = useMemo(() => {
     const needle = query.trim().toLowerCase();

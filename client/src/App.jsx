@@ -24,6 +24,8 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [busy, setBusy] = useState(false);
   const [codexOpen, setCodexOpen] = useState(false);
+  const [codexFaction, setCodexFaction] = useState(null); // opens the codex filtered to one faction
+  const browseFactionDeck = (faction) => { setCodexFaction(faction); setCodexOpen(true); };
   const connRef = useRef(null);
   const toastTimer = useRef(null);
 
@@ -151,7 +153,7 @@ export default function App() {
       />
     );
   } else if (view.status === 'lobby') {
-    screen = <Lobby view={view} send={send} onLeave={leave} showToast={showToast} />;
+    screen = <Lobby view={view} send={send} onLeave={leave} showToast={showToast} onBrowseDeck={browseFactionDeck} />;
   } else {
     screen = <Game view={view} send={send} onLeave={leave} />;
   }
@@ -162,11 +164,11 @@ export default function App() {
         {EMBER_INDICES.map((index) => <span key={index} className="ember" style={{ '--i': index }} />)}
       </div>
       {screen}
-      <button className="codex-fab" type="button" onClick={() => setCodexOpen(true)}>
+      <button className="codex-fab" type="button" onClick={() => { setCodexFaction(null); setCodexOpen(true); }}>
         <CodexIcon />
         {/* <span>{t('Card Codex')}</span> */}
       </button>
-      <CardCodex open={codexOpen} onClose={() => setCodexOpen(false)} />
+      <CardCodex open={codexOpen} initialFaction={codexFaction} onClose={() => setCodexOpen(false)} />
       {status === 'reconnecting' && view && (
         <div className="reconnect-banner" role="status">{t('Connection lost — reconnecting…')}</div>
       )}

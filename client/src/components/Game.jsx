@@ -33,6 +33,16 @@ export default function Game({ view, send, onLeave }) {
 
   const me = view.players.find((p) => p.id === view.you);
   const myHand = view.hands[view.you] || [];
+  // Faction decks: you draw from your faction's pile; rivals' pile sizes are public.
+  const factionDeck = view.settings?.deckMode === 'faction' && !!FACTIONS[me?.faction];
+  const drawPileTitle = factionDeck
+    ? [
+      t('Your {faction} pile — {count} cards', { faction: t(FACTIONS[me.faction].creature), count: view.deckCount }),
+      ...Object.entries(view.pileCounts || {})
+        .filter(([f]) => f !== me.faction && FACTIONS[f])
+        .map(([f, count]) => t('{faction} pile: {count}', { faction: t(FACTIONS[f].creature), count })),
+    ].join(' · ')
+    : t('Draw pile — {count} cards', { count: view.deckCount });
   const prompt = view.prompt;
   const myPrompt = prompt && prompt.mine ? prompt : null;
   const isMyTurn = view.turn && view.turn.playerId === view.you;
@@ -216,9 +226,9 @@ export default function Game({ view, send, onLeave }) {
       {/* table center */}
       <section className="table-center" aria-label={t('Table')}>
         <div className="arena-piles">
-          <div className="pile" data-zone="deck" title={t('Draw pile — {count} cards', { count: view.deckCount })}>
-            <CardView faceDown small count={view.deckCount} backFaction={view.settings?.deckMode === 'faction' ? me?.faction : 'neutral'} />
-            <span className="pile-label">{t('Draw pile')}{view.reshuffles > 0 ? t(' · {count}/2 reshuffles', { count: view.reshuffles }) : ''}</span>
+          <div className="pile" data-zone="deck" title={drawPileTitle}>
+            <CardView faceDown small count={view.deckCount} backFaction={factionDeck ? me?.faction : 'neutral'} />
+            <span className="pile-label">{factionDeck ? t('{faction} pile', { faction: t(FACTIONS[me.faction].creature) }) : t('Draw pile')}{view.reshuffles > 0 ? t(' · {count}/2 reshuffles', { count: view.reshuffles }) : ''}</span>
           </div>
 
           <div className="pile" title={t('Discard pile')}>
@@ -318,12 +328,18 @@ export default function Game({ view, send, onLeave }) {
           {myHand.map((c, i) => {
             const inPrompt = myPrompt && myPrompt.kind === 'pickHand';
             const clickable = inPrompt ? candidateSet.has(c.iid) : playableSet.has(c.iid);
+            // Faction decks: a rival card in hand can be discarded, never played.
+            const cardFaction = DEFS[c.defId]?.faction;
+            const foreign = view.settings?.deckMode === 'faction' && !!cardFaction &&
+              cardFaction !== 'neutral' && cardFaction !== me?.faction;
             return (
               <div
                 key={c.iid}
-                className={`fan-slot ${poppedIid === c.iid ? 'is-popped' : ''}`}
+                className={`fan-slot ${poppedIid === c.iid ? 'is-popped' : ''} ${foreign ? 'is-foreign' : ''}`}
                 style={{ '--k': i - (myHand.length - 1) / 2, zIndex: i + 1 }}
+                title={foreign ? t('Rival card — you can only play your own faction’s cards') : undefined}
               >
+                {foreign && <span className="foreign-tag" aria-hidden="true">{t('Rival')}</span>}
                 <CardView
                   iid={c.iid}
                   defId={c.defId}

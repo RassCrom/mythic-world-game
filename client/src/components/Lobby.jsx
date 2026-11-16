@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { sfx } from '../sound.js';
 import { useI18n } from '../i18n/index.jsx';
-import { FACTIONS, FACTION_IDS, DEFS, buildDeckList } from '../../../shared/cards.js';
+import { FACTIONS, FACTION_IDS, DEFS, MAX_KEEPERS_PER_FACTION, buildDeckList } from '../../../shared/cards.js';
 import { FactionGlyph } from './CardView.jsx';
 import { FACTION_LORE } from '../../../shared/lore.js';
 import { FactionLoreCard } from './LorePanel.jsx';
@@ -11,7 +11,7 @@ import { HOLLOW_POSTER, HOLLOW_VIDEO } from '../preferences.js';
 // How many cards each faction brings to its own draw pile (faction decks).
 const FACTION_DECK_SIZE = Object.fromEntries(FACTION_IDS.map((f) => [f, buildDeckList().filter((id) => DEFS[id].faction === f).length]));
 
-export default function Lobby({ view, send, onLeave, showToast }) {
+export default function Lobby({ view, send, onLeave, showToast, onBrowseDeck }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const [difficulty, setDifficulty] = useState('medium');
@@ -55,13 +55,16 @@ export default function Lobby({ view, send, onLeave, showToast }) {
           {FACTION_IDS.map((id) => {
             const f = FACTIONS[id];
             const active = me?.faction === id;
+            const full = deckMode === 'faction' && !active && counts[id] >= MAX_KEEPERS_PER_FACTION;
             return (
               <button
                 key={id}
                 type="button"
-                className={`faction-option faction-${id} ${active ? 'is-active' : ''}`}
+                className={`faction-option faction-${id} ${active ? 'is-active' : ''} ${full ? 'is-full' : ''}`}
                 onClick={() => pickFaction(id)}
                 aria-pressed={active}
+                disabled={full}
+                title={full ? t('Full — a faction deck feeds at most {count} keepers', { count: MAX_KEEPERS_PER_FACTION }) : undefined}
               >
                 <span className="faction-emblem"><FactionGlyph faction={id} /></span>
                 <span className="faction-copy">
@@ -70,7 +73,7 @@ export default function Lobby({ view, send, onLeave, showToast }) {
                   <small>{t(f.blurb)}</small>
                   <em>{t(f.passiveName)}: {t(f.passive)}</em>
                 </span>
-                <span className="faction-count">{counts[id]}</span>
+                <span className="faction-count">{deckMode === 'faction' ? `${counts[id]}/${MAX_KEEPERS_PER_FACTION}` : counts[id]}</span>
               </button>
             );
           })}
@@ -81,6 +84,14 @@ export default function Lobby({ view, send, onLeave, showToast }) {
             {deckMode === 'faction'
               ? t('You will draw only {faction} cards — a deck of {count}.', { faction: t(FACTIONS[me.faction].name), count: FACTION_DECK_SIZE[me.faction] })
               : t('Shared deck: everyone draws from one mixed pile of every faction.')}
+            {deckMode === 'faction' && onBrowseDeck && (
+              <>
+                {' '}
+                <button type="button" className="link-button" onClick={() => { sfx.click(); onBrowseDeck(me.faction); }}>
+                  {t('Browse your deck')}
+                </button>
+              </>
+            )}
           </p>
         )}
 

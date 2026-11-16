@@ -68,6 +68,9 @@ export const FACTIONS = {
   },
 };
 export const FACTION_IDS = ['dragon', 'unicorn', 'llama'];
+// With faction decks, keepers of one faction share its 98-card pile; more than
+// three would drain it within a few rounds. Eight seats still fit (3/3/2).
+export const MAX_KEEPERS_PER_FACTION = 3;
 
 export const BABY_IDS = { dragon: 'baby_dragon', unicorn: 'baby_unicorn', llama: 'baby_llama' };
 export const BABY_ID = 'baby_dragon'; // legacy alias

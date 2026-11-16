@@ -7,7 +7,7 @@
 // fed back in and execution resumes. pump() is the single scheduler that
 // advances effects, the instant-response chain, and the turn flow.
 
-import { DEFS, BABY_IDS, FACTIONS, FACTION_IDS, buildDeckList, buildNestList, isDragonType } from '../../shared/cards.js';
+import { DEFS, BABY_IDS, FACTIONS, FACTION_IDS, MAX_KEEPERS_PER_FACTION, buildDeckList, buildNestList, isDragonType } from '../../shared/cards.js';
 
 export const HAND_LIMIT = 7;
 export const START_HAND = 5;
@@ -133,6 +133,8 @@ export function setFaction(g, pid, faction) {
   if (!p) return { error: 'Unknown player.' };
   if (!FACTION_IDS.includes(faction)) return { error: 'Unknown faction.' };
   if (p.faction === faction) return {};
+  const full = factionFullError(g, faction);
+  if (full) return { error: full };
   // A placeholder name ("Dragon 2") follows the keeper to their new faction.
   const placeholder = new RegExp(`^${FACTIONS[p.faction]?.creature} ([0-9]+)$`).exec(p.name);
   if (placeholder && !p.isBot) p.name = `${FACTIONS[faction].creature} ${placeholder[1]}`;
@@ -153,12 +155,29 @@ export function setSettings(g, pid, patch) {
   }
   if ('deckMode' in patch) {
     if (!DECK_MODES.includes(patch.deckMode)) return { error: 'Unknown deck mode.' };
+    const crowded = patch.deckMode === 'faction' && crowdedFaction(g);
+    if (crowded) {
+      return { error: `Faction decks allow ${MAX_KEEPERS_PER_FACTION} keepers per faction — the ${FACTIONS[crowded].name} has more. Someone needs to switch sides first.` };
+    }
     g.settings.deckMode = patch.deckMode;
     addLog(g, patch.deckMode === 'faction'
       ? 'Faction decks — every keeper draws only their own faction’s cards.'
       : 'Shared deck (classic) — everyone draws from one mixed pile of every faction.');
   }
   return {};
+}
+
+// Faction decks only: a faction already feeding the most keepers its pile can.
+function factionFullError(g, faction) {
+  if (!factionDecks(g)) return null;
+  const n = g.players.filter((p) => p.faction === faction).length;
+  return n >= MAX_KEEPERS_PER_FACTION
+    ? `The ${FACTIONS[faction].name} already has ${MAX_KEEPERS_PER_FACTION} keepers — the most one faction deck can feed.`
+    : null;
+}
+
+function crowdedFaction(g) {
+  return FACTION_IDS.find((f) => g.players.filter((p) => p.faction === f).length > MAX_KEEPERS_PER_FACTION);
 }
 
 export const DECK_MODES = ['faction', 'shared'];
@@ -182,6 +201,16 @@ function pileFor(g, pid) {
 function setPile(g, pid, cards) {
   if (!factionDecks(g)) g.deck = cards;
   else g.piles[byId(g, pid).faction] = cards;
+}
+
+// With faction decks a keeper plays only their own faction's cards. A rival
+// card that reaches their hand (stolen, traded, taken) is dead weight there:
+// it can be discarded or traded away, never played.
+export const FOREIGN_CARD_ERROR = 'With faction decks you can only play your own faction’s cards.';
+function isForeignCard(g, pid, iid) {
+  if (!factionDecks(g)) return false;
+  const f = DEFS[g.inst[iid]]?.faction;
+  return !!f && f !== 'neutral' && f !== byId(g, pid)?.faction;
 }
 
 // Neutral cards belong to nobody, so they are dealt round-robin across the
@@ -208,6 +237,8 @@ export function addBotPlayer(g, byPid, difficulty, wantedFaction) {
   if (g.players.length >= MAX_PLAYERS) return { error: 'Room is full (8 players max).' };
   if (!['easy', 'medium', 'hard'].includes(difficulty)) return { error: 'Unknown difficulty.' };
   const faction = FACTION_IDS.includes(wantedFaction) ? wantedFaction : balancedFaction(g);
+  const full = factionFullError(g, faction);
+  if (full) return { error: full };
   const used = new Set(g.players.map((p) => p.name));
   const name = BOT_NAMES[faction].find((n) => !used.has(n)) || 'Automaton';
   const id = 'bot' + (g.players.length + 1) + '_' + Math.random().toString(36).slice(2, 7);
@@ -604,8 +635,10 @@ function moveBetweenStables(g, iid, toPid, opts = {}) {
 function factionPassivesOnDestroy(g, byPid, victim, victimWasLoyalCreature) {
   if (!g.turn) return;
   const attacker = byId(g, byPid);
-  if (attacker && attacker.faction === 'dragon' && !g.turn.emberUsed && !rawMods(g, attacker.id).has('allWild')) {
-    g.turn.emberUsed = true;
+  // Tracked per keeper, like Sparkle and Cud: one Dragon's Ember must not use
+  // up another Dragon keeper's at the same table.
+  if (attacker && attacker.faction === 'dragon' && attacker.emberTurn !== g.turnSeq && !rawMods(g, attacker.id).has('allWild')) {
+    attacker.emberTurn = g.turnSeq;
     addLog(g, `Ember: ${attacker.name} draws a card from the ashes.`, 'draw');
     drawCards(g, attacker.id, 1, true);
   }
@@ -986,7 +1019,9 @@ function execStep(g, frame, step, choice) {
 
     case 'fromDiscard': {
       const pid = resolveWho(g, frame, step.who);
-      const cands = g.discard.filter((iid) => matchesDeckFilter(g, iid, step.filter));
+      // To the hand: only cards this keeper could actually play (faction decks).
+      const cands = g.discard.filter((iid) => matchesDeckFilter(g, iid, step.filter) &&
+        (step.to === 'stable' || !isForeignCard(g, pid, iid)));
       if (!cands.length) return 'done';
       if (choice === undefined) {
         setPrompt(g, {
@@ -1519,7 +1554,7 @@ function openWindow(g) {
   const awaiting = g.players
     .filter((p) => p.id !== top.playerId)
     .filter((p) => !playerMods(g, p.id).has('noInstants'))
-    .filter((p) => p.hand.some((iid) => defOf(g, iid).type === 'instant'))
+    .filter((p) => p.hand.some((iid) => defOf(g, iid).type === 'instant' && !isForeignCard(g, p.id, iid)))
     .map((p) => p.id);
   g.window = awaiting.length ? { awaiting } : null;
 }
@@ -1577,7 +1612,6 @@ function initTurn(g, idx) {
     skipToEnd: false,
     startQueue: null,
     endStage: 0,
-    emberUsed: false,
   };
   const p = g.players[idx];
   addLog(g, `— ${p.name}'s turn —`, 'turn');
@@ -1756,6 +1790,10 @@ export function startGame(g, pid) {
   if (g.status !== 'lobby') return { error: 'Game already started.' };
   if (pid !== g.hostId) return { error: 'Only the host can start the game.' };
   if (g.players.length < MIN_PLAYERS) return { error: 'Need at least 2 players.' };
+  const crowded = factionDecks(g) && crowdedFaction(g);
+  if (crowded) {
+    return { error: `Faction decks allow ${MAX_KEEPERS_PER_FACTION} keepers per faction — the ${FACTIONS[crowded].name} has more.` };
+  }
 
   // Build instances.
   g.inst = {};
@@ -1796,6 +1834,7 @@ export function startGame(g, pid) {
     p.stable = [];
     p.sparkleTurn = 0;
     p.cudTurn = 0;
+    p.emberTurn = 0;
     const baby = takeBabyFromNest(g, p.faction);
     p.stable.push(baby);
   }
@@ -1830,6 +1869,7 @@ function canPlayNow(g, pid) {
 function playValidation(g, pid, iid, targetPlayerId) {
   const d = defOf(g, iid);
   const mods = playerMods(g, pid);
+  if (isForeignCard(g, pid, iid)) return FOREIGN_CARD_ERROR;
   switch (d.type) {
     case 'instant':
       return 'Instants can only be played in response to another card.';
@@ -1882,6 +1922,7 @@ export function playCard(g, pid, iid, targetPlayerId) {
   if (d.type === 'instant') {
     if (!g.window || !g.window.awaiting.includes(pid)) return { error: 'There is nothing to respond to.' };
     if (playerMods(g, pid).has('noInstants')) return { error: 'You cannot play Instant cards.' };
+    if (isForeignCard(g, pid, iid)) return { error: FOREIGN_CARD_ERROR };
     p.hand = p.hand.filter((x) => x !== iid);
     const uncounterable = !!d.uncounterable || playerMods(g, pid).has('uncounterable');
     g.chain.push({ iid, playerId: pid, negated: false, uncounterable });
@@ -2083,7 +2124,7 @@ export function viewFor(g, pid) {
   let canDraw = false;
   if (g.status === 'playing' && me) {
     if (g.window && g.window.awaiting.includes(pid)) {
-      playable = me.hand.filter((iid) => defOf(g, iid).type === 'instant');
+      playable = me.hand.filter((iid) => defOf(g, iid).type === 'instant' && !isForeignCard(g, pid, iid));
     } else if (canPlayNow(g, pid)) {
       playable = me.hand.filter((iid) => isPlayable(g, pid, iid));
       canDraw = true;
@@ -2124,6 +2165,8 @@ export function viewFor(g, pid) {
     players,
     hands: visibleHands,
     deckCount: pileFor(g, pid).length,
+    // Faction decks: every pile's size is public, like the shared pile's was.
+    pileCounts: factionDecks(g) ? Object.fromEntries(Object.entries(g.piles).map(([f, pile]) => [f, pile.length])) : null,
     deckMode: g.settings?.deckMode || DEFAULT_DECK_MODE,
     discard: g.discard.map((iid) => ({ iid, defId: g.inst[iid] })),
     nestCount: g.nest.length,

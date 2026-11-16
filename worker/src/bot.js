@@ -32,9 +32,11 @@ function stableValue(defId, wild) {
 
 // How much a card is worth held in hand (for discard picks — discard LOW first).
 // A rival-faction Magical creature is just a body for us, so it is worth less.
-function handValue(defId, myFaction) {
+// With faction decks a rival card can't be played at all: discard it first.
+function handValue(defId, myFaction, deckMode) {
   const d = DEFS[defId];
   if (!d) return 0;
+  if (deckMode === 'faction' && myFaction && d.faction && d.faction !== 'neutral' && d.faction !== myFaction) return 0.5;
   switch (d.type) {
     case 'instant': return d.uncounterable ? 6 : 5;
     case 'magical': {
@@ -103,7 +105,7 @@ function decideChoose(view, difficulty) {
     const n = pr.n || 1;
     const cands = [...pr.candidates];
     const myHand = view.hands[view.you] || [];
-    const valOf = (iid) => handValue((myHand.find((c) => c.iid === iid) || {}).defId, me(view).faction);
+    const valOf = (iid) => handValue((myHand.find((c) => c.iid === iid) || {}).defId, me(view).faction, view.settings?.deckMode);
     // Optional "pay a card" prompts (phoenix save, discard-to-steal, …):
     // pay with the cheapest card unless everything left is precious.
     if (pr.canSkip) {
@@ -163,7 +165,7 @@ function decideChoose(view, difficulty) {
   }
 
   if (pr.kind === 'pickList') {
-    const valued = pr.candidates.map((c) => ({ iid: c.iid, v: handValue(c.defId, me(view).faction) }));
+    const valued = pr.candidates.map((c) => ({ iid: c.iid, v: handValue(c.defId, me(view).faction, view.settings?.deckMode) }));
     const best = valued.reduce((a, b) => (a.v >= b.v ? a : b));
     return { type: 'choose', value: chance(sloppy) ? rand(pr.candidates).iid : best.iid };
   }

@@ -56,6 +56,13 @@ project) over classic take-that card-game mechanics.
   only its own faction’s cards are shuffled back in. Each pile keeps its own
   deck-out count — the game ends when any one pile has run dry twice, and the
   keeper with the most creatures wins.
+- **You play only your own faction’s cards.** A rival card that lands in your
+  hand (stolen, traded, taken) is marked *Rival* and cannot be played — not
+  even an instant. It can still be discarded or traded away. Effects that pick
+  a card from the discard pile for your hand only offer your own faction’s.
+- **At most 3 keepers per faction** with faction decks, so no pile is drained
+  by a crowd (eight seats still fit, 3/3/2). The lobby shows *n/3* per faction
+  and links to *Browse your deck* — the codex filtered to your faction.
 - **Shared deck (classic)** — host setting: one mixed 302-card pile for
   everyone, neutral Magic included, as the game was played before.
 
@@ -90,6 +97,22 @@ card rather than only at the lobby. Harmony is ported from it. Saved rooms from
 that engine are not readable here — see `SCHEMA` in `worker/src/engine.js`.
 
 ---
+
+## Bot soak test and balance report
+
+`npm test` in `worker/` also plays 300 seeded bot-only games (both deck modes,
+2–8 seats) and fails on a crash, a stuck or endless game, a card in two
+places, or a bot move the engine rejects. For more:
+
+```bash
+cd worker
+npm run soak -- 1000 faction hard   # games, deck mode, bot difficulty
+npm run balance                     # win share per faction, hard bots, shuffled seats
+```
+
+`balance` plays head-to-heads plus 3- and 6-seat tables; a fair faction wins
+1/seats of the time. Gaps under ~3 points are noise, and bots play some cards
+worse than people do — treat it as a pointer, not a verdict.
 
 ## Local development
 

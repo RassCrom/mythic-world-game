@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { BABY_COUNT, BABY_IDS, DEFS, FACTION_IDS, buildDeckList } from '../../shared/cards.js';
 import {
+  addBotPlayer,
   addPlayer,
   choose,
   createGame,
@@ -983,4 +984,61 @@ test('a placeholder name follows its keeper to a new faction; a chosen name stay
   assert.deepEqual(setFaction(game, named, 'dragon'), {});
   assert.deepEqual(setFaction(game, named, 'llama'), {});
   assert.equal(playerOf(game, named).name, 'Dragon Slayer');
+});
+
+test('faction decks: a rival card in your hand cannot be played, not even an instant', () => {
+  const game = createGame('RIVAL');
+  const first = addPlayer(game, { token: 'first', name: 'Aster' }).playerId; // dragon
+  const second = addPlayer(game, { token: 'second', name: 'Bramble' }).playerId; // unicorn
+  const originalRandom = Math.random;
+  Math.random = () => 0;
+  try { assert.deepEqual(startGame(game, first), {}); } finally { Math.random = originalRandom; }
+  assert.equal(activePlayer(game).id, first);
+
+  // Bramble's whole hand is unicorn cards; hand one of them to Aster.
+  const rivalCard = playerOf(game, second).hand.find((iid) => DEFS[game.inst[iid]].type !== 'instant');
+  playerOf(game, second).hand = playerOf(game, second).hand.filter((iid) => iid !== rivalCard);
+  playerOf(game, first).hand.push(rivalCard);
+  assert.ok(!viewFor(game, first).playable.includes(rivalCard), 'not offered as playable');
+  assert.deepEqual(playCard(game, first, rivalCard), { error: 'With faction decks you can only play your own faction’s cards.' });
+
+  // A rival instant does not open a response window for its holder either.
+  const neigh = playerOf(game, second).hand.find((iid) => DEFS[game.inst[iid]].type === 'instant')
+    ?? game.piles.unicorn.find((iid) => DEFS[game.inst[iid]].type === 'instant');
+  game.piles.unicorn = game.piles.unicorn.filter((iid) => iid !== neigh);
+  playerOf(game, second).hand = playerOf(game, second).hand.filter((iid) => DEFS[game.inst[iid]].type !== 'instant');
+  playerOf(game, first).hand = playerOf(game, first).hand.filter((iid) => DEFS[game.inst[iid]].type !== 'instant');
+  playerOf(game, second).hand.push(rivalCard);
+  playerOf(game, first).hand = playerOf(game, first).hand.filter((iid) => iid !== rivalCard);
+  playerOf(game, second).hand.push(game.piles.dragon.find((iid) => DEFS[game.inst[iid]].type === 'instant'));
+  const mine = viewFor(game, first).playable[0];
+  assert.ok(mine, 'Aster has a card to play');
+  assert.deepEqual(playCard(game, first, mine), {});
+  assert.equal(game.window, null, 'Bramble holds only a rival Roar!, so nobody is asked to respond');
+});
+
+test('the classic shared deck still lets you play any faction’s card', () => {
+  const { game, first } = startedGame();
+  const unicornBasic = Object.keys(DEFS).find((id) => DEFS[id].type === 'basic' && DEFS[id].faction === 'unicorn');
+  const unicornCard = putInActiveHand(game, unicornBasic); // the active keeper is a dragon
+  assert.ok(viewFor(game, first).playable.includes(unicornCard));
+});
+
+test('faction decks: at most three keepers per faction', () => {
+  const game = createGame('CROWD');
+  const host = addPlayer(game, { token: 'host', name: 'Host' }).playerId;
+  const ids = [host, ...['b', 'c', 'd'].map((token) => addPlayer(game, { token, name: token }).playerId)];
+  // Seats rotate dragon, unicorn, llama, dragon: one more dragon makes three.
+  assert.deepEqual(setFaction(game, ids[1], 'dragon'), {});
+  assert.match(setFaction(game, ids[2], 'dragon').error, /already has 3 keepers/);
+  assert.match(addBotPlayer(game, host, 'easy', 'dragon').error, /already has 3 keepers/);
+
+  // The classic shared deck has no cap, but switching back to faction decks
+  // with four dragons is refused until someone changes sides.
+  assert.deepEqual(setSettings(game, host, { deckMode: 'shared' }), {});
+  assert.deepEqual(setFaction(game, ids[2], 'dragon'), {});
+  assert.match(setSettings(game, host, { deckMode: 'faction' }).error, /3 keepers per faction/);
+  assert.deepEqual(setFaction(game, ids[2], 'llama'), {});
+  assert.deepEqual(setSettings(game, host, { deckMode: 'faction' }), {});
+  assert.deepEqual(startGame(game, host), {});
 });

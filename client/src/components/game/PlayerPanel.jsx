@@ -79,6 +79,7 @@ export default function PlayerPanel({ player, view, isMe, pickable, onPick, onCa
                 onInspect={onInspect}
                 onInspectEnd={onInspectEnd}
                 touchInspectFirst={isCandidate}
+                actionVerb={isCandidate ? t('Choose') : undefined}
               />
             );
           })}

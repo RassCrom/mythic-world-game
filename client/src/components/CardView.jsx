@@ -149,6 +149,7 @@ function CardBackArt() {
 export default function CardView({
   defId, cardDef, faceDown, onClick, onInspect, onInspectEnd, actionLabel, glow, selected, dimmed, small, mini,
   suppressed, toad, wild, tamed, stopped, count, title, iid, style, touchInspectFirst, backFaction,
+  actionVerb, // short word on the touch action button ("Play", "Choose"); a chevron when absent
 }) {
   const { t, card } = useI18n();
   const [imgOk, setImgOk] = useState(true);
@@ -310,7 +311,7 @@ export default function CardView({
           />
           <button
             type="button"
-            className="card-touch-action"
+            className={`card-touch-action ${actionVerb ? 'has-verb' : ''}`}
             onClick={(event) => {
               event.stopPropagation();
               onInspectEnd?.(defId);
@@ -319,9 +320,11 @@ export default function CardView({
             aria-label={actionLabel || t('Select {card}', { card: def.name })}
             title={actionLabel || t('Select {card}', { card: def.name })}
           >
-            <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true">
-              <path d="m8 5 7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            {actionVerb ? <span aria-hidden="true">{actionVerb}</span> : (
+              <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true">
+                <path d="m8 5 7 7-7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
           </button>
         </>
       )}

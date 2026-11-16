@@ -4,6 +4,7 @@ import App from './App.jsx';
 import { LanguageProvider } from './i18n/index.jsx';
 import './styles.css';
 import './styles/cursors.css';
+import './styles/battle.css'; // clarity layer for the battle screen — keep last
 import { initAudioOnGesture } from './sound.js';
 import { initializePreferences } from './preferences.js';
 

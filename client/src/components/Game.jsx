@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CardView, { TypeGlyph } from './CardView.jsx';
-import { DEFS, FACTIONS } from '../../../shared/cards.js';
+import { BABY_IDS, DEFS, FACTIONS } from '../../../shared/cards.js';
 import { sfx, isMuted, setMuted } from '../sound.js';
 import { useI18n } from '../i18n/index.jsx';
 import ChronicleEntry from './game/ChronicleEntry.jsx';
@@ -17,7 +17,7 @@ import BattlefieldAmbience from './game/BattlefieldAmbience.jsx';
 import SceneVideo from './SceneVideo.jsx';
 import { BATTLEFIELDS, loadPreferences } from '../preferences.js';
 
-export default function Game({ view, send, onLeave }) {
+export default function Game({ view, send, onLeave, onOpenCodex }) {
   const { t, text, card } = useI18n();
   const [selected, setSelected] = useState([]); // multi-select for pickHand n>1
   const [pendingTarget, setPendingTarget] = useState(null); // hand card awaiting a stable choice
@@ -26,6 +26,7 @@ export default function Game({ view, send, onLeave }) {
   const [poppedIid, setPoppedIid] = useState(null); // hand card lifted out of the fan
   const [muted, setMutedState] = useState(isMuted());
   const logEndRef = useRef(null);
+  const handRef = useRef(null);
 
   useCardFlight(view);
   const { turnFlash, playedFlash } = useTableFeedback(view);
@@ -57,6 +58,26 @@ export default function Game({ view, send, onLeave }) {
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ block: 'end' });
   }, [view.log, showLog]);
+
+  // On a narrow screen the hand scrolls sideways. When a decision opens, bring
+  // the first card you can act on into view so it's never hiding off-screen.
+  const decisionKey = [view.window?.canRespond, myPrompt?.kind, myPrompt?.title, isMyTurn && view.canDraw, (view.playable || []).join(',')].join('|');
+  useEffect(() => {
+    // Wait for the dealt cards to settle into the fan before measuring.
+    const timer = setTimeout(() => {
+      const hand = handRef.current;
+      if (!hand || hand.scrollWidth <= hand.clientWidth + 4) return;
+      const target = hand.querySelector('.fan-slot.is-clickable');
+      if (!target) return;
+      const shown = target.offsetLeft >= hand.scrollLeft &&
+        target.offsetLeft + target.offsetWidth <= hand.scrollLeft + hand.clientWidth;
+      if (shown) return;
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const left = target.offsetLeft - (hand.clientWidth - target.offsetWidth) / 2;
+      hand.scrollTo({ left: Math.max(0, left), behavior: reduce ? 'auto' : 'smooth' });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [decisionKey]);
 
   // Reset transient selections when the server state moves on.
   useEffect(() => { setSelected([]); }, [prompt && prompt.kind, prompt && prompt.title]);
@@ -140,24 +161,49 @@ export default function Game({ view, send, onLeave }) {
 
   const opponents = view.players.filter((p) => p.id !== view.you);
 
-  const statusLine = (() => {
+  // The top bar answers two questions in this order: whose move is it, and
+  // what should I do right now? A short headline, then one plain hint.
+  const status = (() => {
+    const shout = t({ unicorn: 'Neigh!', llama: 'Spit!' }[me?.faction] || 'Roar!');
     if (view.winner) {
-      return view.settings?.factionWar && view.winner.faction
-        ? t('The {faction} win!', { faction: t(FACTIONS[view.winner.faction].name) })
-        : t('{name} wins!', { name: view.winner.name });
+      return {
+        title: view.settings?.factionWar && view.winner.faction
+          ? t('The {faction} win!', { faction: t(FACTIONS[view.winner.faction].name) })
+          : t('{name} wins!', { name: view.winner.name }),
+        hint: '',
+      };
     }
     if (view.window) {
+      const title = t('{player} plays {card}', { player: view.window.topPlayer, card: text(view.window.topName) });
       return view.window.canRespond
-        ? t('{player} is playing {card} — {shout} or pass!', { player: view.window.topPlayer, card: text(view.window.topName), shout: t({ unicorn: 'NEIGH', llama: 'SPIT' }[me?.faction] || 'ROAR') })
-        : t('Waiting for responses to {card}… ({players})', { card: text(view.window.topName), players: view.window.awaiting.join(', ') });
+        ? { title, hint: t('Stop it with a glowing {shout} card, or Pass to let it happen.', { shout }), you: true }
+        : { title, hint: t('Waiting for {players} to respond…', { players: view.window.awaiting.join(', ') }) };
     }
-    if (prompt && !prompt.mine) return `${prompt.waitingOn} ${text(prompt.title)}`;
-    if (myPrompt) return text(myPrompt.title);
+    if (prompt && !prompt.mine) return { title: t('{name} is choosing…', { name: prompt.waitingOn }), hint: '' };
+    if (myPrompt) {
+      const hint = {
+        pickHand: (myPrompt.n || 1) > 1
+          ? t('Pick {n} glowing cards in your hand, then Confirm.', { n: myPrompt.n })
+          : t('Pick a glowing card in your hand.'),
+        pickCard: t('Pick a glowing card on the table.'),
+        pickPlayer: t('Pick a highlighted stable.'),
+        pickList: t('Pick one card from the list.'),
+        yesno: t('Answer in the window.'),
+      }[myPrompt.kind] || '';
+      return { title: text(myPrompt.title), hint: myPrompt.canSkip ? `${hint} ${t('You can skip it.')}`.trim() : hint, you: true };
+    }
+    if (pendingTarget) return { title: t('Choose a stable'), hint: t('Pick the highlighted stable to put the card there.'), you: true };
     if (isMyTurn && view.turn.phase === 'action' && view.canDraw) {
-      return t(`Your turn — play a card or draw ({count} action${view.turn.actions === 1 ? '' : 's'} left)`, { count: view.turn.actions });
+      return {
+        title: view.turn.actions > 1 ? t('Your turn · {count} actions', { count: view.turn.actions }) : t('Your turn'),
+        hint: t('Play a glowing card from your hand — or press Draw to take a card and end your turn.'),
+        you: true,
+      };
     }
-    if (isMyTurn) return t('Your turn — {phase} phase', { phase: t(PHASE_LABEL[view.turn.phase]) });
-    return view.turn ? t("{name}'s turn — {phase} phase", { name: view.turn.playerName, phase: t(PHASE_LABEL[view.turn.phase]) }) : '';
+    if (isMyTurn) return { title: t('Your turn'), hint: t('{phase} phase…', { phase: t(PHASE_LABEL[view.turn.phase]) }), you: true };
+    return view.turn
+      ? { title: t("{name}'s turn", { name: view.turn.playerName }), hint: t('{phase} phase — watch the table.', { phase: t(PHASE_LABEL[view.turn.phase]) }) }
+      : { title: '', hint: '' };
   })();
 
   /* ---------- render ---------- */
@@ -188,10 +234,18 @@ export default function Game({ view, send, onLeave }) {
         </button>
         <div className="topbar-mid">
           {/* <span className="topbar-code" title={t('Room code')}>{t('Realm {code}', { code: view.code })}</span> */}
-          <span className={`topbar-status ${isMyTurn && !view.winner ? 'is-you' : ''}`}>{statusLine}</span>
+          <p className={`topbar-status ${status.you ? 'is-you' : ''}`} role="status" aria-live="polite">
+            <strong className="status-title">{status.title}</strong>
+            {status.hint && <span className="status-hint">{status.hint}</span>}
+          </p>
         </div>
         <TurnTracker turn={view.turn} isMyTurn={isMyTurn} />
         <div className="topbar-actions">
+          {onOpenCodex && (
+            <button className="icon-button" onClick={onOpenCodex} aria-label={t('Open the card codex')} title={t('Cards')}>
+              <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true"><path d="M4 5.5C6.5 4.5 9.5 4.5 12 6c2.5-1.5 5.5-1.5 8-.5V19c-2.5-1-5.5-1-8 .5-2.5-1.5-5.5-1.5-8-.5V5.5ZM12 6v13.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          )}
           <button className="icon-button" onClick={() => setShowLog((v) => !v)} aria-pressed={showLog} aria-label={t('Open game chronicle')} title={t('Chronicle')}>
             <svg viewBox="0 0 24 24" className="glyph" aria-hidden="true"><path d="M5 3h11a3 3 0 0 1 3 3v15H7a3 3 0 0 1-3-3V4a1 1 0 0 1 1-1Zm2 14h12M8 7h7M8 11h7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
@@ -253,8 +307,9 @@ export default function Game({ view, send, onLeave }) {
 
           <div className="pile pile-nest" title={t('The Nest — {count} Babies', { count: view.nestCount })}>
             <div className="nest-stack">
-              <CardView defId={me?.faction === 'unicorn' ? 'baby_dragon' : 'baby_unicorn'} small onInspect={showCardPreview} onInspectEnd={hideCardPreview} />
-              <CardView defId={me?.faction === 'unicorn' ? 'baby_unicorn' : 'baby_dragon'} small onInspect={showCardPreview} onInspectEnd={hideCardPreview} />
+              {/* Your own faction's Baby on top: that's the one you hatch. */}
+              <CardView defId={me?.faction === 'dragon' ? 'baby_unicorn' : 'baby_dragon'} small onInspect={showCardPreview} onInspectEnd={hideCardPreview} />
+              <CardView defId={BABY_IDS[me?.faction] || 'baby_dragon'} small onInspect={showCardPreview} onInspectEnd={hideCardPreview} />
             </div>
             <span className="nest-count">{view.nestCount}</span>
             <span className="pile-label">{t('The Nest')}</span>
@@ -320,6 +375,7 @@ export default function Game({ view, send, onLeave }) {
         aria-label={t('Your hand')}
       >
         <div
+          ref={handRef}
           className="hand"
           role="group"
           aria-label={t('Your hand, {count} cards', { count: myHand.length })}
@@ -335,7 +391,7 @@ export default function Game({ view, send, onLeave }) {
             return (
               <div
                 key={c.iid}
-                className={`fan-slot ${poppedIid === c.iid ? 'is-popped' : ''} ${foreign ? 'is-foreign' : ''}`}
+                className={`fan-slot ${poppedIid === c.iid ? 'is-popped' : ''} ${foreign ? 'is-foreign' : ''} ${clickable ? 'is-clickable' : ''}`}
                 style={{ '--k': i - (myHand.length - 1) / 2, zIndex: i + 1 }}
                 title={foreign ? t('Rival card — you can only play your own faction’s cards') : undefined}
               >
@@ -351,6 +407,7 @@ export default function Game({ view, send, onLeave }) {
                   onInspect={(id, event) => { setPoppedIid(c.iid); showCardPreview(id, event); }}
                   onInspectEnd={(id) => { setPoppedIid((cur) => (cur === c.iid ? null : cur)); hideCardPreview(id); }}
                   touchInspectFirst={clickable}
+                  actionVerb={clickable ? t(inPrompt ? 'Choose' : 'Play') : undefined}
                   actionLabel={clickable
                     ? `${t(inPrompt ? 'Choose' : 'Play')} ${card(c.defId).name}`
                     : t('Read {card}', { card: card(c.defId).name })}

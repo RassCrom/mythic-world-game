@@ -81,7 +81,7 @@ function RailScore({ name, creatures, goal, faction, isTurn, isYou }) {
       aria-label={t('{name}: {count} of {goal} creatures', { name, count: creatures, goal })}
     >
       <span className="rail-score-name">{name}</span>
-      <strong aria-hidden="true">{creatures}</strong>
+      <strong aria-hidden="true">{creatures}<small>/{goal}</small></strong>
       {pips ? (
         <span className="rail-pips" aria-hidden="true">
           {Array.from({ length: pips }, (_, index) => (
